@@ -83,6 +83,78 @@ function findRowNumberByLabel(ws: ExcelJS.Worksheet, label: string): number | nu
   return found;
 }
 
+function findRowMatching(ws: ExcelJS.Worksheet, pattern: RegExp): number | null {
+  let found: number | null = null;
+  ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (found !== null) return;
+    const label = cellText(row.getCell(LABEL_COL).value);
+    if (label && pattern.test(label)) found = rowNumber;
+  });
+  return found;
+}
+
+/**
+ * Extracción posicional de contactos — NO usa el mapa plano de etiquetas
+ * (buildLabelMap) porque plantillas antiguas (hallazgo real: "Versión
+ * 25-05-21", proyecto "Parque Eólico Esmeralda" / Colbún) repiten la misma
+ * etiqueta genérica ("e-mail", "Nombre coordinador de proyecto (3)") para el
+ * representante legal y ambos coordinadores, sin el sufijo "primer"/"segundo"
+ * que sí trae la plantilla nueva (2504-FORM-*-V1) — un Map<etiqueta,valor> las
+ * va pisando entre sí y termina asignando el email del último contacto leído
+ * a los tres roles. Aquí se ancla en los encabezados de sección y se camina
+ * fila por fila en orden: dentro de "Contacto de Representante Legal" el
+ * primer "Nombre.../e-mail.../Teléfono..." que aparece es del representante;
+ * dentro de "Coordinadores de proyecto(s)" cada fila "Nombre..." abre un
+ * contacto nuevo (1° = coordinador 1, 2° = coordinador 2), y las filas
+ * "e-mail.../Teléfono..." siguientes le pertenecen hasta la próxima "Nombre...".
+ */
+function parseContactsBlock(ws: ExcelJS.Worksheet): FormularioContact[] {
+  const repHeaderRow = findRowNumberByLabel(ws, "Contacto de Representante Legal");
+  const coordHeaderRow = findRowMatching(ws, /^Coordinadores de proyecto/i);
+  if (!repHeaderRow || !coordHeaderRow) return [];
+  const sectionEndRow = findRowMatching(ws, /^Antecedentes del Proyecto/i) ?? ws.rowCount + 1;
+
+  const contacts: FormularioContact[] = [];
+
+  let legalName: string | null = null;
+  let legalEmail: string | null = null;
+  let legalPhone: string | null = null;
+  for (let r = repHeaderRow + 1; r < coordHeaderRow; r++) {
+    const row = ws.getRow(r);
+    const label = cellText(row.getCell(LABEL_COL).value);
+    if (!label) continue;
+    const value = cellText(row.getCell(VALUE_COL).value);
+    if (/^Nombre/i.test(label)) legalName = value;
+    else if (/^e-?mail/i.test(label)) legalEmail = value;
+    else if (/^Tel[ée]fono/i.test(label)) legalPhone = value;
+  }
+  if (legalName) contacts.push({ role: "legal_representative", name: legalName, email: legalEmail, phone: legalPhone });
+
+  const coordRoles: FormularioContact["role"][] = ["project_coordinator_1", "project_coordinator_2"];
+  type CoordDraft = { name: string | null; email: string | null; phone: string | null };
+  const coordinators: CoordDraft[] = [];
+  let current: CoordDraft | null = null;
+  for (let r = coordHeaderRow + 1; r < sectionEndRow; r++) {
+    const row = ws.getRow(r);
+    const label = cellText(row.getCell(LABEL_COL).value);
+    if (!label) continue;
+    const value = cellText(row.getCell(VALUE_COL).value);
+    if (/^Nombre/i.test(label)) {
+      current = { name: value, email: null, phone: null };
+      coordinators.push(current);
+    } else if (/^e-?mail/i.test(label) && current) {
+      current.email = value;
+    } else if (/^Tel[ée]fono/i.test(label) && current) {
+      current.phone = value;
+    }
+  }
+  coordinators.slice(0, 2).forEach((c, i) => {
+    if (c.name) contacts.push({ role: coordRoles[i], name: c.name, email: c.email, phone: c.phone });
+  });
+
+  return contacts;
+}
+
 /**
  * Bloque "Ubicación Geográfica..." de la plantilla: 2 filas después del encabezado
  * vienen Huso/Este/Norte, y 1 fila más abajo, Comuna/Región — mismo patrón para
@@ -136,26 +208,7 @@ export async function parseFormularioExcel(filePath: string): Promise<Formulario
     companyName: get("Razón Social (1)"),
     companyRut: get("RUT"),
     companyLegalAddress: get("Domicilio Legal"),
-    contacts: [
-      {
-        role: "legal_representative",
-        name: get("Nombre del Representante Legal (2)"),
-        email: get("e-mail"),
-        phone: get("Teléfono"),
-      },
-      {
-        role: "project_coordinator_1",
-        name: get("Nombre primer coordinador de proyecto (3)"),
-        email: get("e-mail primer coordinador"),
-        phone: get("Teléfono primer coordinador"),
-      },
-      {
-        role: "project_coordinator_2",
-        name: get("Nombre segundo coordinador de proyecto (3)"),
-        email: get("e-mail segundo coordinador"),
-        phone: get("Teléfono segundo coordinador"),
-      },
-    ].filter((c): c is FormularioContact => Boolean(c.name)),
+    contacts: parseContactsBlock(ws),
 
     projectName: get("Nombre del Proyecto"),
     projectKind: get("Tipo de proyecto"),
