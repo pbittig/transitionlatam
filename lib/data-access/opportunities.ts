@@ -21,7 +21,6 @@ export async function getOpportunityBoard(client: SupabaseClient): Promise<Oppor
   const { data, error } = await client
     .from("opportunity")
     .select("id, stage, opportunity_type, description, owner_name, next_step, next_step_at, last_contacted_at, project:project_id(id, name), company:company_id(id, name), person:person_id(id, full_name)")
-    .not("stage", "in", "(cierre_ganado,cierre_perdido)")
     .order("next_step_at", { ascending: true, nullsFirst: false })
     .limit(100);
   // Hasta que se aplique la migración comercial, la tabla existente no tiene
