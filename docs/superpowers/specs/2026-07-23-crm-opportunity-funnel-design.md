@@ -96,6 +96,16 @@ Mismo patrón que `FollowButton`/`toggleFollow` (`app/(public)/proyectos/[id]/Fo
   por un link "Ver en CRM →" hacia `/crm#opportunity-{id}` en vez de permitir duplicar.
   Si la única oportunidad previa está cerrada, se permite crear una nueva (reapertura).
 
+### También en la tabla de Proyectos futuros (no solo en la ficha)
+
+Mismo componente `AddToCrmButton` (ícono compacto, sin texto, para que quepa en una
+fila de tabla), agregado como columna nueva en `ProjectTable.tsx` — la misma tabla que
+ya usa `/proyectos-esperados`. Requiere que `listProjects()` traiga, además de lo que ya
+trae hoy, `developerCompanyId` y si cada proyecto ya tiene una oportunidad activa (una
+sola consulta extra a `opportunity` con `.in("project_id", idsDeEstaPágina)` sobre los
+20 IDs de la página actual, no un N+1). Mismo estado "ya agregado" que en la ficha
+(ícono distinto + link a `/crm` en vez de duplicar).
+
 ## C. Buscador dentro de `/crm`
 
 Un input de texto arriba del tablero (client component `OpportunitySearch.tsx`), filtra
@@ -145,7 +155,7 @@ combina con los filtros existentes (tecnología, búsqueda) con lógica AND.
   `get_pipeline_funnel()` — es un concepto totalmente distinto al funnel *comercial* de
   este documento, aunque comparten la palabra "funnel".
 - El buscador de C no busca proyectos que **no** están en el CRM — para eso está el
-  botón de B, desde la ficha del proyecto.
+  botón de B, desde la ficha del proyecto o la tabla de Proyectos futuros.
 - No se agrega edición inline de `owner_name`/`next_step` en las tarjetas del tablero —
   eso ya existe vía el formulario "Nueva oportunidad" y queda igual.
 - El filtro de etapa de D es de solo lectura (no se puede fijar manualmente una etapa
@@ -156,7 +166,10 @@ combina con los filtros existentes (tecnología, búsqueda) con lógica AND.
 - `npx tsc --noEmit` limpio.
 - Migración: correr contra una copia de la base (o verificar manualmente que no haya
   filas con `stage` fuera de las 7 nuevas después del `UPDATE`).
-- Manual: agregar un proyecto al CRM desde su ficha, confirmar que aparece en la columna
-  "Contacto" de `/crm`; mover una tarjeta por las 7 etapas; buscar en el tablero;
-  filtrar Proyectos futuros por cada una de las 5 opciones de etapa y confirmar que la
-  cuenta de resultados baja de forma razonable.
+- Manual: agregar un proyecto al CRM desde su ficha y desde la tabla de Proyectos
+  futuros (los dos puntos de entrada), confirmar que aparece en la columna "Contacto" de
+  `/crm` y que el otro punto de entrada ahora lo muestra como "ya agregado"; mover una
+  tarjeta por las 7 etapas; confirmar que el tablero muestra las 7 columnas incluso sin
+  ninguna oportunidad cargada; buscar en el tablero; filtrar Proyectos futuros por cada
+  una de las 5 opciones de etapa y confirmar que la cuenta de resultados baja de forma
+  razonable.
