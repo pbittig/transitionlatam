@@ -3,7 +3,19 @@ import type { FormularioData } from "./types";
 
 const EMPTY_LOCATION = { utmZone: null, utmEast: null, utmNorth: null, comuna: null, region: null };
 
-const SYSTEM_PROMPT = `Extraes datos estructurados de un formulario de ingreso de proyecto del Coordinador Eléctrico \
+// Patrón de RUT chileno (NN.NNN.NNN-D) — inconfundible, a diferencia de nombres/
+// teléfonos. Hallazgo real ("BESS Parque Fotovoltaico El Romero"): el RUT
+// aparece varias líneas ANTES de su propia etiqueta "RUT" en el texto
+// desordenado del PDF, y la IA a veces no logra asociarlos. Como red de
+// seguridad, si la IA devuelve null, se busca el patrón directamente.
+const RUT_PATTERN = /\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b/;
+
+function extractRutFallback(rawText: string): string | null {
+  const match = rawText.match(RUT_PATTERN);
+  return match ? match[0] : null;
+}
+
+export const SYSTEM_PROMPT = `Extraes datos estructurados de un formulario de ingreso de proyecto del Coordinador Eléctrico \
 Nacional de Chile — "Solicitud de Autorización de Conexión (SAC)" o "Ingreso Proyecto Fehaciente" (mismos campos, \
 distinto trámite) — a partir de texto plano extraído de un PDF cuyo orden de lectura puede estar desordenado \
 respecto al layout visual original (nombres, teléfonos y correos pueden aparecer separados en el texto aunque \
@@ -30,9 +42,13 @@ almacenamiento" (tres campos: Potencia [MW], Energía [MWh], Horas de almacenami
 estos encabezados, usa esos valores para generationComponentMw/storageComponentMw/storageEnergyMwh/storageHours.
 2. Plantillas viejas (ej. versión "07-06-21"): NO traen esa sección separada — solo hay un campo "Potencia \
 Nominal [MW]" general, sin distinguir generación de almacenamiento. Cuando NO encuentres los encabezados \
-"Componente generación"/"Componente de almacenamiento" en el texto, deja generationComponentMw y \
-storageComponentMw en null — nunca reasignes el valor de "Potencia Nominal" a uno de los dos componentes, \
-sería inventar una distinción que el documento no hace.
+"Componente generación"/"Componente de almacenamiento" en el texto: si el tipo de tecnología indica \
+almacenamiento puro (ej. "BESS", "Baterías", "Almacenamiento", sin ningún componente de generación como \
+solar/eólica/hidro/térmica mencionado junto), asigna ese valor único a storageComponentMw y deja \
+generationComponentMw en null (criterio confirmado — hallazgo real: "BESS Parque Fotovoltaico El Romero", \
+Potencia Nominal 196 MW, tecnología "BESS (almacenamiento)"). Si el tipo de tecnología es de generación pura o \
+no queda claro cuál es, deja ambos (generationComponentMw y storageComponentMw) en null — nunca inventes una \
+distinción que el documento no permite verificar.
 
 Tu tarea: reconstruir correctamente qué nombre corresponde a qué teléfono y qué correo, usando el contexto \
 (el orden en que aparecen las secciones, los dominios de correo compartidos entre personas de la misma \
@@ -74,10 +90,18 @@ export async function extractFormularioWithAi(rawText: string): Promise<Formular
   const raw = await completeWithNemotron(SYSTEM_PROMPT, rawText, { jsonMode: true, maxTokens: 7000 });
   const parsed = JSON.parse(raw) as Record<string, unknown>;
 
+  // La IA a veces devuelve un valor con forma incorrecta para companyRut (hallazgo
+  // real: confundió la "Fecha de solicitud" del checklist de verificación,
+  // "16-02-2024", con el RUT). Un valor con forma equivocada es peor que null —
+  // parece válido pero es basura — así que se valida contra el patrón antes de
+  // aceptarlo, y si no calza se usa el fallback por regex sobre el texto crudo.
+  const aiRut = (parsed.companyRut as string) ?? null;
+  const validAiRut = aiRut && RUT_PATTERN.test(aiRut) ? aiRut : null;
+
   return {
     templateVersion: null,
     companyName: (parsed.companyName as string) ?? null,
-    companyRut: (parsed.companyRut as string) ?? null,
+    companyRut: validAiRut ?? extractRutFallback(rawText),
     companyLegalAddress: (parsed.companyLegalAddress as string) ?? null,
     contacts: Array.isArray(parsed.contacts) ? (parsed.contacts as FormularioData["contacts"]) : [],
 

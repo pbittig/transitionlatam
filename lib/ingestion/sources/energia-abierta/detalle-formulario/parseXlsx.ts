@@ -24,9 +24,21 @@ function cellText(value: ExcelJS.CellValue): string | null {
   return s.length > 0 ? s : null;
 }
 
+/**
+ * Algunos campos numéricos vienen con la unidad pegada al valor ("2,5 MW",
+ * "10 MWh") y con coma como separador decimal (formato chileno: "2,5" = 2.5,
+ * no 25) — hallazgo real, proyecto "BESS Espiga De Oro". `Number()` sobre el
+ * texto crudo devuelve NaN en ambos casos y el campo se pierde en silencio.
+ */
 function cellNumber(value: ExcelJS.CellValue): number | null {
-  const s = cellText(value);
-  if (s === null) return null;
+  const raw = cellText(value);
+  if (raw === null) return null;
+  let s = raw.replace(/\s*(MWh|MW|MVA|kWh|kW|kV)\s*$/i, "").trim();
+  if (s.includes(",") && s.includes(".")) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (s.includes(",")) {
+    s = s.replace(",", ".");
+  }
   const n = Number(s);
   return Number.isNaN(n) ? null : n;
 }
