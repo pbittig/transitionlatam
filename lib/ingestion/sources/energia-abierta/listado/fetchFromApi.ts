@@ -81,8 +81,13 @@ export function normalizeApiRow(raw: RawApiSolicitud): NormalizedProject {
   const projectName = raw.proyecto || `Solicitud ${raw.id}`;
   const baseTechnologyCode = normalizeTechnology(tipoTecnologia);
   const baseIncludesStorage = normalizeIncludesStorage(tipoTecnologia, baseTechnologyCode);
-  const { technologyCode, includesStorage } = applyNameBasedStorageOverride(projectName, baseTechnologyCode, baseIncludesStorage);
-  const projectKind = normalizeProjectKind(raw.tipo_proyecto_nombre);
+  const baseProjectKind = normalizeProjectKind(raw.tipo_proyecto_nombre);
+  const { technologyCode, includesStorage, projectKind } = applyNameBasedStorageOverride(
+    projectName,
+    baseTechnologyCode,
+    baseIncludesStorage,
+    baseProjectKind,
+  );
 
   const asRawRow: RawSolicitudRow = {
     id: raw.id,

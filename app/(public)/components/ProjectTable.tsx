@@ -31,7 +31,7 @@ export function ProjectTable({
             <th className="px-4 py-3 font-medium">Proyecto</th>
             <th className="px-4 py-3 font-medium">Empresa</th>
             <th className="px-4 py-3 font-medium">Región</th>
-            <th className="px-4 py-3 text-right font-medium">MW</th>
+            <th className="px-4 py-3 text-right font-medium">MW / MWh</th>
             {seiaByProjectId && <th className="px-4 py-3 font-medium">Estado ambiental (SEIA)</th>}
             <th className="px-4 py-3 font-medium">Estado de proceso de conexión</th>
             <th className="px-4 py-3 font-medium">Fecha conexión</th>
@@ -70,10 +70,10 @@ export function ProjectTable({
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
                   {p.capacityMw !== null ? Math.round(p.capacityMw).toLocaleString("es-CL") : "—"}
-                  {p.includesStorage && p.capacityMwh !== null && (
-                    <span className="ml-1 text-xs text-neutral-400 dark:text-neutral-500">
-                      · {Math.round(p.capacityMwh).toLocaleString("es-CL")} MWh
-                    </span>
+                  {p.includesStorage && (
+                    <div className="text-xs text-neutral-400 dark:text-neutral-500">
+                      {p.capacityMwh !== null ? `${Math.round(p.capacityMwh).toLocaleString("es-CL")} MWh` : "— MWh"}
+                    </div>
                   )}
                 </td>
                 {seiaByProjectId && (
