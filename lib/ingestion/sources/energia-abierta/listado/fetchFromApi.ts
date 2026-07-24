@@ -16,7 +16,7 @@
  */
 
 import type { NormalizedProject, RawSolicitudRow } from "./types";
-import { normalizeTechnology, normalizeProjectKind, normalizeIncludesStorage, computeHeadlineCapacity } from "./normalize";
+import { normalizeTechnology, normalizeProjectKind, normalizeIncludesStorage, computeHeadlineCapacity, applyNameBasedStorageOverride } from "./normalize";
 
 const API_BASE = "https://pkb3ax2pkg.execute-api.us-east-2.amazonaws.com/prod/data/public";
 
@@ -78,7 +78,10 @@ function toIsoOrNull(value: string | null): string | null {
  */
 export function normalizeApiRow(raw: RawApiSolicitud): NormalizedProject {
   const tipoTecnologia = raw.tipo_tecnologia_nombre;
-  const technologyCode = normalizeTechnology(tipoTecnologia);
+  const projectName = raw.proyecto || `Solicitud ${raw.id}`;
+  const baseTechnologyCode = normalizeTechnology(tipoTecnologia);
+  const baseIncludesStorage = normalizeIncludesStorage(tipoTecnologia, baseTechnologyCode);
+  const { technologyCode, includesStorage } = applyNameBasedStorageOverride(projectName, baseTechnologyCode, baseIncludesStorage);
   const projectKind = normalizeProjectKind(raw.tipo_proyecto_nombre);
 
   const asRawRow: RawSolicitudRow = {
@@ -110,13 +113,13 @@ export function normalizeApiRow(raw: RawApiSolicitud): NormalizedProject {
 
   return {
     externalId: String(raw.id),
-    projectName: raw.proyecto || `Solicitud ${raw.id}`,
+    projectName,
     nup: raw.nup,
     companyName: asRawRow.empresaSolicitante || "Sin identificar",
     requestType: raw.tipo_solicitud,
     statusLabel: raw.estado_solicitud || "Desconocido",
     technologyCode,
-    includesStorage: normalizeIncludesStorage(tipoTecnologia, technologyCode),
+    includesStorage,
     projectKind,
     capacityMw: computeHeadlineCapacity(projectKind, asRawRow),
     capacityMwh: asRawRow.energiaMwh,

@@ -22,6 +22,34 @@ const TECHNOLOGY_MAP: Record<string, string> = {
 // (distinto de que el proyecto SEA almacenamiento puro, ej. "Almacenamiento"/"Baterías").
 const STORAGE_MODIFIER_MARKERS = ["con baterías", "con bateria"];
 
+// El Coordinador a menudo copia la clasificación de tecnología de la central
+// generadora hermana a la solicitud de su BESS asociado (hallazgo real: "BESS
+// Gran Teno" venía marcado "Solar" en la fuente, igual que su central hermana
+// "PFV Gran Teno" — 378/398 proyectos vigentes con "BESS" en el nombre estaban
+// mal clasificados). El nombre del proyecto es más confiable que ese campo
+// para estos casos.
+const NAME_STORAGE_MARKER = /\bbess\b|\bbateria(s)?\b|\balmacenamiento\b|\bsae\b/;
+const NAME_STARTS_WITH_BESS = /^bess\b/;
+
+/**
+ * "BESS <sitio>" al inicio del nombre indica una solicitud de batería
+ * independiente de su central hermana (no una central híbrida) — se
+ * reclasifica como BESS puro. El resto de los nombres con marcador de
+ * almacenamiento en otra posición ("PV+BESS X", "X Solar-BESS") solo se
+ * marcan con includesStorage — pueden ser una sola solicitud híbrida
+ * genuina y no hay la misma certeza para reclasificar su tecnología base.
+ */
+export function applyNameBasedStorageOverride(
+  projectName: string,
+  technologyCode: string | null,
+  includesStorage: boolean,
+): { technologyCode: string | null; includesStorage: boolean } {
+  const normalizedName = normalizeForMatch(projectName);
+  if (!NAME_STORAGE_MARKER.test(normalizedName)) return { technologyCode, includesStorage };
+  if (NAME_STARTS_WITH_BESS.test(normalizedName)) return { technologyCode: "bess", includesStorage: true };
+  return { technologyCode, includesStorage: true };
+}
+
 const PROJECT_KIND_MAP: Record<string, NormalizedProject["projectKind"]> = {
   "generación": "generation",
   "consumo": "consumption",
@@ -130,16 +158,20 @@ export function computeHeadlineCapacity(
 
 export function normalizeRow(raw: RawSolicitudRow): NormalizedProject {
   const projectKind = normalizeProjectKind(raw.tipoProyecto);
+  const projectName = raw.proyecto || `Solicitud ${raw.id}`;
+  const baseTechnologyCode = normalizeTechnology(raw.tipoTecnologia);
+  const baseIncludesStorage = normalizeIncludesStorage(raw.tipoTecnologia, baseTechnologyCode);
+  const { technologyCode, includesStorage } = applyNameBasedStorageOverride(projectName, baseTechnologyCode, baseIncludesStorage);
 
   return {
     externalId: String(raw.id),
-    projectName: raw.proyecto || `Solicitud ${raw.id}`,
+    projectName,
     nup: raw.nup,
     companyName: raw.empresaSolicitante || "Sin identificar",
     requestType: raw.tipo,
     statusLabel: raw.estadoSolicitud || "Desconocido",
-    technologyCode: normalizeTechnology(raw.tipoTecnologia),
-    includesStorage: normalizeIncludesStorage(raw.tipoTecnologia, normalizeTechnology(raw.tipoTecnologia)),
+    technologyCode,
+    includesStorage,
     projectKind,
     capacityMw: computeHeadlineCapacity(projectKind, raw),
     capacityMwh: raw.energiaMwh,

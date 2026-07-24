@@ -54,6 +54,7 @@ export function ProjectTable({
                   <Link href={`/proyectos/${p.id}`} className="font-medium text-neutral-900 hover:underline dark:text-neutral-50">
                     {p.name}
                   </Link>
+                  <div className="text-xs text-neutral-400 dark:text-neutral-500">{p.internalCode}</div>
                   {p.includesStorage && !/bess/i.test(p.name) ? (
                     <span
                       className="ml-1 text-xs text-neutral-500 dark:text-neutral-400"

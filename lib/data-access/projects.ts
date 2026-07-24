@@ -47,6 +47,7 @@ function todayIso(): string {
 export interface ProjectListItem {
   id: string;
   name: string;
+  internalCode: string;
   technology: string | null;
   technologyCode: string | null;
   includesStorage: boolean;
@@ -117,7 +118,7 @@ export async function listProjects(
   let query = client
     .from("project")
     .select(
-      `id, name, developer_company_id, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, technology:technology_id(name, code), ${locationEmbed}, ${countryEmbed}, developer:developer_company_id(name), spv:spv_id(name)`,
+      `id, name, internal_code, developer_company_id, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, technology:technology_id(name, code), ${locationEmbed}, ${countryEmbed}, developer:developer_company_id(name), spv:spv_id(name)`,
       { count: "exact" },
     )
     .range(from, to);
@@ -173,6 +174,7 @@ export async function listProjects(
     const r = row as unknown as {
       id: string;
       name: string;
+      internal_code: string;
       developer_company_id: string | null;
       capacity_mw: number | null;
       capacity_mwh: number | null;
@@ -192,6 +194,7 @@ export async function listProjects(
     return {
       id: r.id,
       name: r.name,
+      internalCode: r.internal_code,
       technology: r.technology?.name ?? null,
       technologyCode: r.technology?.code ?? null,
       includesStorage: r.includes_storage,
@@ -258,7 +261,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
+      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -268,6 +271,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
   const r = data as unknown as {
     id: string;
     name: string;
+    internal_code: string;
     external_reference: string | null;
     nup: string | null;
     capacity_mw: number | null;
@@ -293,6 +297,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
   return {
     id: r.id,
     name: r.name,
+    internalCode: r.internal_code,
     externalReference: r.external_reference,
     nup: r.nup,
     developerCompanyId: r.developer_company_id,

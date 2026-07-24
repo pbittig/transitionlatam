@@ -107,9 +107,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     <div className="flex flex-col gap-12">
       <div className="border-b border-neutral-100 pb-8 dark:border-neutral-900">
         <div className="flex items-start justify-between gap-4">
-          <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">
-            {project.name}
-          </h1>
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">
+              {project.name}
+            </h1>
+            <p className="mt-1 text-sm text-neutral-400 dark:text-neutral-500">{project.internalCode}</p>
+          </div>
           <div className="flex items-center gap-2">
             {admin && (
               <>
