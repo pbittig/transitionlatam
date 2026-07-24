@@ -27,6 +27,8 @@ import { SeiaMatchModal } from "./SeiaMatchModal";
 import { RevealStakeholders } from "./RevealStakeholders";
 import { PrintButton } from "./PrintButton";
 import { FollowButton } from "./FollowButton";
+import { AddToCrmButton } from "../../components/AddToCrmButton";
+import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     }),
   ]);
   const followed = admin ? await isProjectFollowed(createSupabaseServiceClient(), id) : false;
+  const alreadyInCrm = admin ? (await getActiveOpportunityProjectIds(createSupabaseServiceClient(), [id])).has(id) : false;
 
   const estimatedPhase = computeEstimatedPhase(
     project.estimatedConnectionDate,
@@ -105,7 +108,17 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
             {project.name}
           </h1>
           <div className="flex items-center gap-2">
-            {admin && <FollowButton projectId={project.id} initiallyFollowed={followed} />}
+            {admin && (
+              <>
+                <FollowButton projectId={project.id} initiallyFollowed={followed} />
+                <AddToCrmButton
+                  projectId={project.id}
+                  projectName={project.name}
+                  developerCompanyId={project.developerCompanyId}
+                  initiallyInCrm={alreadyInCrm}
+                />
+              </>
+            )}
             <PrintButton />
           </div>
         </div>
