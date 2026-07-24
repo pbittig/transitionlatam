@@ -30,6 +30,7 @@ async function main() {
   console.log("Empresas creadas:                   ", summary.companiesCreated);
   console.log("Ubicaciones creadas:                ", summary.locationsCreated);
   console.log("Estados nuevos:                     ", summary.connectionStatusesCreated);
+  console.log("Eventos fallidos:                   ", summary.eventsFailed);
   if (summary.unmatchedRegions.size > 0) {
     console.log("Regiones sin match:                 ", [...summary.unmatchedRegions].join(", "));
   }

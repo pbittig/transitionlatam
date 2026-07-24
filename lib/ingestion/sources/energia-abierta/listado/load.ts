@@ -12,6 +12,7 @@ export interface LoadSummary {
   companiesCreated: number;
   locationsCreated: number;
   connectionStatusesCreated: number;
+  eventsFailed: number;
   unmatchedRegions: Set<string>;
   unmatchedTechnologies: Set<string>;
 }
@@ -27,6 +28,7 @@ export async function loadNormalizedProjects(
     companiesCreated: 0,
     locationsCreated: 0,
     connectionStatusesCreated: 0,
+    eventsFailed: 0,
     unmatchedRegions: new Set(),
     unmatchedTechnologies: new Set(),
   };
@@ -222,10 +224,13 @@ export async function loadNormalizedProjects(
         }
       }
 
-      // 3. Only after the updates succeeded do we record the diffed events. If an insert
-      // fails here, we throw so the failure is surfaced (not swallowed) — but the DB now
-      // already matches the source, so a retry's diff won't recreate this event, which is
-      // a narrow, visible edge case rather than a silent, permanently lost one.
+      // 3. Only after the updates succeeded do we record the diffed events. The field
+      // updates above are already durable, so a failed event insert must NOT throw here:
+      // throwing would trigger withRetry to reprocess the whole row, but the retry's diff
+      // would find the DB already matching the source and silently skip the event forever,
+      // and would also abort any later-ordered event inserts for this same row. Instead we
+      // catch, count it in eventsFailed, warn, and keep going so sibling events still get
+      // their chance to insert.
       if (statusChanged) {
         const { error: statusEventError } = await client.from("project_event").insert({
           project_id: existingProject.id, event_type: "status_change",
@@ -236,7 +241,8 @@ export async function loadNormalizedProjects(
           description: `Cambió el estado de la solicitud: "${existingProject.status}" → "${row.statusLabel}"`,
         });
         if (statusEventError) {
-          throw new Error(
+          summary.eventsFailed += 1;
+          console.warn(
             `Error creando evento status_change para '${row.projectName}' (${row.externalId}): ${statusEventError.message}`,
           );
         }
@@ -251,7 +257,8 @@ export async function loadNormalizedProjects(
           description: `Cambió la fecha estimada de conexión`,
         });
         if (dateEventError) {
-          throw new Error(
+          summary.eventsFailed += 1;
+          console.warn(
             `Error creando evento connection_date_change para '${row.projectName}' (${row.externalId}): ${dateEventError.message}`,
           );
         }
@@ -266,7 +273,8 @@ export async function loadNormalizedProjects(
           description: `Cambió el punto de conexión`,
         });
         if (pointEventError) {
-          throw new Error(
+          summary.eventsFailed += 1;
+          console.warn(
             `Error creando evento connection_point_change para '${row.projectName}' (${row.externalId}): ${pointEventError.message}`,
           );
         }
