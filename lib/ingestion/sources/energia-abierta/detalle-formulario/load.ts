@@ -208,7 +208,7 @@ async function linkCompanyAsSpv(
 async function enrichProjectPowerFields(client: SupabaseClient, projectId: string, data: FormularioData): Promise<void> {
   const { data: project } = await client
     .from("project")
-    .select("net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, capacity_mwh, includes_storage")
+    .select("net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, capacity_mwh, includes_storage, capacity_mw, project_kind")
     .eq("id", projectId)
     .maybeSingle();
   if (!project) return;
@@ -222,6 +222,23 @@ async function enrichProjectPowerFields(client: SupabaseClient, projectId: strin
   if (project.capacity_mwh === null && data.storageEnergyMwh !== null) patch.capacity_mwh = data.storageEnergyMwh;
   if (!project.includes_storage && (data.storageComponentMw !== null || data.storageEnergyMwh !== null || data.storageHours !== null)) {
     patch.includes_storage = true;
+  }
+
+  // El listado (Coordinador) no reporta potencia para la mayoría de las solicitudes
+  // (confirmado: solo 28/2766 la traen) — capacity_mw queda null ahí aunque el
+  // Formulario sí tenga el desglose. Misma prioridad que computeHeadlineCapacity en
+  // listado/normalize.ts, para que el campo "titular" quede consistente sin importar
+  // cuál de las dos fuentes lo completó.
+  if (project.capacity_mw === null) {
+    const netInjection = project.net_injection_mw ?? data.netInjectionMw;
+    const netWithdrawal = project.net_withdrawal_mw ?? data.netWithdrawalMw;
+    const generation = project.generation_capacity_mw ?? data.generationComponentMw;
+    const storage = project.storage_capacity_mw ?? data.storageComponentMw;
+    const headline =
+      project.project_kind === "consumption" ? netWithdrawal
+        : project.project_kind === "storage" ? storage
+          : netInjection ?? generation;
+    if (headline !== null && headline !== undefined) patch.capacity_mw = headline;
   }
 
   if (Object.keys(patch).length > 0) await client.from("project").update(patch).eq("id", projectId);
