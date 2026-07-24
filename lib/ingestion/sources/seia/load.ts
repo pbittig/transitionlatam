@@ -58,24 +58,32 @@ export async function saveSeiaMatch(
   const isFirstMatch = !previous;
   const sameRecordStatusChanged = previous?.seia_id === candidate.EXPEDIENTE_ID && previous.status !== candidate.ESTADO_PROYECTO;
   if (isFirstMatch || sameRecordStatusChanged) {
-    const dataSourceId = await getSeiaDataSourceId(client);
-    const { error: eventError } = await client.from("project_event").insert({
-      project_id: projectId,
-      event_type: "seia_milestone",
-      occurred_at: new Date().toISOString(),
-      previous_value: previous ? JSON.stringify({ status: previous.status }) : null,
-      new_value: JSON.stringify({ status: candidate.ESTADO_PROYECTO, expediente: candidate.EXPEDIENTE_NOMBRE }),
-      data_source_id: dataSourceId,
-      confidence_level: "PUBLICO",
-      description: isFirstMatch
-        ? `Expediente SEIA encontrado: "${candidate.EXPEDIENTE_NOMBRE}" (${candidate.ESTADO_PROYECTO})`
-        : `Cambió el estado SEIA: "${previous?.status}" → "${candidate.ESTADO_PROYECTO}"`,
-    });
+    // Event recording is a non-fatal side-effect: the seia_record upsert above already
+    // succeeded, so a failure here (data_source lookup or the insert itself) must never
+    // propagate and undo/mask that success — warn and continue instead.
+    try {
+      const dataSourceId = await getSeiaDataSourceId(client);
+      const { error: eventError } = await client.from("project_event").insert({
+        project_id: projectId,
+        event_type: "seia_milestone",
+        occurred_at: new Date().toISOString(),
+        previous_value: previous ? JSON.stringify({ status: previous.status }) : null,
+        new_value: JSON.stringify({ status: candidate.ESTADO_PROYECTO, expediente: candidate.EXPEDIENTE_NOMBRE }),
+        data_source_id: dataSourceId,
+        confidence_level: "PUBLICO",
+        description: isFirstMatch
+          ? `Expediente SEIA encontrado: "${candidate.EXPEDIENTE_NOMBRE}" (${candidate.ESTADO_PROYECTO})`
+          : `Cambió el estado SEIA: "${previous?.status}" → "${candidate.ESTADO_PROYECTO}"`,
+      });
 
-    // Non-fatal event insert failure: warn but don't throw
-    if (eventError) {
+      if (eventError) {
+        console.warn(
+          `[SEIA Match] Warning: Could not insert project_event for project ${projectId}: ${eventError.message}`,
+        );
+      }
+    } catch (err) {
       console.warn(
-        `[SEIA Match] Warning: Could not insert project_event for project ${projectId}: ${eventError.message}`,
+        `[SEIA Match] Warning: Could not record project_event for project ${projectId}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
