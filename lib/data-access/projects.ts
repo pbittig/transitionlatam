@@ -29,6 +29,8 @@ export interface ProjectFilters {
   namePatterns?: string[];
   /** Buscador de texto libre — filtra por nombre de proyecto (ILIKE), se combina con AND sobre el resto de filtros. */
   search?: string;
+  /** Restringe a estos IDs exactos — usado por filtros calculados en Node (ej. etapa estimada) que no se pueden expresar como columna de la tabla project. */
+  projectIds?: string[];
 }
 
 export const REJECTED_STATUSES = ["Rechazada", "Desistida"];
@@ -60,6 +62,7 @@ export interface ProjectListItem {
   status: string | null;
   estimatedConnectionDate: string | null;
   developerCompany: string | null;
+  developerCompanyId: string | null;
   spv: string | null;
 }
 
@@ -114,7 +117,7 @@ export async function listProjects(
   let query = client
     .from("project")
     .select(
-      `id, name, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, technology:technology_id(name, code), ${locationEmbed}, ${countryEmbed}, developer:developer_company_id(name), spv:spv_id(name)`,
+      `id, name, developer_company_id, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, technology:technology_id(name, code), ${locationEmbed}, ${countryEmbed}, developer:developer_company_id(name), spv:spv_id(name)`,
       { count: "exact" },
     )
     .range(from, to);
@@ -123,6 +126,7 @@ export async function listProjects(
   if (filters.regionId) query = query.eq("location.region_id", filters.regionId);
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.search && filters.search.trim()) query = query.ilike("name", `%${filters.search.trim()}%`);
+  if (filters.projectIds) query = query.in("id", filters.projectIds);
 
   // Tecnología (chips multi-select) y patrones de nombre (Data Center) se combinan
   // con OR cuando ambos están activos — cualquiera de los dos matchea. Si solo se
@@ -169,6 +173,7 @@ export async function listProjects(
     const r = row as unknown as {
       id: string;
       name: string;
+      developer_company_id: string | null;
       capacity_mw: number | null;
       capacity_mwh: number | null;
       net_injection_mw: number | null;
@@ -202,6 +207,7 @@ export async function listProjects(
       status: r.status,
       estimatedConnectionDate: r.estimated_connection_date,
       developerCompany: r.developer?.name ?? null,
+      developerCompanyId: r.developer_company_id,
       spv: r.spv?.name ?? null,
     };
   });
