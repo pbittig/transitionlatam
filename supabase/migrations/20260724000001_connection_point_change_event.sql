@@ -1,5 +1,5 @@
 -- Add connection_point_change event type to project_event
-alter table project_event drop constraint project_event_event_type_check;
+alter table project_event drop constraint if exists project_event_event_type_check;
 alter table project_event add constraint project_event_event_type_check
   check (event_type in (
     'announced', 'capacity_change', 'ownership_change', 'developer_change',

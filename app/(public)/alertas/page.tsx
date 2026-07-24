@@ -17,6 +17,7 @@ const EVENT_LABEL: Record<string, string> = {
   ownership_change: "Cambio de propiedad",
   developer_change: "Cambio de desarrollador",
   connection_date_change: "Cambio de fecha de conexión",
+  connection_point_change: "Cambio de punto de conexión",
   construction_date_change: "Cambio de fecha de construcción",
   status_change: "Cambio de estado",
   seia_milestone: "Hito SEIA",
