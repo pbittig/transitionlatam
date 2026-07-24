@@ -374,6 +374,26 @@ export async function getRecentProjectEvents(client: SupabaseClient, limit = 6):
   }));
 }
 
+/** Proyectos que entraron a Acceso Abierto (evento "announced") en las últimas `sinceHours` horas. */
+export async function getRecentlyAnnouncedProjects(client: SupabaseClient, sinceHours = 24): Promise<RecentEvent[]> {
+  const since = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString();
+  const { data, error } = await client
+    .from("project_event")
+    .select("id, project_id, event_type, occurred_at, description, project:project_id(name)")
+    .eq("event_type", "announced")
+    .gte("occurred_at", since)
+    .order("occurred_at", { ascending: false });
+  if (error) throw new Error(`Error obteniendo proyectos nuevos: ${error.message}`);
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    projectId: row.project_id as string,
+    projectName: (row.project as unknown as { name: string } | null)?.name ?? "Proyecto",
+    eventType: row.event_type as string,
+    occurredAt: row.occurred_at as string,
+    description: row.description as string | null,
+  }));
+}
+
 export interface ProjectStakeholder {
   personId: string;
   name: string;

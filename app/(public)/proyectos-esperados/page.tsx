@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
-import { getProjectsForMap, getRecentProjectEvents, listProjects } from "@/lib/data-access/projects";
+import { getProjectsForMap, getRecentlyAnnouncedProjects, getRecentProjectEvents, listProjects } from "@/lib/data-access/projects";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
 import { isAdmin } from "@/lib/auth/session";
 import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
@@ -118,6 +118,7 @@ export default async function ProyectosEsperadosPage({
     solicitudes7d,
     solicitudes30d,
     recentEvents,
+    newProjects,
     admin,
   ] = await Promise.all([
     listProjects(client, { ...filters, projectIds: etapaProjectIds }, page, PAGE_SIZE),
@@ -130,6 +131,7 @@ export default async function ProyectosEsperadosPage({
     getRecentSolicitudesCount(client, 7),
     getRecentSolicitudesCount(client, 30),
     getRecentProjectEvents(client, 10),
+    getRecentlyAnnouncedProjects(client, 24),
     isAdmin(),
   ]);
   const scopeTotal = scopeTotals[tab];
@@ -347,6 +349,18 @@ export default async function ProyectosEsperadosPage({
             Actividad reciente
           </h2>
           <ActivityTimeline events={recentEvents} />
+        </Panel>
+
+        <Panel className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
+              Proyectos nuevos (últimas 24h)
+            </h2>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Solicitudes que entraron a Acceso Abierto en las últimas 24 horas.
+            </p>
+          </div>
+          <ActivityTimeline events={newProjects} />
         </Panel>
 
         <Panel className="flex flex-col gap-4">
