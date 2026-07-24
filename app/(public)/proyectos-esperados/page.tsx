@@ -98,7 +98,7 @@ export default async function ProyectosEsperadosPage({
 
   const scheduleInputs = await getUpcomingScheduleInputs(client);
 
-  const etapaProjectIds = etapaGroup
+  const etapaProjectIds = etapaGroup && tab === "esperados"
     ? scheduleInputs
         .filter((i) => {
           const phase = computeEstimatedPhase(i.estimatedConnectionDate, i.technologyCode, i.includesStorage, i.capacityMw);
