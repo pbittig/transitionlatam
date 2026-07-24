@@ -78,6 +78,7 @@ async function getOrCreatePerson(
   name: string,
   email: string | null,
   phone: string | null,
+  companyId: string | null,
 ): Promise<string> {
   if (email) {
     const { data: byEmail } = await client.from("person").select("id, phone").ilike("email", email).maybeSingle();
@@ -87,16 +88,39 @@ async function getOrCreatePerson(
     }
   }
 
-  // Encontrado solo por nombre: puede venir de un documento previo más pobre
-  // (ej. el checklist de verificación, sin contacto) — enriquecer si ahora
-  // tenemos email/teléfono que antes no había.
-  const { data: byName } = await client.from("person").select("id, email, phone").ilike("full_name", name).maybeSingle();
-  if (byName) {
-    const patch: Record<string, string> = {};
-    if (email && !byName.email) patch.email = email;
-    if (phone && !byName.phone) patch.phone = phone;
-    if (Object.keys(patch).length > 0) await client.from("person").update(patch).eq("id", byName.id);
-    return byName.id as string;
+  // Encontrado solo por nombre: puede venir de un documento previo más pobre de
+  // la MISMA empresa (ej. el checklist de verificación, sin contacto) —
+  // enriquecer si ahora tenemos email/teléfono que antes no había. Acotado a
+  // personas ya vinculadas a companyId — sin esto, un nombre coincidente entre
+  // solicitudes de dos empresas distintas contamina el contacto de una con el
+  // dato de la otra (hallazgo real: el email de "Laura Landeta" del formulario
+  // de Solar Chile Energía II quedó pegado al representante legal de Pacific
+  // Hydro solo porque ambos documentos escriben "Luis Enrique Arqueros Wood").
+  // Sin companyId (empresa aún no resuelta) no hay cómo acotar — no se reutiliza.
+  if (companyId) {
+    const { data: relatedPersonRows } = await client
+      .from("entity_relationship")
+      .select("source_id")
+      .eq("source_type", "person")
+      .eq("target_type", "company")
+      .eq("target_id", companyId);
+    const relatedPersonIds = (relatedPersonRows ?? []).map((r) => r.source_id as string);
+
+    if (relatedPersonIds.length > 0) {
+      const { data: byName } = await client
+        .from("person")
+        .select("id, email, phone")
+        .ilike("full_name", name)
+        .in("id", relatedPersonIds)
+        .maybeSingle();
+      if (byName) {
+        const patch: Record<string, string> = {};
+        if (email && !byName.email) patch.email = email;
+        if (phone && !byName.phone) patch.phone = phone;
+        if (Object.keys(patch).length > 0) await client.from("person").update(patch).eq("id", byName.id);
+        return byName.id as string;
+      }
+    }
   }
 
   const { data: created, error } = await client
@@ -216,7 +240,7 @@ export async function loadFormularioResult(
     const companyId = await getOrCreateCompany(client, cleanCompany, null, null);
     const personIds: string[] = [];
     if (signedByName && isPlausibleContactField(signedByName)) {
-      const personId = await getOrCreatePerson(client, signedByName, null, null);
+      const personId = await getOrCreatePerson(client, signedByName, null, null, companyId);
       personIds.push(personId);
       if (companyId) {
         const role = signedByRole && isPlausibleContactField(signedByRole) ? signedByRole : "signer";
@@ -234,7 +258,7 @@ export async function loadFormularioResult(
 
   for (const contact of data.contacts as FormularioContact[]) {
     if (!contact.name || !isPlausibleContactField(contact.name) || !ALLOWED_CONTACT_ROLES.has(contact.role)) continue;
-    const personId = await getOrCreatePerson(client, contact.name, contact.email, contact.phone);
+    const personId = await getOrCreatePerson(client, contact.name, contact.email, contact.phone, companyId);
     personIds.push(personId);
     if (companyId) {
       await linkEntities(client, "person", personId, contact.role, "company", companyId, dataSourceId);
