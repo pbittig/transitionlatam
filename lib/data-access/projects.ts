@@ -31,6 +31,9 @@ export interface ProjectFilters {
   search?: string;
   /** Restringe a estos IDs exactos — usado por filtros calculados en Node (ej. etapa estimada) que no se pueden expresar como columna de la tabla project. */
   projectIds?: string[];
+  /** Rango adicional de fecha estimada de conexión (barra deslizante) — se combina con AND sobre connectionPeriod. */
+  connectionDateFrom?: string;
+  connectionDateTo?: string;
 }
 
 export const REJECTED_STATUSES = ["Rechazada", "Desistida"];
@@ -166,6 +169,9 @@ export async function listProjects(
   } else {
     query = query.order("created_at", { ascending: false });
   }
+
+  if (filters.connectionDateFrom) query = query.gte("estimated_connection_date", filters.connectionDateFrom);
+  if (filters.connectionDateTo) query = query.lte("estimated_connection_date", filters.connectionDateTo);
 
   const { data, error, count } = await query;
   if (error) throw new Error(`Error listando proyectos: ${error.message}`);

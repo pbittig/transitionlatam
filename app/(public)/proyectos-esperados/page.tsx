@@ -30,7 +30,9 @@ import {
   findNextConstructionWaveYear,
 } from "@/lib/shared/marketSnapshot";
 import { chipsToNamePatterns, chipsToTechnologyCodes, parseChipKeys, TECH_CHIPS } from "../components/techChips";
-import { TechChipFilter } from "../components/TechChipFilter";
+import { TechSelectFilter } from "../components/TechSelectFilter";
+import { ConnectionDateRangeFilter } from "../components/ConnectionDateRangeFilter";
+import { MONTHS_HORIZON, monthOffsetToIso } from "@/lib/shared/connectionDateRange";
 import { EtapaFilter } from "../components/EtapaFilter";
 import { SearchBar } from "../components/SearchBar";
 import { ProjectTable } from "../components/ProjectTable";
@@ -76,7 +78,7 @@ function buildHref(params: Record<string, string | undefined>, overrides: Record
 export default async function ProyectosEsperadosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tech?: string; page?: string; tab?: string; q?: string; etapa?: string }>;
+  searchParams: Promise<{ tech?: string; page?: string; tab?: string; q?: string; etapa?: string; mesDesde?: string; mesHasta?: string }>;
 }) {
   const params = await searchParams;
   const page = Number(params.page ?? "1") || 1;
@@ -86,6 +88,9 @@ export default async function ProyectosEsperadosPage({
   const namePatterns = chipsToNamePatterns(selectedKeys);
   const search = params.q;
   const etapaGroup = params.etapa as PhaseGroup | undefined;
+  const mesDesde = Number(params.mesDesde ?? "0") || 0;
+  const mesHasta = Number(params.mesHasta ?? String(MONTHS_HORIZON)) || MONTHS_HORIZON;
+  const hasDateRangeFilter = tab === "esperados" && (mesDesde > 0 || mesHasta < MONTHS_HORIZON);
 
   const client = await createSupabaseServerClient();
 
@@ -94,6 +99,8 @@ export default async function ProyectosEsperadosPage({
     namePatterns,
     search,
     connectionPeriod: (tab === "historico" ? "historico_completo" : "upcoming") as "historico_completo" | "upcoming",
+    connectionDateFrom: tab === "esperados" && mesDesde > 0 ? monthOffsetToIso(mesDesde) : undefined,
+    connectionDateTo: tab === "esperados" && mesHasta < MONTHS_HORIZON ? monthOffsetToIso(mesHasta) : undefined,
   };
 
   const scheduleInputs = await getUpcomingScheduleInputs(client);
@@ -188,6 +195,7 @@ export default async function ProyectosEsperadosPage({
     ...TECH_CHIPS.filter((chip) => selectedKeys.includes(chip.key)).map((chip) => chip.label),
     search ? `“${search}”` : undefined,
     etapaGroup ? PHASE_GROUP_LABELS[etapaGroup] : undefined,
+    hasDateRangeFilter ? "rango de fecha de conexión" : undefined,
   ].filter(Boolean);
 
   return (
@@ -263,20 +271,16 @@ export default async function ProyectosEsperadosPage({
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} solicitudes en la vista</span>
         </div>
         <Panel className="flex flex-col gap-5 border-neutral-200 bg-neutral-50 p-5 dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la cartera</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante.</p></div>{(hasTechFilter || search || Boolean(etapaGroup)) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la cartera</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante.</p></div>{(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
         <SearchBar
           basePath="/proyectos-esperados"
           value={search}
           otherParams={{ tab: tab === "esperados" ? undefined : tab, tech: params.tech }}
           placeholder="Buscar por nombre de proyecto..."
         />
-        <TechChipFilter
-          basePath="/proyectos-esperados"
-          selectedKeys={selectedKeys}
-          otherParams={{ tab: tab === "esperados" ? undefined : tab, q: search }}
-          excludeKeys={["transmision"]}
-        />
+        <TechSelectFilter basePath="/proyectos-esperados" selectedKeys={selectedKeys} excludeKeys={["transmision"]} />
         {tab === "esperados" && <EtapaFilter basePath="/proyectos-esperados" />}
+        {tab === "esperados" && <ConnectionDateRangeFilter basePath="/proyectos-esperados" />}
         {activeFilterLabels.length > 0 ? <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">Vista actual:</span> {activeFilterLabels.join(" · ")}</p> : <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">Los filtros también acotan el análisis de madurez, hitos y demanda futura.</p>}
         </Panel>
       </section>
