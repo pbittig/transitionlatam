@@ -177,7 +177,13 @@ export default async function ProyectosEsperadosPage({
   });
   const marketNarrative = computeMarketNarrative({ byTechnology: pipelineByTechnology, byRegion: pipelineByRegion, nextWaveYear });
   const filteredCapacityMw = filteredScheduleInputs.reduce((sum, project) => sum + (project.capacityMw ?? 0), 0);
-  const bess = pipelineByTechnology.find((item) => /bess|almacenamiento/i.test(item.category));
+  // No usar pipelineByTechnology acá: esa agrupación clasifica cada proyecto por una
+  // sola tecnología canónica (para poder cruzar Pipeline/Construcción/Operación en un
+  // mismo heatmap — ver marketTechCategories.ts), así que un híbrido "Solar con
+  // Baterías" cae en "Híbrido", no en "BESS", y este contador quedaba muy por debajo
+  // de lo que el buscador encuentra por nombre. includesStorage sí marca cualquier
+  // proyecto con batería sin importar su tecnología principal.
+  const bessCount = filteredScheduleInputs.filter((i) => i.includesStorage).length;
   const activeFilterLabels = [
     ...TECH_CHIPS.filter((chip) => selectedKeys.includes(chip.key)).map((chip) => chip.label),
     search ? `“${search}”` : undefined,
@@ -217,7 +223,7 @@ export default async function ProyectosEsperadosPage({
         </div>
         <div className="bg-white p-4 dark:bg-neutral-900">
           <div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><BatteryCharging size={15} /> Almacenamiento BESS</div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{bess?.count.toLocaleString("es-CL") ?? "—"}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{bessCount.toLocaleString("es-CL")}</p>
           <p className="text-xs text-neutral-500 dark:text-neutral-400">proyectos BESS dentro del pipeline</p>
         </div>
       </div>
