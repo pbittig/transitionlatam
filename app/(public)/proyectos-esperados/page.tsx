@@ -16,7 +16,8 @@ import {
   getUpcomingScheduleInputs,
 } from "@/lib/data-access/pipeline";
 import { computeScheduleForecast, FORECAST_PHASE_LABELS } from "@/lib/shared/scheduleForecast";
-import { PHASE_COLORS } from "@/lib/shared/projectPhaseDurations";
+import { PHASE_COLORS, PHASE_GROUPS, PHASE_GROUP_LABELS, PHASE_TO_GROUP, type PhaseGroup } from "@/lib/shared/projectPhaseDurations";
+import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
 import { computeMaturityFunnel } from "@/lib/shared/maturityFunnel";
 import {
   computeMarketCalendarHighlights,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/shared/marketSnapshot";
 import { chipsToNamePatterns, chipsToTechnologyCodes, parseChipKeys, TECH_CHIPS } from "../components/techChips";
 import { TechChipFilter } from "../components/TechChipFilter";
+import { EtapaFilter } from "../components/EtapaFilter";
 import { SearchBar } from "../components/SearchBar";
 import { ProjectTable } from "../components/ProjectTable";
 import { Pager } from "../components/Pager";
@@ -74,7 +76,7 @@ function buildHref(params: Record<string, string | undefined>, overrides: Record
 export default async function ProyectosEsperadosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tech?: string; page?: string; tab?: string; q?: string }>;
+  searchParams: Promise<{ tech?: string; page?: string; tab?: string; q?: string; etapa?: string }>;
 }) {
   const params = await searchParams;
   const page = Number(params.page ?? "1") || 1;
@@ -83,6 +85,7 @@ export default async function ProyectosEsperadosPage({
   const technologyCodes = chipsToTechnologyCodes(selectedKeys);
   const namePatterns = chipsToNamePatterns(selectedKeys);
   const search = params.q;
+  const etapaGroup = params.etapa as PhaseGroup | undefined;
 
   const client = await createSupabaseServerClient();
 
@@ -93,12 +96,22 @@ export default async function ProyectosEsperadosPage({
     connectionPeriod: (tab === "historico" ? "historico_completo" : "upcoming") as "historico_completo" | "upcoming",
   };
 
+  const scheduleInputs = await getUpcomingScheduleInputs(client);
+
+  const etapaProjectIds = etapaGroup
+    ? scheduleInputs
+        .filter((i) => {
+          const phase = computeEstimatedPhase(i.estimatedConnectionDate, i.technologyCode, i.includesStorage, i.capacityMw);
+          return phase?.currentPhase != null && PHASE_TO_GROUP[phase.currentPhase] === etapaGroup;
+        })
+        .map((i) => i.id)
+    : undefined;
+
   const [
     result,
     mapData,
     funnel,
     calendar,
-    scheduleInputs,
     scopeTotals,
     seiaStatusByProjectId,
     ageBenchmarks,
@@ -107,11 +120,10 @@ export default async function ProyectosEsperadosPage({
     recentEvents,
     admin,
   ] = await Promise.all([
-    listProjects(client, filters, page, PAGE_SIZE),
+    listProjects(client, { ...filters, projectIds: etapaProjectIds }, page, PAGE_SIZE),
     getProjectsForMap(client, { technologyCodes, namePatterns, search }),
     getPipelineFunnel(client),
     getConnectionCalendar(client),
-    getUpcomingScheduleInputs(client),
     getPipelineScopeTotals(client),
     getSeiaStatusesForUpcomingProjects(client),
     getRequestAgeBenchmarks(client),
@@ -255,6 +267,7 @@ export default async function ProyectosEsperadosPage({
           otherParams={{ tab: tab === "esperados" ? undefined : tab, q: search }}
           excludeKeys={["transmision"]}
         />
+        <EtapaFilter basePath="/proyectos-esperados" />
         {activeFilterLabels.length > 0 ? <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">Vista actual:</span> {activeFilterLabels.join(" · ")}</p> : <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">Los filtros también acotan el análisis de madurez, hitos y demanda futura.</p>}
         </Panel>
       </section>
