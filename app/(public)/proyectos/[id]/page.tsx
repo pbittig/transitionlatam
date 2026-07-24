@@ -32,12 +32,15 @@ import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportuniti
 
 export const dynamic = "force-dynamic";
 
+/** Si falta el dato se muestra la etiqueta igual con "—" — visibiliza qué campos quedan por completar a mano, en vez de ocultarlos. */
 function Field({ label, value }: { label: string; value: string | number | null | undefined }) {
-  if (value === null || value === undefined || value === "") return null;
+  const isEmpty = value === null || value === undefined || value === "";
   return (
     <div>
       <dt className="text-xs text-neutral-500 dark:text-neutral-400">{label}</dt>
-      <dd className="text-sm font-medium text-neutral-900 dark:text-neutral-50">{value}</dd>
+      <dd className={isEmpty ? "text-sm text-neutral-400 dark:text-neutral-600" : "text-sm font-medium text-neutral-900 dark:text-neutral-50"}>
+        {isEmpty ? "—" : value}
+      </dd>
     </div>
   );
 }
