@@ -179,6 +179,7 @@ export default async function ProyectosEsperadosPage({
   const activeFilterLabels = [
     ...TECH_CHIPS.filter((chip) => selectedKeys.includes(chip.key)).map((chip) => chip.label),
     search ? `“${search}”` : undefined,
+    etapaGroup ? PHASE_GROUP_LABELS[etapaGroup] : undefined,
   ].filter(Boolean);
 
   return (
@@ -254,7 +255,7 @@ export default async function ProyectosEsperadosPage({
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} solicitudes en la vista</span>
         </div>
         <Panel className="flex flex-col gap-5 border-neutral-200 bg-neutral-50 p-5 dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la cartera</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante.</p></div>{(hasTechFilter || search) && <Link href={buildHref(params, { tech: undefined, q: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la cartera</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante.</p></div>{(hasTechFilter || search || Boolean(etapaGroup)) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
         <SearchBar
           basePath="/proyectos-esperados"
           value={search}
@@ -267,7 +268,7 @@ export default async function ProyectosEsperadosPage({
           otherParams={{ tab: tab === "esperados" ? undefined : tab, q: search }}
           excludeKeys={["transmision"]}
         />
-        <EtapaFilter basePath="/proyectos-esperados" />
+        {tab === "esperados" && <EtapaFilter basePath="/proyectos-esperados" />}
         {activeFilterLabels.length > 0 ? <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">Vista actual:</span> {activeFilterLabels.join(" · ")}</p> : <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">Los filtros también acotan el análisis de madurez, hitos y demanda futura.</p>}
         </Panel>
       </section>
