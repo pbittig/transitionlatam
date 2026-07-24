@@ -186,8 +186,48 @@ export async function loadNormalizedProjects(
     };
 
     if (existingProject) {
-      if (existingProject.status !== row.statusLabel) {
-        await client.from("project_event").insert({
+      // 1. Compute all diffs from the already-fetched state before mutating anything.
+      const statusChanged = existingProject.status !== row.statusLabel;
+      const dateChanged = existingProject.estimated_connection_date !== row.estimatedConnectionDate;
+
+      const { data: existingConnection } = await client
+        .from("project_connection")
+        .select("connection_point, substation_bay, voltage_level")
+        .eq("project_id", existingProject.id)
+        .maybeSingle();
+
+      const pointChanged =
+        !!existingConnection &&
+        (existingConnection.connection_point !== row.connectionPoint ||
+          existingConnection.substation_bay !== row.substationBay);
+      const connectionNeedsUpdate =
+        !!existingConnection && (pointChanged || existingConnection.voltage_level !== row.voltageLevel);
+
+      // 2. Apply the updates first. If any of these fail, we throw before writing any
+      // event, so a retry re-diffs against unchanged source data and stays clean.
+      const { error: updateError } = await client.from("project").update(projectFields).eq("id", existingProject.id);
+      if (updateError) throw new Error(`Error actualizando proyecto '${row.projectName}' (${row.externalId}): ${updateError.message}`);
+
+      if (connectionNeedsUpdate) {
+        const { error: connectionUpdateError } = await client
+          .from("project_connection")
+          .update({
+            connection_point: row.connectionPoint, substation_bay: row.substationBay, voltage_level: row.voltageLevel,
+          })
+          .eq("project_id", existingProject.id);
+        if (connectionUpdateError) {
+          throw new Error(
+            `Error actualizando project_connection para '${row.projectName}' (${row.externalId}): ${connectionUpdateError.message}`,
+          );
+        }
+      }
+
+      // 3. Only after the updates succeeded do we record the diffed events. If an insert
+      // fails here, we throw so the failure is surfaced (not swallowed) — but the DB now
+      // already matches the source, so a retry's diff won't recreate this event, which is
+      // a narrow, visible edge case rather than a silent, permanently lost one.
+      if (statusChanged) {
+        const { error: statusEventError } = await client.from("project_event").insert({
           project_id: existingProject.id, event_type: "status_change",
           occurred_at: new Date().toISOString(),
           previous_value: JSON.stringify({ status: existingProject.status }),
@@ -195,9 +235,14 @@ export async function loadNormalizedProjects(
           data_source_id: dataSourceId, confidence_level: CONFIDENCE_PUBLIC,
           description: `Cambió el estado de la solicitud: "${existingProject.status}" → "${row.statusLabel}"`,
         });
+        if (statusEventError) {
+          throw new Error(
+            `Error creando evento status_change para '${row.projectName}' (${row.externalId}): ${statusEventError.message}`,
+          );
+        }
       }
-      if (existingProject.estimated_connection_date !== row.estimatedConnectionDate) {
-        await client.from("project_event").insert({
+      if (dateChanged) {
+        const { error: dateEventError } = await client.from("project_event").insert({
           project_id: existingProject.id, event_type: "connection_date_change",
           occurred_at: new Date().toISOString(),
           previous_value: JSON.stringify({ estimatedConnectionDate: existingProject.estimated_connection_date }),
@@ -205,36 +250,28 @@ export async function loadNormalizedProjects(
           data_source_id: dataSourceId, confidence_level: CONFIDENCE_PUBLIC,
           description: `Cambió la fecha estimada de conexión`,
         });
-      }
-
-      const { data: existingConnection } = await client
-        .from("project_connection")
-        .select("connection_point, substation_bay, voltage_level")
-        .eq("project_id", existingProject.id)
-        .maybeSingle();
-      if (existingConnection) {
-        const pointChanged =
-          existingConnection.connection_point !== row.connectionPoint ||
-          existingConnection.substation_bay !== row.substationBay;
-        if (pointChanged) {
-          await client.from("project_event").insert({
-            project_id: existingProject.id, event_type: "connection_point_change",
-            occurred_at: new Date().toISOString(),
-            previous_value: JSON.stringify({ connectionPoint: existingConnection.connection_point, substationBay: existingConnection.substation_bay }),
-            new_value: JSON.stringify({ connectionPoint: row.connectionPoint, substationBay: row.substationBay }),
-            data_source_id: dataSourceId, confidence_level: CONFIDENCE_PUBLIC,
-            description: `Cambió el punto de conexión`,
-          });
+        if (dateEventError) {
+          throw new Error(
+            `Error creando evento connection_date_change para '${row.projectName}' (${row.externalId}): ${dateEventError.message}`,
+          );
         }
-        if (pointChanged || existingConnection.voltage_level !== row.voltageLevel) {
-          await client.from("project_connection").update({
-            connection_point: row.connectionPoint, substation_bay: row.substationBay, voltage_level: row.voltageLevel,
-          }).eq("project_id", existingProject.id);
+      }
+      if (pointChanged && existingConnection) {
+        const { error: pointEventError } = await client.from("project_event").insert({
+          project_id: existingProject.id, event_type: "connection_point_change",
+          occurred_at: new Date().toISOString(),
+          previous_value: JSON.stringify({ connectionPoint: existingConnection.connection_point, substationBay: existingConnection.substation_bay }),
+          new_value: JSON.stringify({ connectionPoint: row.connectionPoint, substationBay: row.substationBay }),
+          data_source_id: dataSourceId, confidence_level: CONFIDENCE_PUBLIC,
+          description: `Cambió el punto de conexión`,
+        });
+        if (pointEventError) {
+          throw new Error(
+            `Error creando evento connection_point_change para '${row.projectName}' (${row.externalId}): ${pointEventError.message}`,
+          );
         }
       }
 
-      const { error: updateError } = await client.from("project").update(projectFields).eq("id", existingProject.id);
-      if (updateError) throw new Error(`Error actualizando proyecto '${row.projectName}' (${row.externalId}): ${updateError.message}`);
       summary.projectsUpdated += 1;
       return;
     }
