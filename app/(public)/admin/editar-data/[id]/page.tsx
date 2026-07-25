@@ -2,11 +2,13 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getProjectById } from "@/lib/data-access/projects";
+import { isAdmin } from "@/lib/auth/session";
 import { ProjectEditPageBody } from "../../components/ProjectEditPageBody";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  if (!(await isAdmin())) return { title: "Editar proyecto" };
   const { id } = await params;
   const client = await createSupabaseServerClient();
   const project = await getProjectById(client, id);
@@ -14,6 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function EditarProyectoPage({ params }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdmin())) return null;
   const { id } = await params;
   const client = await createSupabaseServerClient();
   const project = await getProjectById(client, id);

@@ -3,12 +3,14 @@ import type { Metadata } from "next";
 import { ShieldCheck, PencilLine } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { countUnverifiedProjects } from "@/lib/data-access/projects";
+import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../components/Panel";
 
 export const metadata: Metadata = { title: "Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  if (!(await isAdmin())) return null;
   const client = await createSupabaseServerClient();
   const pendingCount = await countUnverifiedProjects(client);
 

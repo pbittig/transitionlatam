@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { listProjects } from "@/lib/data-access/projects";
+import { isAdmin } from "@/lib/auth/session";
 import { SearchBar } from "../../components/SearchBar";
 import { Pager } from "../../components/Pager";
 import { Panel } from "../../components/Panel";
@@ -16,6 +17,7 @@ export default async function EditarDataPage({
 }: {
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
+  if (!(await isAdmin())) return null;
   const params = await searchParams;
   const page = Number(params.page ?? "1") || 1;
   const client = await createSupabaseServerClient();

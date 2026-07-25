@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getVerificationQueue, countUnverifiedProjects } from "@/lib/data-access/projects";
+import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../../components/Panel";
 
 export const metadata: Metadata = { title: "Verificador de proyecto" };
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 const QUEUE_PAGE_LIMIT = 100;
 
 export default async function VerificadorPage() {
+  if (!(await isAdmin())) return null;
   const client = await createSupabaseServerClient();
   const [totalPending, queue] = await Promise.all([
     countUnverifiedProjects(client),

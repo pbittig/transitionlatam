@@ -77,8 +77,12 @@ export function ProjectEditForm({
 
   async function save(field: EditableProjectField, value: string | number | null) {
     setStatus((prev) => ({ ...prev, [field]: "saving" }));
-    const result = await updateProjectField(project.id, field, value);
-    setStatus((prev) => ({ ...prev, [field]: result.success ? "saved" : "error" }));
+    try {
+      const result = await updateProjectField(project.id, field, value);
+      setStatus((prev) => ({ ...prev, [field]: result.success ? "saved" : "error" }));
+    } catch {
+      setStatus((prev) => ({ ...prev, [field]: "error" }));
+    }
   }
 
   return (
