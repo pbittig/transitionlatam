@@ -40,8 +40,8 @@ graph LR
 | Fase | Contenido | Depende de |
 |---|---|---|
 | **Fase 0 — Fundaciones** ✅ (2026-07-20) | Repo (Next.js 16 + TypeScript strict + Tailwind), estructura de carpetas de [05](05-arquitectura-tecnica.md), migraciones SQL del esquema completo + seed de referencia (país/regiones/tecnologías/fuentes/estados/features) + RLS base en `supabase/migrations` — **aplicadas y verificadas contra el proyecto Supabase real de ONIX**, RLS confirmado activo en todas las tablas de negocio, CI (lint+typecheck+build) en `.github/workflows/ci.yml` | Aprobación de esta documentación |
-| **Fase 1 — Datos e Ingesta** | Modelo de datos completo, panel de admin mínimo, primera carga de proyectos Chile (BESS/renovables), modelo de proveniencia/confianza operativo | Fase 0 |
-| **Fase 2 — Dashboard, Mapa, Perfiles** | UI pública, SEO, mapa con filtros, perfil de proyecto con timeline | Fase 1 |
+| **Fase 1 — Datos e Ingesta** 🟡 (2026-07-20) | Modelo de datos completo ✅, primera carga de proyectos Chile (2758 solicitudes reales, Nivel 1) ✅, Nivel 2 (Formulario: empresa/RUT/contactos/SPV) ✅ probado end-to-end contra 2 proyectos reales — falta: descarga automatizada real (URL/endpoint de Acceso Abierto sin confirmar) y panel de admin | Fase 0 |
+| **Fase 2 — Dashboard, Mapa, Perfiles** ✅ (2026-07-20) | Dashboard público (stats + gráficos), listado con filtro por tecnología, mapa interactivo (MapLibre GL, burbujas por región + puntos precisos cuando hay coordenadas reales), perfil de proyecto con historial real y stakeholders (protegidos por RLS) — verificado en navegador y build de producción | Fase 1 |
 | **Fase 3 — Auth y Captura de Leads** | Registro/onboarding, `user_profile`, captura de `behavior_event`, sistema de entitlements base | Fase 2 (puede solaparse parcialmente) |
 | **Fase 4 — Transition AI v1** | Capa de abstracción de proveedor, catálogo inicial de tools, guardrails, límites de uso | Fase 1 y 3 |
 | **Fase 5 — Intent Tracking y Handoff** | Lead scoring simple, umbral configurable, adaptador de CRM (webhook mínimo), notificaciones | Fase 3 y 4 |

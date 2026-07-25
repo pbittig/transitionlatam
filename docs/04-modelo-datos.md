@@ -162,17 +162,17 @@ Esto reemplaza la suposición inicial de "un solo archivo Formulario" — el mod
 | `Tipo Tecnologia` (Solar, Eólico, Híbrido, Hidroeléctrica, Térmica, Almacenamiento, Baterías, Solar con Baterías, Biomasa, Geotérmica, Bombeo hidroeléctrico) | `technology` (catálogo) | "Híbrido" es la categoría más frecuente en la muestra (1042/2758) — probablemente Solar+BESS o Eólico+BESS; puede requerir sub-clasificación si el detalle importa para el negocio |
 | `Fecha Estimada Conexión` | `project.estimated_connection_date` | Mismo formato de fecha en español que `Fecha Recepción` |
 | `Punto de Conexión`, `Nivel de tension`, `Barra`, `Paño`, `Segmento de Transmisión` | `project_connection.*` | |
-| `Región`, `Comuna` | `location.region_id`, `location.comuna` | Valores con acentos corruptos en la muestra (ver nota de encoding abajo) — normalizar contra catálogo propio de regiones/comunas de Chile, no confiar en el string crudo como clave |
+| `Región`, `Comuna` | `location.region_id`, `location.comuna` | Normalizar contra el catálogo propio de regiones/comunas de Chile (insensible a acentos/mayúsculas/puntuación — ver nota abajo), no confiar en el string crudo como clave |
 | `Fecha emisión informe definitivo`, `Plazo obtención declaración en const`, `Prórroga plazo obtención declaración en const.` | `project_event` (eventos de hitos regulatorios) | Mayormente vacíos en la muestra — llenado progresivo según avanza cada solicitud |
 
-**Nota técnica de encoding:** el XML interno del archivo declara UTF-8 pero contiene bytes inválidos en caracteres acentuados (`Región` aparece corrupto en la extracción cruda). El conector de ingesta debe probar explícitamente la codificación real de origen (candidatos: Windows-1252/Latin-1 mal etiquetado como UTF-8) antes de normalizar texto — de lo contrario los valores de `Región`/`Comuna`/nombres de empresa quedarán corruptos en la base de datos.
+**Corrección (2026-07-20):** una inspección inicial con una extracción manual del XML interno del `.xlsx` mostró caracteres acentuados corruptos (`Región` → replacement chars), lo que llevó a sospechar un problema real de encoding en el archivo. Al implementar el parser real con la librería `exceljs` ([05-arquitectura-tecnica.md](05-arquitectura-tecnica.md) §5.10), se confirmó que el archivo está en UTF-8 válido y se lee correctamente sin ningún tratamiento especial — la corrupción era un artefacto de la herramienta usada para la inspección inicial, no del archivo. Se deja esta nota como recordatorio de verificar con el parser real antes de asumir un problema de origen, no solo con una inspección manual rápida. Donde sí hace falta normalización real es en variantes de acentuación/puntuación entre el dataset y nuestro catálogo propio (ej. "Valparaiso" sin tilde vs. "Valparaíso", o "OHiggins" sin apóstrofo vs. "O'Higgins") — se resuelve con comparación insensible a acentos/puntuación (`normalizeForMatch` en `lib/ingestion/sources/energia-abierta/listado/normalize.ts`), no con una corrección de encoding.
 
 **Diseño del mecanismo de "contraste" (diff) pedido por ONIX:**
 
 ```
 /lib/ingestion/sources/energia-abierta/
   fetch.ts        -- descarga la planilla/vista desde el punto de origen (URL a confirmar, ver pregunta abierta abajo)
-  parse.ts         -- xlsx → filas tipadas, con manejo explícito de encoding
+  parse.ts         -- xlsx → filas tipadas (implementado con exceljs, sin problemas de encoding — ver nota arriba)
   normalize.ts      -- normaliza Estado Solicitud, Región/Comuna, fechas en español, Tipo Tecnologia
   diff.ts            -- por cada `Id`: compara contra el último snapshot guardado
                        -- si `Id` es nuevo → project_event 'announced'

@@ -1,0 +1,47 @@
+<!--
+  Plantilla de correo "Confirm signup" — pegar en Supabase Dashboard:
+  Authentication → Emails → Templates → "Confirm signup" → pestaña "Source".
+
+  Variables disponibles que usa esta plantilla (las provee Supabase):
+    {{ .ConfirmationURL }} — link de confirmación (obligatorio, es el CTA)
+    {{ .Email }}           — correo del destinatario
+
+  IMPORTANTE: reemplazar LOGO_URL más abajo por la URL pública real del logo
+  una vez que la app esté desplegada (ej. https://transition.onixcg.com/tl-logo.png)
+  — un logo apuntando a localhost no se verá en el correo de nadie.
+-->
+<div style="background-color:#f5f5f4; padding:40px 16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:480px; margin:0 auto; background-color:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e7e5e4;">
+
+    <div style="padding:32px 32px 0 32px;">
+      <img src="LOGO_URL" alt="Transition LATAM" style="height:32px; width:auto;" />
+    </div>
+
+    <div style="padding:24px 32px 32px 32px;">
+      <h1 style="margin:0 0 12px 0; font-size:20px; line-height:1.3; color:#171717; font-weight:600;">
+        Confirma tu cuenta
+      </h1>
+      <p style="margin:0 0 24px 0; font-size:14px; line-height:1.6; color:#57534e;">
+        Gracias por registrarte en Transition LATAM. Confirma tu correo para activar tu acceso gratuito de 14 días.
+      </p>
+
+      <a href="{{ .ConfirmationURL }}"
+         style="display:inline-block; background-color:#129457; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 24px; border-radius:8px;">
+        Confirmar mi correo
+      </a>
+
+      <p style="margin:24px 0 0 0; font-size:12px; line-height:1.6; color:#a8a29e;">
+        Si el botón no funciona, copia y pega este link en tu navegador:<br />
+        <span style="color:#78716c; word-break:break-all;">{{ .ConfirmationURL }}</span>
+      </p>
+    </div>
+
+    <div style="padding:20px 32px; background-color:#fafaf9; border-top:1px solid #e7e5e4;">
+      <p style="margin:0; font-size:11px; line-height:1.6; color:#a8a29e;">
+        Transition LATAM es una marca de ONIX Consulting Group. La tecnología, el análisis y la información
+        presentados son un desarrollo propio de la compañía, construido a partir de fuentes de datos públicas.
+      </p>
+    </div>
+
+  </div>
+</div>
