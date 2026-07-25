@@ -261,13 +261,14 @@ export interface ProjectDetail extends ProjectListItem {
   // personas — no llevan la misma restricción de acceso que los contactos.
   developerCompanyRut: string | null;
   developerCompanyAddress: string | null;
+  verifiedAt: string | null;
 }
 
 export async function getProjectById(client: SupabaseClient, id: string): Promise<ProjectDetail | null> {
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
+      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -290,6 +291,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     includes_storage: boolean;
     status: string | null;
     estimated_connection_date: string | null;
+    verified_at: string | null;
     developer_company_id: string | null;
     technology: { name: string; code: string } | null;
     location: { comuna: string | null; region: { name: string } | null } | null;
@@ -321,6 +323,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     storageHours: r.storage_hours,
     status: r.status,
     estimatedConnectionDate: r.estimated_connection_date,
+    verifiedAt: r.verified_at,
     developerCompany: r.developer?.name ?? null,
     developerCompanyRut: r.developer?.rut ?? null,
     developerCompanyAddress: r.developer?.legal_address ?? null,
@@ -330,6 +333,83 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     requestType: connection?.request_type ?? null,
     countryCode: r.country?.code ?? null,
   };
+}
+
+export interface VerificationQueueItem {
+  id: string;
+  name: string;
+  comuna: string | null;
+  region: string | null;
+  capacityMw: number | null;
+  estimatedConnectionDate: string | null;
+  status: string | null;
+}
+
+/**
+ * Cola del Verificador: proyectos con verified_at null. Mismo criterio
+ * "esperados primero" que scripts/sync-formulario-bulk.ts — vigentes (no
+ * rechazados/desistidos, fecha de conexión desde el inicio de mes) antes que
+ * el resto (rechazados, desistidos, vencidos, o sin fecha).
+ */
+export async function getVerificationQueue(client: SupabaseClient, limit = 500): Promise<VerificationQueueItem[]> {
+  const startOfMonth = startOfCurrentMonthIso();
+  const selectClause =
+    "id, name, capacity_mw, estimated_connection_date, status, location:location_id(comuna, region:region_id(name))";
+
+  const [{ data: esperados, error: e1 }, { data: resto, error: e2 }] = await Promise.all([
+    client
+      .from("project")
+      .select(selectClause)
+      .is("verified_at", null)
+      .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
+      .gte("estimated_connection_date", startOfMonth)
+      .order("estimated_connection_date", { ascending: true })
+      .limit(limit),
+    client
+      .from("project")
+      .select(selectClause)
+      .is("verified_at", null)
+      .or(
+        `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
+      )
+      .order("created_at", { ascending: true })
+      .limit(limit),
+  ]);
+  if (e1) throw new Error(`Error obteniendo cola de verificación: ${e1.message}`);
+  if (e2) throw new Error(`Error obteniendo cola de verificación: ${e2.message}`);
+
+  type Row = {
+    id: string;
+    name: string;
+    capacity_mw: number | null;
+    estimated_connection_date: string | null;
+    status: string | null;
+    location: { comuna: string | null; region: { name: string } | null } | null;
+  };
+
+  const seen = new Set<string>();
+  const merged = [...((esperados ?? []) as unknown as Row[]), ...((resto ?? []) as unknown as Row[])].filter((row) => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
+
+  return merged.slice(0, limit).map((row) => ({
+    id: row.id,
+    name: row.name,
+    comuna: row.location?.comuna ?? null,
+    region: row.location?.region?.name ?? null,
+    capacityMw: row.capacity_mw,
+    estimatedConnectionDate: row.estimated_connection_date,
+    status: row.status,
+  }));
+}
+
+/** Conteo total de proyectos sin verificar — para la tarjeta de /admin. */
+export async function countUnverifiedProjects(client: SupabaseClient): Promise<number> {
+  const { count, error } = await client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null);
+  if (error) throw new Error(`Error contando proyectos sin verificar: ${error.message}`);
+  return count ?? 0;
 }
 
 export interface ProjectTimelineEntry {
