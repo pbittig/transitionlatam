@@ -146,7 +146,10 @@ export function ProjectEditForm({
           className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         >
           <option value="">— Sin definir —</option>
-          {connectionStatusOptions.map((opt) => (
+          {/* connection_status tiene códigos duplicados con el mismo texto (bug preexistente
+              en la ingesta del listado, ver load.ts) — se deduplica por label acá para no
+              repetir la misma opción ni colisionar la key de React. */}
+          {[...new Set(connectionStatusOptions)].map((opt) => (
             <option key={opt} value={opt}>
               {opt}
             </option>

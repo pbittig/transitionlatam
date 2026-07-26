@@ -55,12 +55,11 @@ export async function listDocumentsForSolicitud(solicitudId: string): Promise<Ac
 }
 
 /**
- * Descarga el contenido binario del documento (PDF o Excel) — dos pasos: el
- * endpoint `/documentos/s3` no devuelve el archivo, devuelve JSON con
- * `url_archivo` (una URL S3 firmada que expira en apenas 30 segundos, ver
- * `X-Amz-Expires=30` real observado), que hay que pedir de inmediato después.
+ * Pide la URL S3 firmada de un documento — expira en apenas 30 segundos (ver
+ * `X-Amz-Expires=30` real observado), así que hay que usarla de inmediato
+ * (descargarla server-side, o pasarla a un cliente que la abra al toque).
  */
-export async function downloadDocument(doc: AccesoAbiertoDocument): Promise<Buffer> {
+export async function getSignedDocumentUrl(doc: AccesoAbiertoDocument): Promise<string> {
   const signUrl = `${API_BASE}/documentos/s3?app=aa&key=${encodeURIComponent(doc.rutaS3)}&download=${encodeURIComponent(doc.nombre)}`;
   const signRes = await fetch(signUrl, {
     headers: { "User-Agent": "Mozilla/5.0" },
@@ -69,7 +68,12 @@ export async function downloadDocument(doc: AccesoAbiertoDocument): Promise<Buff
   if (!signRes.ok) throw new Error(`Acceso Abierto (firma S3) respondió ${signRes.status} ${signRes.statusText} para ${doc.nombre}`);
   const { url_archivo: fileUrl } = (await signRes.json()) as { url_archivo: string };
   if (!fileUrl) throw new Error(`Acceso Abierto no devolvió url_archivo para ${doc.nombre}`);
+  return fileUrl;
+}
 
+/** Descarga el contenido binario del documento (PDF o Excel) — usa la URL firmada de inmediato, antes de que expire. */
+export async function downloadDocument(doc: AccesoAbiertoDocument): Promise<Buffer> {
+  const fileUrl = await getSignedDocumentUrl(doc);
   const fileRes = await fetch(fileUrl, { signal: AbortSignal.timeout(30_000) });
   if (!fileRes.ok) throw new Error(`Descarga S3 respondió ${fileRes.status} ${fileRes.statusText} para ${doc.nombre}`);
   const arrayBuffer = await fileRes.arrayBuffer();

@@ -5,6 +5,8 @@ import { getProjectById } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { ProjectEditPageBody } from "../../components/ProjectEditPageBody";
 import { VerifyButton } from "../VerifyButton";
+import { AiSuggestionPanel } from "../AiSuggestionPanel";
+import { FormularioDocumentLink } from "../FormularioDocumentLink";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +34,12 @@ export default async function VerificarProyectoPage({ params }: { params: Promis
             {project.name}
           </h1>
         </div>
-        <VerifyButton projectId={project.id} />
+        <div className="flex flex-col items-end gap-2">
+          <VerifyButton projectId={project.id} />
+          <FormularioDocumentLink projectId={project.id} />
+        </div>
       </div>
+      <AiSuggestionPanel projectId={project.id} />
       <ProjectEditPageBody client={client} project={project} />
     </div>
   );

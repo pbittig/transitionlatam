@@ -16,7 +16,7 @@ const STOPWORDS = new Set(
   ].map(normalizeForMatch),
 );
 
-function distinctiveTokens(name: string): string[] {
+export function distinctiveTokens(name: string): string[] {
   return normalizeForMatch(name)
     .split(" ")
     .filter((t) => t.length > 0 && !STOPWORDS.has(t));
