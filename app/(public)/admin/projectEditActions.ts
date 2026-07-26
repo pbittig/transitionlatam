@@ -145,3 +145,29 @@ export async function markProjectVerified(
     return { success: false, error: (err as Error).message };
   }
 }
+
+/**
+ * Desvincula el expediente SEIA asociado a este proyecto (deja `project_id` en null en
+ * `seia_record`) — mismo mecanismo que ya usa saveSeiaMatch para soltar un match previo
+ * distinto antes de asociar uno nuevo, aquí sin candidato nuevo. Es solo una
+ * desvinculación, no una marca de "no aplica EIA/DIA": una corrida futura de
+ * scripts/match-seia-projects.ts podría volver a sugerirle algo a este proyecto
+ * (decisión confirmada con el usuario, ver el spec de esta feature).
+ */
+export async function unassignSeiaMatch(projectId: string): Promise<{ success: boolean; error?: string }> {
+  if (!(await isAdmin())) {
+    return { success: false, error: "Debes iniciar sesión como administrador." };
+  }
+  try {
+    const client = createSupabaseServiceClient();
+    const { error } = await client.from("seia_record").update({ project_id: null }).eq("project_id", projectId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/admin/verificador/${projectId}`);
+    revalidatePath(`/admin/editar-data/${projectId}`);
+    revalidatePath(`/proyectos/${projectId}`);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}

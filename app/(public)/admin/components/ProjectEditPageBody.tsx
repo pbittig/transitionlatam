@@ -3,6 +3,7 @@ import { getConnectionStatuses } from "@/lib/data-access/connectionStatuses";
 import { getSeiaRecordForProject } from "@/lib/data-access/seia";
 import type { ProjectDetail } from "@/lib/data-access/projects";
 import { ProjectEditForm } from "./ProjectEditForm";
+import { UnassignSeiaButton } from "./UnassignSeiaButton";
 import { SeiaMatchModal } from "../../proyectos/[id]/SeiaMatchModal";
 import { SeiaStatusCard } from "../../components/SeiaStatusCard";
 
@@ -21,7 +22,10 @@ export async function ProjectEditPageBody({ client, project }: { client: Supabas
           <h2 className="text-xs font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
             Estado ambiental
           </h2>
-          <SeiaMatchModal projectId={project.id} hasExistingMatch={!!seiaRecord} isAdmin />
+          <div className="flex items-center gap-3">
+            <SeiaMatchModal projectId={project.id} hasExistingMatch={!!seiaRecord} isAdmin />
+            {seiaRecord && <UnassignSeiaButton projectId={project.id} />}
+          </div>
         </div>
         <div className="mt-3">
           {seiaRecord ? (
