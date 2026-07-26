@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Bell, ChartNoAxesCombined, ContactRound, Network, LogIn, LogOut } from "lucide-react";
+import { Activity, Bell, ChartNoAxesCombined, ContactRound, Network, LogIn, LogOut, ShieldCheck } from "lucide-react";
 import { LastSyncIndicator } from "./LastSyncIndicator";
 import { logout } from "@/app/login/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
@@ -24,7 +24,13 @@ export function Sidebar({
   userProfile: CurrentUserProfile | null;
 }) {
   const pathname = usePathname();
-  const navItems = isAdmin ? [...NAV_ITEMS, { href: "/alertas", label: "Seguimiento", icon: Bell }] : NAV_ITEMS;
+  const navItems = isAdmin
+    ? [
+        ...NAV_ITEMS,
+        { href: "/alertas", label: "Seguimiento", icon: Bell },
+        { href: "/admin", label: "Admin", icon: ShieldCheck },
+      ]
+    : NAV_ITEMS;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-16 flex-col border-r border-neutral-200 bg-white md:w-64 dark:border-neutral-800 dark:bg-neutral-950 print:hidden">
