@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CHILE_REGION_CENTROIDS } from "@/lib/shared/chileRegionCentroids";
 import { contactRoleLabelEs } from "@/lib/shared/contactRoleLabels";
 import { PMGD_CAPACITY_THRESHOLD_MW } from "@/lib/shared/projectPhaseDurations";
+import type { VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
 
 const MAX_PAGE_SIZE = 100;
 
@@ -262,13 +263,18 @@ export interface ProjectDetail extends ProjectListItem {
   developerCompanyRut: string | null;
   developerCompanyAddress: string | null;
   verifiedAt: string | null;
+  aiScreenedAt: string | null;
+  aiDataSanity: "ok" | "sospechoso" | null;
+  aiDataSanityReason: string | null;
+  aiSeiaPick: string | null;
+  aiSeiaPickReason: string | null;
 }
 
 export async function getProjectById(client: SupabaseClient, id: string): Promise<ProjectDetail | null> {
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
+      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, ai_screened_at, ai_data_sanity, ai_data_sanity_reason, ai_seia_pick, ai_seia_pick_reason, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -292,6 +298,11 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     status: string | null;
     estimated_connection_date: string | null;
     verified_at: string | null;
+    ai_screened_at: string | null;
+    ai_data_sanity: string | null;
+    ai_data_sanity_reason: string | null;
+    ai_seia_pick: string | null;
+    ai_seia_pick_reason: string | null;
     developer_company_id: string | null;
     technology: { name: string; code: string } | null;
     location: { comuna: string | null; region: { name: string } | null } | null;
@@ -324,6 +335,11 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     status: r.status,
     estimatedConnectionDate: r.estimated_connection_date,
     verifiedAt: r.verified_at,
+    aiScreenedAt: r.ai_screened_at,
+    aiDataSanity: r.ai_data_sanity as "ok" | "sospechoso" | null,
+    aiDataSanityReason: r.ai_data_sanity_reason,
+    aiSeiaPick: r.ai_seia_pick,
+    aiSeiaPickReason: r.ai_seia_pick_reason,
     developerCompany: r.developer?.name ?? null,
     developerCompanyRut: r.developer?.rut ?? null,
     developerCompanyAddress: r.developer?.legal_address ?? null,
@@ -343,6 +359,9 @@ export interface VerificationQueueItem {
   capacityMw: number | null;
   estimatedConnectionDate: string | null;
   status: string | null;
+  aiScreenedAt: string | null;
+  aiDataSanity: "ok" | "sospechoso" | null;
+  aiSeiaPick: string | null;
 }
 
 /**
@@ -354,7 +373,7 @@ export interface VerificationQueueItem {
 export async function getVerificationQueue(client: SupabaseClient, limit = 500): Promise<VerificationQueueItem[]> {
   const startOfMonth = startOfCurrentMonthIso();
   const selectClause =
-    "id, name, capacity_mw, estimated_connection_date, status, location:location_id(comuna, region:region_id(name))";
+    "id, name, capacity_mw, estimated_connection_date, status, ai_screened_at, ai_data_sanity, ai_seia_pick, location:location_id(comuna, region:region_id(name))";
 
   const [{ data: esperados, error: e1 }, { data: resto, error: e2 }] = await Promise.all([
     client
@@ -384,6 +403,9 @@ export async function getVerificationQueue(client: SupabaseClient, limit = 500):
     capacity_mw: number | null;
     estimated_connection_date: string | null;
     status: string | null;
+    ai_screened_at: string | null;
+    ai_data_sanity: string | null;
+    ai_seia_pick: string | null;
     location: { comuna: string | null; region: { name: string } | null } | null;
   };
 
@@ -402,6 +424,9 @@ export async function getVerificationQueue(client: SupabaseClient, limit = 500):
     capacityMw: row.capacity_mw,
     estimatedConnectionDate: row.estimated_connection_date,
     status: row.status,
+    aiScreenedAt: row.ai_screened_at,
+    aiDataSanity: row.ai_data_sanity as "ok" | "sospechoso" | null,
+    aiSeiaPick: row.ai_seia_pick,
   }));
 }
 
@@ -410,6 +435,101 @@ export async function countUnverifiedProjects(client: SupabaseClient): Promise<n
   const { count, error } = await client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null);
   if (error) throw new Error(`Error contando proyectos sin verificar: ${error.message}`);
   return count ?? 0;
+}
+
+/**
+ * Persiste el resultado de una sugerencia de IA — llamado tanto por el botón on-demand
+ * del Verificador (getAiVerificationSuggestion) como por scripts/screen-verification-queue.ts,
+ * así ambos caminos alimentan la misma caché sin duplicar el punto de escritura.
+ */
+export async function saveAiScreeningResult(
+  client: SupabaseClient,
+  projectId: string,
+  suggestion: VerificationSuggestion,
+): Promise<void> {
+  const { error } = await client
+    .from("project")
+    .update({
+      ai_screened_at: new Date().toISOString(),
+      ai_data_sanity: suggestion.dataSanity,
+      ai_data_sanity_reason: suggestion.dataSanityReason,
+      ai_seia_pick: suggestion.seiaPick,
+      ai_seia_pick_reason: suggestion.seiaPickReason,
+    })
+    .eq("id", projectId);
+  if (error) throw new Error(`Error guardando tamizado de IA: ${error.message}`);
+}
+
+/**
+ * Subconjunto de la cola marcado como dudoso por el tamizado de IA: sanity sospechoso, o
+ * un candidato SEIA sugerido (confirmado con el usuario: vale la pena revisar aunque los
+ * datos estén bien). Proyectos sin tamizar (ai_screened_at null) no aparecen acá.
+ */
+export async function getDoubtfulProjects(client: SupabaseClient, limit = 100): Promise<VerificationQueueItem[]> {
+  const selectClause =
+    "id, name, capacity_mw, estimated_connection_date, status, ai_screened_at, ai_data_sanity, ai_seia_pick, location:location_id(comuna, region:region_id(name))";
+
+  const { data, error } = await client
+    .from("project")
+    .select(selectClause)
+    .is("verified_at", null)
+    .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null")
+    .order("ai_screened_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`Error obteniendo proyectos dudosos: ${error.message}`);
+
+  type Row = {
+    id: string;
+    name: string;
+    capacity_mw: number | null;
+    estimated_connection_date: string | null;
+    status: string | null;
+    ai_screened_at: string | null;
+    ai_data_sanity: string | null;
+    ai_seia_pick: string | null;
+    location: { comuna: string | null; region: { name: string } | null } | null;
+  };
+
+  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    comuna: row.location?.comuna ?? null,
+    region: row.location?.region?.name ?? null,
+    capacityMw: row.capacity_mw,
+    estimatedConnectionDate: row.estimated_connection_date,
+    status: row.status,
+    aiScreenedAt: row.ai_screened_at,
+    aiDataSanity: row.ai_data_sanity as "ok" | "sospechoso" | null,
+    aiSeiaPick: row.ai_seia_pick,
+  }));
+}
+
+export interface VerificationScreeningStats {
+  totalPending: number;
+  screened: number;
+  doubtful: number;
+}
+
+/** Estadísticas de avance del tamizado de IA — para el contador de /admin/verificador. */
+export async function getVerificationScreeningStats(client: SupabaseClient): Promise<VerificationScreeningStats> {
+  const [{ count: totalPending, error: e1 }, { count: screened, error: e2 }, { count: doubtful, error: e3 }] =
+    await Promise.all([
+      client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null),
+      client
+        .from("project")
+        .select("id", { count: "exact", head: true })
+        .is("verified_at", null)
+        .not("ai_screened_at", "is", null),
+      client
+        .from("project")
+        .select("id", { count: "exact", head: true })
+        .is("verified_at", null)
+        .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null"),
+    ]);
+  if (e1) throw new Error(`Error contando estadísticas de tamizado: ${e1.message}`);
+  if (e2) throw new Error(`Error contando estadísticas de tamizado: ${e2.message}`);
+  if (e3) throw new Error(`Error contando estadísticas de tamizado: ${e3.message}`);
+  return { totalPending: totalPending ?? 0, screened: screened ?? 0, doubtful: doubtful ?? 0 };
 }
 
 export interface ProjectTimelineEntry {
