@@ -47,7 +47,16 @@ export async function getAiVerificationSuggestion(projectId: string): Promise<Ai
       return { success: false, error: error ?? "GLM no devolvió una sugerencia." };
     }
 
-    await saveAiScreeningResult(client, projectId, suggestion);
+    // Persistence is a non-fatal side-effect: the GLM suggestion above already
+    // succeeded, so a database failure here must never propagate and undo/mask that
+    // success — warn and return the valid suggestion anyway.
+    try {
+      await saveAiScreeningResult(client, projectId, suggestion);
+    } catch (err) {
+      console.warn(
+        `[AI Screening] Warning: Could not persist AI screening result for project ${projectId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     return { success: true, suggestion, candidates };
   } catch (err) {
