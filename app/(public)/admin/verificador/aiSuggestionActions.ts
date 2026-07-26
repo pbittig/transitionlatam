@@ -2,7 +2,7 @@
 
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
-import { getProjectById } from "@/lib/data-access/projects";
+import { getProjectById, saveAiScreeningResult } from "@/lib/data-access/projects";
 import { searchSeiaByName } from "@/lib/ingestion/sources/seia/searchApi";
 import { distinctiveTokens } from "@/lib/ingestion/sources/seia/match";
 import { getGlmVerificationSuggestion, type VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
@@ -46,6 +46,8 @@ export async function getAiVerificationSuggestion(projectId: string): Promise<Ai
     if (error || !suggestion) {
       return { success: false, error: error ?? "GLM no devolvió una sugerencia." };
     }
+
+    await saveAiScreeningResult(client, projectId, suggestion);
 
     return { success: true, suggestion, candidates };
   } catch (err) {

@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
-import { getProjectById } from "@/lib/data-access/projects";
+import { getProjectById, type ProjectDetail } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { ProjectEditPageBody } from "../../components/ProjectEditPageBody";
 import { VerifyButton } from "../VerifyButton";
 import { AiSuggestionPanel } from "../AiSuggestionPanel";
 import { FormularioDocumentLink } from "../FormularioDocumentLink";
+import type { AiSuggestionResult } from "../aiSuggestionActions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,20 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const client = await createSupabaseServerClient();
   const project = await getProjectById(client, id);
   return { title: project ? `Verificar — ${project.name}` : "Verificar proyecto" };
+}
+
+function buildInitialAiResult(project: ProjectDetail): AiSuggestionResult | null {
+  if (!project.aiScreenedAt || !project.aiDataSanity) return null;
+  return {
+    success: true,
+    suggestion: {
+      dataSanity: project.aiDataSanity,
+      dataSanityReason: project.aiDataSanityReason ?? "",
+      seiaPick: project.aiSeiaPick,
+      seiaPickReason: project.aiSeiaPickReason ?? "",
+    },
+    candidates: [],
+  };
 }
 
 export default async function VerificarProyectoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -39,7 +54,7 @@ export default async function VerificarProyectoPage({ params }: { params: Promis
           <FormularioDocumentLink projectId={project.id} />
         </div>
       </div>
-      <AiSuggestionPanel projectId={project.id} />
+      <AiSuggestionPanel projectId={project.id} initialResult={buildInitialAiResult(project)} />
       <ProjectEditPageBody client={client} project={project} />
     </div>
   );

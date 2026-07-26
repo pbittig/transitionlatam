@@ -12,9 +12,15 @@ import { assignSeiaMatch } from "../../proyectos/[id]/seiaActions";
  * usa el candidato SEIA propuesto (un clic) o la ignora. El botón "Verificado"
  * del Verificador sigue siendo la única acción que realmente cierra el caso.
  */
-export function AiSuggestionPanel({ projectId }: { projectId: string }) {
+export function AiSuggestionPanel({
+  projectId,
+  initialResult,
+}: {
+  projectId: string;
+  initialResult: AiSuggestionResult | null;
+}) {
   const router = useRouter();
-  const [result, setResult] = useState<AiSuggestionResult | null>(null);
+  const [result, setResult] = useState<AiSuggestionResult | null>(initialResult);
   const [applied, setApplied] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [loading, startLoading] = useTransition();
@@ -57,7 +63,7 @@ export function AiSuggestionPanel({ projectId }: { projectId: string }) {
           disabled={loading}
           className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
         >
-          {loading ? "Pensando…" : result ? "Pedir de nuevo" : "Pedir sugerencia de IA"}
+          {loading ? "Pensando…" : result ? "Actualizar sugerencia" : "Pedir sugerencia de IA"}
         </button>
       </div>
       <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
