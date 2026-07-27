@@ -58,10 +58,11 @@ function fieldValues(project: ProjectDetail): Record<EditableProjectField, strin
   };
 }
 
-function StatusHint({ status }: { status?: FieldStatus }) {
+function StatusHint({ status, errorMessage }: { status?: FieldStatus; errorMessage?: string }) {
   if (status === "saving") return <span className="text-xs text-neutral-400">Guardando…</span>;
   if (status === "saved") return <span className="text-xs text-emerald-600 dark:text-emerald-400">Guardado ✓</span>;
-  if (status === "error") return <span className="text-xs text-red-600 dark:text-red-400">Error — reintenta</span>;
+  if (status === "error")
+    return <span className="text-xs text-red-600 dark:text-red-400">{errorMessage || "Error — reintenta"}</span>;
   return null;
 }
 
@@ -74,14 +75,17 @@ export function ProjectEditForm({
 }) {
   const [values, setValues] = useState(fieldValues(project));
   const [status, setStatus] = useState<Partial<Record<EditableProjectField, FieldStatus>>>({});
+  const [errorMessages, setErrorMessages] = useState<Partial<Record<EditableProjectField, string>>>({});
 
   async function save(field: EditableProjectField, value: string | number | null) {
     setStatus((prev) => ({ ...prev, [field]: "saving" }));
     try {
       const result = await updateProjectField(project.id, field, value);
       setStatus((prev) => ({ ...prev, [field]: result.success ? "saved" : "error" }));
-    } catch {
+      setErrorMessages((prev) => ({ ...prev, [field]: result.success ? undefined : result.error }));
+    } catch (err) {
       setStatus((prev) => ({ ...prev, [field]: "error" }));
+      setErrorMessages((prev) => ({ ...prev, [field]: (err as Error).message }));
     }
   }
 
@@ -97,7 +101,7 @@ export function ProjectEditForm({
             onBlur={(e) => save(key, toNullableText(e.target.value))}
             className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
           />
-          <StatusHint status={status[key]} />
+          <StatusHint status={status[key]} errorMessage={errorMessages[key]} />
         </label>
       ))}
 
@@ -111,7 +115,7 @@ export function ProjectEditForm({
             onBlur={(e) => save(key, toNullableNumber(e.target.value))}
             className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
           />
-          <StatusHint status={status[key]} />
+          <StatusHint status={status[key]} errorMessage={errorMessages[key]} />
         </label>
       ))}
 
@@ -132,7 +136,7 @@ export function ProjectEditForm({
             </option>
           ))}
         </select>
-        <StatusHint status={status.requestType} />
+        <StatusHint status={status.requestType} errorMessage={errorMessages.requestType} />
       </label>
 
       <label className="flex flex-col gap-1">
@@ -155,7 +159,7 @@ export function ProjectEditForm({
             </option>
           ))}
         </select>
-        <StatusHint status={status.status} />
+        <StatusHint status={status.status} errorMessage={errorMessages.status} />
       </label>
 
       <label className="flex flex-col gap-1">
@@ -169,7 +173,7 @@ export function ProjectEditForm({
           }}
           className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         />
-        <StatusHint status={status.estimatedConnectionDate} />
+        <StatusHint status={status.estimatedConnectionDate} errorMessage={errorMessages.estimatedConnectionDate} />
       </label>
     </div>
   );

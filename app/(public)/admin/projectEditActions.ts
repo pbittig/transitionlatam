@@ -92,14 +92,23 @@ export async function updateProjectField(
         .eq("id", projectId)
         .maybeSingle();
       if (projectError) throw new Error(projectError.message);
+
       if (!projectRow?.spv_id) {
-        return { success: false, error: "Este proyecto no tiene SPV asociada todavía." };
+        // Sin SPV vinculada todavía: a diferencia de la empresa desarrolladora (que sí se
+        // repite entre proyectos), la SPV es prácticamente 1 a 1 con el proyecto en este
+        // rubro — crear una nueva acá no arriesga duplicar algo que ya existía en otro lado.
+        if (value === null || value === "") return { success: true };
+        const { data: newSpv, error: createError } = await client.from("spv").insert({ name: value }).select("id").single();
+        if (createError) throw new Error(createError.message);
+        const { error: linkError } = await client.from("project").update({ spv_id: newSpv.id }).eq("id", projectId);
+        if (linkError) throw new Error(linkError.message);
+      } else {
+        const { error } = await client
+          .from("spv")
+          .update({ [SPV_COLUMNS[field]!]: value })
+          .eq("id", projectRow.spv_id as string);
+        if (error) throw new Error(error.message);
       }
-      const { error } = await client
-        .from("spv")
-        .update({ [SPV_COLUMNS[field]!]: value })
-        .eq("id", projectRow.spv_id as string);
-      if (error) throw new Error(error.message);
     } else if (CONNECTION_COLUMNS[field]) {
       const { error } = await client
         .from("project_connection")
