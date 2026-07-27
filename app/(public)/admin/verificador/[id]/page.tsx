@@ -31,8 +31,12 @@ async function buildInitialAiResult(project: ProjectDetail): Promise<AiSuggestio
   if (project.aiSeiaPick) {
     const searchTerm = distinctiveTokens(project.name).join(" ");
     if (searchTerm) {
-      const seiaResponse = await searchSeiaByName(searchTerm, MAX_SEIA_CANDIDATES);
-      candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
+      try {
+        const seiaResponse = await searchSeiaByName(searchTerm, MAX_SEIA_CANDIDATES);
+        candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
+      } catch (err) {
+        console.warn(`No se pudo obtener candidatos SEIA para el proyecto ${project.id}: ${(err as Error).message}`);
+      }
     }
   }
 
