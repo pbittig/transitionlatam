@@ -10,10 +10,16 @@ const SEARCH_URL = "https://seia.sea.gob.cl/busqueda/buscarProyectoResumenAction
  * muestra la UI ("c") — espera un ID interno que no pudimos determinar, así que
  * se filtra por tipo del lado del cliente (ver normalize.ts) en vez de acá.
  */
-// Sector económico "Energía" — confirmado empíricamente (barrido de valores 1-12,
-// sector=7 devuelve "Central Termoeléctrica Laja" y similares) y por el usuario
-// directamente: https://seia.sea.gob.cl/busqueda/buscarProyectoResumen.php?sectores_economicos=7
-const ENERGY_SECTOR_ID = "7";
+// Sectores económicos relevantes para energía — confirmado empíricamente (barrido de
+// valores 1-14). 7 = "Energía" (termoeléctricas, solares, subestaciones, líneas de
+// transmisión) y por el usuario directamente:
+// https://seia.sea.gob.cl/busqueda/buscarProyectoResumen.php?sectores_economicos=7
+// 13 = "Presas y embalses" — ahí es donde SEIA clasifica las centrales hidroeléctricas,
+// NO en "Energía" (hallazgo real: "CENTRAL HIDROELÉCTRICA FRONTERA",
+// https://seia.sea.gob.cl/expediente/expediente.php?id_expediente=2130098261, invisible
+// en nuestra búsqueda hasta agregar este sector). El endpoint acepta varios sectores
+// separados por coma en un solo parámetro (confirmado contra el buscador real).
+const ENERGY_SECTOR_IDS = "7,13";
 
 export async function searchSeiaByName(nombre: string, limit = 20): Promise<SeiaSearchResponse> {
   const body = new URLSearchParams({
@@ -28,7 +34,7 @@ export async function searchSeiaByName(nombre: string, limit = 20): Promise<Seia
     PresentacionMax: "",
     CalificaMin: "",
     CalificaMax: "",
-    sectores_economicos: ENERGY_SECTOR_ID,
+    sectores_economicos: ENERGY_SECTOR_IDS,
     razoningreso: "",
     id_tipoexpediente: "",
     offset: "1",
