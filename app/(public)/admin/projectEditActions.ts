@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
+import { TECHNOLOGY_COMBOS, type TechnologyCombo } from "./technologyCombos";
 
 export type EditableProjectField =
   | "name"
@@ -193,6 +194,45 @@ export async function deleteProject(projectId: string): Promise<{ success: boole
 
     revalidatePath("/admin/verificador");
     revalidatePath("/admin/editar-data");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+/**
+ * Fija tecnología + includes_storage + project_kind a la vez, a partir de un combo elegido
+ * en el select de ProjectEditForm (ver ./technologyCombos.ts) — las tres columnas juntas
+ * determinan qué celdas de capacidad tienen sentido para este proyecto, así que se
+ * escriben en un solo paso en vez de exponerlas como tres campos sueltos.
+ */
+export async function updateProjectTechnologyCombo(
+  projectId: string,
+  combo: TechnologyCombo,
+): Promise<{ success: boolean; error?: string }> {
+  if (!(await isAdmin())) {
+    return { success: false, error: "Debes iniciar sesión como administrador." };
+  }
+  try {
+    const client = createSupabaseServiceClient();
+    const config = TECHNOLOGY_COMBOS[combo];
+
+    const { data: tech, error: techError } = await client
+      .from("technology")
+      .select("id")
+      .eq("code", config.technologyCode)
+      .single();
+    if (techError) throw new Error(techError.message);
+
+    const { error } = await client
+      .from("project")
+      .update({ technology_id: tech.id, includes_storage: config.includesStorage, project_kind: config.projectKind })
+      .eq("id", projectId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/admin/verificador/${projectId}`);
+    revalidatePath(`/admin/editar-data/${projectId}`);
+    revalidatePath(`/proyectos/${projectId}`);
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };

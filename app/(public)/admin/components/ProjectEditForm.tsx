@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { updateProjectField, type EditableProjectField } from "../projectEditActions";
+import { updateProjectField, updateProjectTechnologyCombo, type EditableProjectField } from "../projectEditActions";
 import type { ProjectDetail } from "@/lib/data-access/projects";
+import { TECHNOLOGY_COMBOS, TECHNOLOGY_COMBO_ORDER, comboFromProject, type TechnologyCombo } from "../technologyCombos";
 
 type FieldStatus = "idle" | "saving" | "saved" | "error";
 
@@ -85,6 +86,18 @@ export function ProjectEditForm({
   const [status, setStatus] = useState<Partial<Record<EditableProjectField, FieldStatus>>>({});
   const [errorMessages, setErrorMessages] = useState<Partial<Record<EditableProjectField, string>>>({});
 
+  const [combo, setCombo] = useState<TechnologyCombo | "">(
+    comboFromProject(project.technologyCode, project.includesStorage) ?? "",
+  );
+  const [comboStatus, setComboStatus] = useState<FieldStatus>("idle");
+  const [comboError, setComboError] = useState<string | undefined>();
+
+  // Mientras no se elija un combo (proyecto con tecnología fuera de solar/eólico/BESS/híbrido,
+  // o híbrido+storage que no se puede reconstruir con certeza), las celdas siguen el estado
+  // real del proyecto — ver comboFromProject en ../technologyCombos.
+  const includesStorage = combo ? TECHNOLOGY_COMBOS[combo].includesStorage : project.includesStorage;
+  const projectKind = combo ? TECHNOLOGY_COMBOS[combo].projectKind : project.projectKind;
+
   async function save(field: EditableProjectField, value: string | number | null) {
     setStatus((prev) => ({ ...prev, [field]: "saving" }));
     try {
@@ -94,6 +107,19 @@ export function ProjectEditForm({
     } catch (err) {
       setStatus((prev) => ({ ...prev, [field]: "error" }));
       setErrorMessages((prev) => ({ ...prev, [field]: (err as Error).message }));
+    }
+  }
+
+  async function saveTechnologyCombo(newCombo: TechnologyCombo) {
+    setCombo(newCombo); // activa las celdas al toque, sin esperar el guardado
+    setComboStatus("saving");
+    try {
+      const result = await updateProjectTechnologyCombo(project.id, newCombo);
+      setComboStatus(result.success ? "saved" : "error");
+      setComboError(result.success ? undefined : result.error);
+    } catch (err) {
+      setComboStatus("error");
+      setComboError((err as Error).message);
     }
   }
 
@@ -114,6 +140,25 @@ export function ProjectEditForm({
       ))}
 
       <label className="flex flex-col gap-1">
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">Tecnología</span>
+        <select
+          value={combo}
+          onChange={(e) => saveTechnologyCombo(e.target.value as TechnologyCombo)}
+          className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
+        >
+          <option value="" disabled>
+            — Sin definir —
+          </option>
+          {TECHNOLOGY_COMBO_ORDER.map((key) => (
+            <option key={key} value={key}>
+              {TECHNOLOGY_COMBOS[key].label}
+            </option>
+          ))}
+        </select>
+        <StatusHint status={comboStatus} errorMessage={comboError} />
+      </label>
+
+      <label className="flex flex-col gap-1">
         <span className="text-xs text-neutral-500 dark:text-neutral-400">{CAPACITY_FIELD.label}</span>
         <input
           type="number"
@@ -125,7 +170,7 @@ export function ProjectEditForm({
         <StatusHint status={status[CAPACITY_FIELD.key]} errorMessage={errorMessages[CAPACITY_FIELD.key]} />
       </label>
 
-      {project.includesStorage && project.projectKind !== "storage" && (
+      {includesStorage && projectKind !== "storage" && (
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500 dark:text-neutral-400">{GENERATION_FIELD.label}</span>
           <input
@@ -139,7 +184,7 @@ export function ProjectEditForm({
         </label>
       )}
 
-      {project.includesStorage &&
+      {includesStorage &&
         STORAGE_NUMBER_FIELDS.map(({ key, label }) => (
           <label key={key} className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500 dark:text-neutral-400">{label}</span>
