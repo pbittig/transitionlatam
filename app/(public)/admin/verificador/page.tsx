@@ -77,8 +77,8 @@ export default async function VerificadorPage({
           {onlyDoubtful ? ", solo dudosos" : sortColumn ? "" : ", vigentes primero"}.
         </p>
         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-          {stats.screened.toLocaleString("es-CL")} de {stats.totalPending.toLocaleString("es-CL")} ya tamizados con IA
-          — {stats.doubtful.toLocaleString("es-CL")} dudosos.
+          {stats.screened.toLocaleString("es-CL")} proyectos tamizados con IA en total — {stats.doubtful.toLocaleString("es-CL")}{" "}
+          dudosos pendientes de revisar.
         </p>
         <div className="mt-3 flex gap-2 text-xs">
           <Link

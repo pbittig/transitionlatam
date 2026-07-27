@@ -550,16 +550,18 @@ export interface VerificationScreeningStats {
   doubtful: number;
 }
 
-/** Estadísticas de avance del tamizado de IA — para el contador de /admin/verificador. */
+/**
+ * Estadísticas de avance del tamizado de IA — para el contador de /admin/verificador.
+ * `screened` cuenta el total tamizado alguna vez (sin importar si después se verificó) —
+ * verificar un proyecto no deshace el trabajo de tamizado ya invertido en él. `totalPending`
+ * y `doubtful` sí se acotan a lo que queda pendiente: son "cuánto trabajo falta", no un
+ * historial.
+ */
 export async function getVerificationScreeningStats(client: SupabaseClient): Promise<VerificationScreeningStats> {
   const [{ count: totalPending, error: e1 }, { count: screened, error: e2 }, { count: doubtful, error: e3 }] =
     await Promise.all([
       client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null),
-      client
-        .from("project")
-        .select("id", { count: "exact", head: true })
-        .is("verified_at", null)
-        .not("ai_screened_at", "is", null),
+      client.from("project").select("id", { count: "exact", head: true }).not("ai_screened_at", "is", null),
       client
         .from("project")
         .select("id", { count: "exact", head: true })
