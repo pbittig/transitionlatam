@@ -46,7 +46,6 @@ export function RevealStakeholders({
         {stakeholders.map((s) => (
           <li key={s.personId} className="rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800">
             <div className="font-medium text-neutral-900 dark:text-neutral-50">{s.name}</div>
-            <div className="text-neutral-500 dark:text-neutral-400">{s.role}</div>
             {s.email && <div className="mt-1 text-neutral-600 dark:text-neutral-400">{s.email}</div>}
             {s.phone && <div className="text-neutral-600 dark:text-neutral-400">{s.phone}</div>}
           </li>

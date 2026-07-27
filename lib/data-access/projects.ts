@@ -750,23 +750,88 @@ export async function getCompanyProjects(
   }));
 }
 
+/** Junta personas + roles a partir de filas person->target de entity_relationship ya resueltas — compartido entre el camino por proyecto y el de respaldo por empresa de getProjectStakeholders. */
+async function resolveStakeholders(
+  client: SupabaseClient,
+  relRows: Array<{ relationship_type: string; source_id: string }>,
+): Promise<ProjectStakeholder[]> {
+  if (!relRows.length) return [];
+
+  const { data: people } = await client
+    .from("person")
+    .select("id, full_name, email, phone")
+    .in("id", relRows.map((r) => r.source_id));
+
+  const peopleById = new Map((people ?? []).map((p) => [p.id as string, p]));
+
+  // Una misma persona puede tener varios roles hacia el mismo proyecto/empresa (ej.
+  // "firmante" y "coordinador de proyecto" del Formulario) — se agrupan en
+  // una sola tarjeta para no repetir a la persona ni duplicar la key de React.
+  // Los roles se deduplican ignorando mayúsculas/espacios: distintos documentos
+  // del mismo proyecto a veces re-extraen el mismo cargo con grafía distinta
+  // (ej. "Ingeniero Senior de Estudios y Conexiones" vs "Ingeniero senior de
+  // Estudios y Conexiones"), y sin esto se acumulan como si fueran roles
+  // distintos.
+  const rolesByPerson = new Map<string, Map<string, string>>();
+  for (const r of relRows) {
+    if (!peopleById.has(r.source_id)) continue;
+    const role = contactRoleLabelEs(r.relationship_type);
+    const dedupeKey = role.trim().toLowerCase().replace(/\s+/g, " ");
+    const roles = rolesByPerson.get(r.source_id) ?? new Map<string, string>();
+    if (!roles.has(dedupeKey)) roles.set(dedupeKey, role.trim());
+    rolesByPerson.set(r.source_id, roles);
+  }
+
+  return [...rolesByPerson.entries()].map(([personId, roles]) => {
+    const p = peopleById.get(personId)!;
+    return {
+      personId,
+      name: p.full_name as string,
+      role: [...roles.values()].join(", "),
+      email: p.email as string | null,
+      phone: p.phone as string | null,
+    };
+  });
+}
+
+/**
+ * Contactos de ESTE proyecto específico — nunca relacionados por RUT/nombre de la
+ * empresa desarrolladora (decisión confirmada con el usuario: dos proyectos de la
+ * misma empresa no deben compartir contactos solo porque comparten dueño; hallazgo
+ * real: "Circinus SpA" tiene 12 proyectos y, con el criterio viejo por empresa, los 12
+ * mostraban exactamente los mismos 4 contactos sin importar de cuál Formulario
+ * vinieron realmente).
+ */
 export async function getProjectStakeholders(
   client: SupabaseClient,
   projectId: string,
   developerCompanyId: string | null,
 ): Promise<ProjectStakeholder[]> {
-  // El company_id "oficial" del proyecto (columna project.developer_company_id, poblada
-  // por la ingesta de SIPUB/listado, que solo matchea empresas por nombre exacto) y el
-  // que el Formulario vincula por separado (RUT primero, ver getOrCreateCompany en
-  // lib/ingestion/sources/energia-abierta/detalle-formulario/load.ts) no siempre son la
-  // misma fila de `company` — dos ingestas independientes, cada una con su propio
-  // getOrCreateCompany, y basta que la razón social se escriba distinto en cada fuente
-  // para que terminen en dos empresas separadas. Hallazgo real: "Eléctrica Santa Teresa
-  // SpA" / proyecto "Ampliación Mega Data Center Lampa" — los contactos del Formulario
-  // (representante legal, coordinadores) quedaban en una empresa que RevealStakeholders
-  // nunca consultaba porque el proyecto apuntaba a otra. Se juntan acá ambos orígenes:
-  // el company_id directo del proyecto, más cualquier empresa que el Formulario haya
-  // vinculado al proyecto vía entity_relationship (project -> developed_by -> company).
+  const { data: projectRows, error: projectRelError } = await client
+    .from("entity_relationship")
+    .select("relationship_type, source_id")
+    .eq("source_type", "person")
+    .eq("target_type", "project")
+    .eq("target_id", projectId);
+  if (projectRelError) throw new Error(`Error obteniendo stakeholders: ${projectRelError.message}`);
+  if (projectRows?.length) {
+    return resolveStakeholders(
+      client,
+      projectRows.map((r) => ({ relationship_type: r.relationship_type as string, source_id: r.source_id as string })),
+    );
+  }
+
+  // Respaldo para proyectos que el Formulario todavía no reprocesó con el vínculo por
+  // proyecto (ver lib/ingestion/sources/energia-abierta/detalle-formulario/load.ts) —
+  // mismo criterio histórico por empresa, para no dejar sin contactos de un día para
+  // otro a lo que aún no se reprocesó. El company_id "oficial" del proyecto
+  // (project.developer_company_id, poblada por la ingesta de SIPUB/listado, que solo
+  // matchea empresas por nombre exacto) y el que el Formulario vincula por separado
+  // (RUT primero) no siempre son la misma fila de `company` — dos ingestas
+  // independientes, cada una con su propio getOrCreateCompany, y basta que la razón
+  // social se escriba distinto en cada fuente para que terminen en dos empresas
+  // separadas. Hallazgo real: "Eléctrica Santa Teresa SpA" / proyecto "Ampliación Mega
+  // Data Center Lampa". Se juntan acá ambos orígenes.
   const { data: developedByRows } = await client
     .from("entity_relationship")
     .select("target_id")
@@ -783,50 +848,17 @@ export async function getProjectStakeholders(
   ];
   if (companyIds.length === 0) return [];
 
-  const { data, error } = await client
+  const { data: companyRows, error: companyRelError } = await client
     .from("entity_relationship")
     .select("relationship_type, source_id")
     .eq("source_type", "person")
     .eq("target_type", "company")
     .in("target_id", companyIds);
-  if (error) throw new Error(`Error obteniendo stakeholders: ${error.message}`);
-  if (!data?.length) return [];
-
-  const { data: people } = await client
-    .from("person")
-    .select("id, full_name, email, phone")
-    .in("id", data.map((r) => r.source_id as string));
-
-  const peopleById = new Map((people ?? []).map((p) => [p.id as string, p]));
-
-  // Una misma persona puede tener varios roles hacia la misma empresa (ej.
-  // "firmante" y "coordinador de proyecto" del Formulario) — se agrupan en
-  // una sola tarjeta para no repetir a la persona ni duplicar la key de React.
-  // Los roles se deduplican ignorando mayúsculas/espacios: distintos documentos
-  // del mismo proyecto a veces re-extraen el mismo cargo con grafía distinta
-  // (ej. "Ingeniero Senior de Estudios y Conexiones" vs "Ingeniero senior de
-  // Estudios y Conexiones"), y sin esto se acumulan como si fueran roles
-  // distintos.
-  const rolesByPerson = new Map<string, Map<string, string>>();
-  for (const r of data) {
-    if (!peopleById.has(r.source_id as string)) continue;
-    const role = contactRoleLabelEs(r.relationship_type as string);
-    const dedupeKey = role.trim().toLowerCase().replace(/\s+/g, " ");
-    const roles = rolesByPerson.get(r.source_id as string) ?? new Map<string, string>();
-    if (!roles.has(dedupeKey)) roles.set(dedupeKey, role.trim());
-    rolesByPerson.set(r.source_id as string, roles);
-  }
-
-  return [...rolesByPerson.entries()].map(([personId, roles]) => {
-    const p = peopleById.get(personId)!;
-    return {
-      personId,
-      name: p.full_name as string,
-      role: [...roles.values()].join(", "),
-      email: p.email as string | null,
-      phone: p.phone as string | null,
-    };
-  });
+  if (companyRelError) throw new Error(`Error obteniendo stakeholders: ${companyRelError.message}`);
+  return resolveStakeholders(
+    client,
+    (companyRows ?? []).map((r) => ({ relationship_type: r.relationship_type as string, source_id: r.source_id as string })),
+  );
 }
 
 export interface RegionBubble {

@@ -161,7 +161,7 @@ export async function loadNormalizedProjects(
 
     const { data: existingProject } = await client
       .from("project")
-      .select("id, status, estimated_connection_date")
+      .select("id, status, estimated_connection_date, verified_at")
       .eq("external_reference", row.externalId)
       .eq("country_id", countryId)
       .maybeSingle();
@@ -192,6 +192,16 @@ export async function loadNormalizedProjects(
       const statusChanged = existingProject.status !== row.statusLabel;
       const dateChanged = existingProject.estimated_connection_date !== row.estimatedConnectionDate;
 
+      // Una vez verificado a mano en /admin/verificador, el sync ya no debe pisar la
+      // ficha completa — solo lo que de verdad sigue moviéndose en el mundo real
+      // (estado de la solicitud, fecha estimada de conexión). El resto (tecnología,
+      // capacidad, storage, punto de conexión, etc.) queda congelado en lo que el
+      // admin dejó, aunque el listado traiga un valor distinto la próxima corrida.
+      const isVerified = !!existingProject.verified_at;
+      const fieldsToUpdate = isVerified
+        ? { status: row.statusLabel, estimated_connection_date: row.estimatedConnectionDate }
+        : projectFields;
+
       const { data: existingConnection } = await client
         .from("project_connection")
         .select("connection_point, substation_bay, voltage_level")
@@ -199,15 +209,16 @@ export async function loadNormalizedProjects(
         .maybeSingle();
 
       const pointChanged =
+        !isVerified &&
         !!existingConnection &&
         (existingConnection.connection_point !== row.connectionPoint ||
           existingConnection.substation_bay !== row.substationBay);
       const connectionNeedsUpdate =
-        !!existingConnection && (pointChanged || existingConnection.voltage_level !== row.voltageLevel);
+        !isVerified && !!existingConnection && (pointChanged || existingConnection.voltage_level !== row.voltageLevel);
 
       // 2. Apply the updates first. If any of these fail, we throw before writing any
       // event, so a retry re-diffs against unchanged source data and stays clean.
-      const { error: updateError } = await client.from("project").update(projectFields).eq("id", existingProject.id);
+      const { error: updateError } = await client.from("project").update(fieldsToUpdate).eq("id", existingProject.id);
       if (updateError) throw new Error(`Error actualizando proyecto '${row.projectName}' (${row.externalId}): ${updateError.message}`);
 
       if (connectionNeedsUpdate) {

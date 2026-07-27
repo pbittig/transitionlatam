@@ -22,6 +22,32 @@ function isPlausibleContactField(value: string): boolean {
   return !/\t|Nombre:|Cargo:|Empresa:/i.test(value);
 }
 
+const COMBINING_DIACRITICS_RE = new RegExp("[\\u0300-\\u036f]", "g");
+
+function stripAccentsLower(value: string): string {
+  return value.normalize("NFD").replace(COMBINING_DIACRITICS_RE, "").toLowerCase();
+}
+
+/**
+ * Red de seguridad contra el mismo problema que ya describe el SYSTEM_PROMPT de
+ * extractWithAi.ts: el texto del PDF puede traer nombres, teléfonos y correos
+ * desordenados, y la IA reconstruye la asociación por contexto — a veces mal
+ * (hallazgo real: el email de "Laura Landeta" quedó pegado al representante legal de
+ * otra empresa solo porque ambos formularios repetían otro nombre). Se exige que el
+ * correo contenga al menos una palabra de 3+ letras del nombre de la persona; si no
+ * calza, se descarta el correo (se guarda igual el contacto, sin ese dato) en vez de
+ * arriesgar guardar un correo de otra persona.
+ */
+function emailMatchesName(name: string, email: string): boolean {
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 0) return false;
+  const localPart = stripAccentsLower(email.slice(0, atIndex)).replace(/[^a-z0-9]/g, "");
+  const nameWords = stripAccentsLower(name)
+    .split(/[^a-z]+/)
+    .filter((w) => w.length >= 3);
+  return nameWords.some((word) => localPart.includes(word));
+}
+
 export interface FormularioLoadResult {
   companyId: string | null;
   personIds: string[];
@@ -259,8 +285,9 @@ export async function loadFormularioResult(
     if (signedByName && isPlausibleContactField(signedByName)) {
       const personId = await getOrCreatePerson(client, signedByName, null, null, companyId);
       personIds.push(personId);
+      const role = signedByRole && isPlausibleContactField(signedByRole) ? signedByRole : "signer";
+      await linkEntities(client, "person", personId, role, "project", projectId, dataSourceId);
       if (companyId) {
-        const role = signedByRole && isPlausibleContactField(signedByRole) ? signedByRole : "signer";
         await linkEntities(client, "person", personId, role, "company", companyId, dataSourceId);
       }
     }
@@ -275,8 +302,14 @@ export async function loadFormularioResult(
 
   for (const contact of data.contacts as FormularioContact[]) {
     if (!contact.name || !isPlausibleContactField(contact.name) || !ALLOWED_CONTACT_ROLES.has(contact.role)) continue;
-    const personId = await getOrCreatePerson(client, contact.name, contact.email, contact.phone, companyId);
+    const verifiedEmail = contact.email && emailMatchesName(contact.name, contact.email) ? contact.email : null;
+    const personId = await getOrCreatePerson(client, contact.name, verifiedEmail, contact.phone, companyId);
     personIds.push(personId);
+    // Vínculo a nivel de PROYECTO (autoritativo para getProjectStakeholders — solo
+    // muestra contactos de la ficha específica, nunca del resto de proyectos de la
+    // misma empresa) además del vínculo a la empresa, que se conserva para vistas
+    // agregadas por empresa (ver scripts/audit-formulario-contacts.ts).
+    await linkEntities(client, "person", personId, contact.role, "project", projectId, dataSourceId);
     if (companyId) {
       await linkEntities(client, "person", personId, contact.role, "company", companyId, dataSourceId);
     }
