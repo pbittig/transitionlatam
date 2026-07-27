@@ -8,6 +8,11 @@ import { VerifyButton } from "../VerifyButton";
 import { AiSuggestionPanel } from "../AiSuggestionPanel";
 import { FormularioDocumentLink } from "../FormularioDocumentLink";
 import type { AiSuggestionResult } from "../aiSuggestionActions";
+import { searchSeiaByName } from "@/lib/ingestion/sources/seia/searchApi";
+import { distinctiveTokens } from "@/lib/ingestion/sources/seia/match";
+import type { RawSeiaProject } from "@/lib/ingestion/sources/seia/types";
+
+const MAX_SEIA_CANDIDATES = 10;
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +24,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: project ? `Verificar — ${project.name}` : "Verificar proyecto" };
 }
 
-function buildInitialAiResult(project: ProjectDetail): AiSuggestionResult | null {
+async function buildInitialAiResult(project: ProjectDetail): Promise<AiSuggestionResult | null> {
   if (!project.aiScreenedAt || !project.aiDataSanity) return null;
+
+  let candidates: RawSeiaProject[] = [];
+  if (project.aiSeiaPick) {
+    const searchTerm = distinctiveTokens(project.name).join(" ");
+    if (searchTerm) {
+      const seiaResponse = await searchSeiaByName(searchTerm, MAX_SEIA_CANDIDATES);
+      candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
+    }
+  }
+
   return {
     success: true,
     suggestion: {
@@ -29,7 +44,7 @@ function buildInitialAiResult(project: ProjectDetail): AiSuggestionResult | null
       seiaPick: project.aiSeiaPick,
       seiaPickReason: project.aiSeiaPickReason ?? "",
     },
-    candidates: [],
+    candidates,
   };
 }
 
@@ -54,7 +69,7 @@ export default async function VerificarProyectoPage({ params }: { params: Promis
           <FormularioDocumentLink projectId={project.id} />
         </div>
       </div>
-      <AiSuggestionPanel projectId={project.id} initialResult={buildInitialAiResult(project)} />
+      <AiSuggestionPanel projectId={project.id} initialResult={await buildInitialAiResult(project)} />
       <ProjectEditPageBody client={client} project={project} />
     </div>
   );

@@ -3,7 +3,7 @@ import { config } from "dotenv";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
-import { getProjectById, saveAiScreeningResult } from "../lib/data-access/projects";
+import { getProjectById, saveAiScreeningResult, REJECTED_STATUSES, startOfCurrentMonthIso } from "../lib/data-access/projects";
 import { searchSeiaByName } from "../lib/ingestion/sources/seia/searchApi";
 import { distinctiveTokens } from "../lib/ingestion/sources/seia/match";
 import { getGlmVerificationSuggestion } from "../lib/ai/verification/glmSuggestion";
@@ -23,22 +23,46 @@ function sleep(ms: number) {
 async function main() {
   const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  const { data: pending, error } = await client
-    .from("project")
-    .select("id")
-    .is("verified_at", null)
-    .is("ai_screened_at", null)
-    .limit(BATCH_SIZE);
-  if (error) throw new Error(error.message);
+  const startOfMonth = startOfCurrentMonthIso();
+  const [{ data: esperados, error: e1 }, { data: resto, error: e2 }] = await Promise.all([
+    client
+      .from("project")
+      .select("id")
+      .is("verified_at", null)
+      .is("ai_screened_at", null)
+      .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
+      .gte("estimated_connection_date", startOfMonth)
+      .order("estimated_connection_date", { ascending: true })
+      .limit(BATCH_SIZE),
+    client
+      .from("project")
+      .select("id")
+      .is("verified_at", null)
+      .is("ai_screened_at", null)
+      .or(
+        `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
+      )
+      .order("created_at", { ascending: true })
+      .limit(BATCH_SIZE),
+  ]);
+  if (e1) throw new Error(e1.message);
+  if (e2) throw new Error(e2.message);
 
-  console.log(`Proyectos pendientes de tamizar en esta corrida: ${(pending ?? []).length}.`);
+  const seen = new Set<string>();
+  const pending = [...(esperados ?? []), ...(resto ?? [])].filter((row) => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  }).slice(0, BATCH_SIZE);
+
+  console.log(`Proyectos pendientes de tamizar en esta corrida: ${pending.length}.`);
 
   let screened = 0;
   let sospechosos = 0;
   let conPick = 0;
   let errors = 0;
 
-  for (const row of pending ?? []) {
+  for (const row of pending) {
     const projectId = row.id as string;
     const start = Date.now();
     try {

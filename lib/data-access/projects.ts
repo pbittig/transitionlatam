@@ -447,13 +447,18 @@ export async function saveAiScreeningResult(
   projectId: string,
   suggestion: VerificationSuggestion,
 ): Promise<void> {
+  const normalizedSanity: "ok" | "sospechoso" =
+    suggestion.dataSanity?.trim().toLowerCase() === "sospechoso" ? "sospechoso" : "ok";
+  const trimmedPick = suggestion.seiaPick?.trim();
+  const normalizedPick = trimmedPick && trimmedPick.toLowerCase() !== "null" ? trimmedPick : null;
+
   const { error } = await client
     .from("project")
     .update({
       ai_screened_at: new Date().toISOString(),
-      ai_data_sanity: suggestion.dataSanity,
+      ai_data_sanity: normalizedSanity,
       ai_data_sanity_reason: suggestion.dataSanityReason,
-      ai_seia_pick: suggestion.seiaPick,
+      ai_seia_pick: normalizedPick,
       ai_seia_pick_reason: suggestion.seiaPickReason,
     })
     .eq("id", projectId);
