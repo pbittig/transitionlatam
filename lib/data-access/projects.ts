@@ -282,13 +282,15 @@ export interface ProjectDetail extends ProjectListItem {
   aiDataSanityReason: string | null;
   aiSeiaPick: string | null;
   aiSeiaPickReason: string | null;
+  /** 'generation' | 'storage' | 'consumption' | 'transmission' | 'hybrid' | null — 'storage' es BESS puro, sin componente de generación. */
+  projectKind: string | null;
 }
 
 export async function getProjectById(client: SupabaseClient, id: string): Promise<ProjectDetail | null> {
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, ai_screened_at, ai_data_sanity, ai_data_sanity_reason, ai_seia_pick, ai_seia_pick_reason, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
+      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, ai_screened_at, ai_data_sanity, ai_data_sanity_reason, ai_seia_pick, ai_seia_pick_reason, project_kind, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -317,6 +319,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     ai_data_sanity_reason: string | null;
     ai_seia_pick: string | null;
     ai_seia_pick_reason: string | null;
+    project_kind: string | null;
     developer_company_id: string | null;
     technology: { name: string; code: string } | null;
     location: { comuna: string | null; region: { name: string } | null } | null;
@@ -354,6 +357,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     aiDataSanityReason: r.ai_data_sanity_reason,
     aiSeiaPick: r.ai_seia_pick,
     aiSeiaPickReason: r.ai_seia_pick_reason,
+    projectKind: r.project_kind,
     developerCompany: r.developer?.name ?? null,
     developerCompanyRut: r.developer?.rut ?? null,
     developerCompanyAddress: r.developer?.legal_address ?? null,
