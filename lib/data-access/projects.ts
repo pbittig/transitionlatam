@@ -426,26 +426,57 @@ function mapVerificationQueueRow(row: VerificationQueueRow): VerificationQueueIt
   };
 }
 
+export type VerificationPeriod = "vigente" | "historico";
+
 /**
- * Cola del Verificador: proyectos con verified_at null. Sin `sort` explícito, usa el
- * mismo criterio "esperados primero" que scripts/sync-formulario-bulk.ts — vigentes (no
- * rechazados/desistidos, fecha de conexión desde el inicio de mes) antes que el resto
- * (rechazados, desistidos, vencidos, o sin fecha). Con `sort` (orden estilo Excel pedido
- * desde la UI), se ignora ese agrupamiento y se ordena la cola completa por la columna
- * elegida.
+ * Mismo criterio "vigente vs histórico" que ya usa /proyectos-esperados (ver
+ * connectionPeriod "upcoming"/"historico_completo" en listProjects): vigente = no
+ * rechazado/desistido y fecha de conexión desde el inicio de mes; histórico = todo lo
+ * demás (rechazado, desistido, vencido, o sin fecha). Aplicado como filtro AND sobre lo
+ * que ya traiga `query` — no reemplaza otros filtros.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- el query builder de supabase-js encadena por mutación de tipo, sin un Database tipado no vale la pena reconstruir su firma acá (mismo criterio pragmático que el resto de este archivo con updates dinámicos).
+function applyPeriodFilter<T extends { not: (...args: any[]) => T; gte: (...args: any[]) => T; or: (...args: any[]) => T }>(
+  query: T,
+  period: VerificationPeriod,
+): T {
+  const startOfMonth = startOfCurrentMonthIso();
+  if (period === "vigente") {
+    return query.not("status", "in", `(${REJECTED_STATUSES.join(",")})`).gte("estimated_connection_date", startOfMonth);
+  }
+  return query.or(
+    `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
+  );
+}
+
+/**
+ * Cola del Verificador: proyectos con verified_at null. Sin `period` ni `sort`, usa el
+ * criterio histórico "esperados primero" que scripts/sync-formulario-bulk.ts — vigentes
+ * antes que el resto, en una sola lista mezclada. Con `period` ("vigente" | "historico",
+ * pedido desde la UI para separar en dos colas navegables — vigente se verifica hoy,
+ * histórico se deja para después con más gente), se filtra a solo esa categoría. Con
+ * `sort` (orden estilo Excel), se ordena por la columna elegida en vez del orden por
+ * defecto de cada modo.
  */
 export async function getVerificationQueue(
   client: SupabaseClient,
   limit = 500,
   sort?: VerificationSort,
+  period?: VerificationPeriod,
 ): Promise<VerificationQueueItem[]> {
-  if (sort) {
-    const { data, error } = await client
-      .from("project")
-      .select(VERIFICATION_QUEUE_SELECT)
-      .is("verified_at", null)
-      .order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false })
-      .limit(limit);
+  if (sort || period) {
+    let query = client.from("project").select(VERIFICATION_QUEUE_SELECT).is("verified_at", null);
+    if (period) query = applyPeriodFilter(query, period);
+
+    if (sort) {
+      query = query.order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false });
+    } else if (period === "vigente") {
+      query = query.order("estimated_connection_date", { ascending: true });
+    } else {
+      query = query.order("created_at", { ascending: true });
+    }
+
+    const { data, error } = await query.limit(limit);
     if (error) throw new Error(`Error obteniendo cola de verificación: ${error.message}`);
     return ((data ?? []) as unknown as VerificationQueueRow[]).map(mapVerificationQueueRow);
   }
@@ -531,12 +562,14 @@ export async function getDoubtfulProjects(
   client: SupabaseClient,
   limit = 100,
   sort?: VerificationSort,
+  period?: VerificationPeriod,
 ): Promise<VerificationQueueItem[]> {
   let query = client
     .from("project")
     .select(VERIFICATION_QUEUE_SELECT)
     .is("verified_at", null)
     .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null");
+  if (period) query = applyPeriodFilter(query, period);
 
   query = sort
     ? query.order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false })
@@ -576,6 +609,22 @@ export async function getVerificationScreeningStats(client: SupabaseClient): Pro
   if (e2) throw new Error(`Error contando estadísticas de tamizado: ${e2.message}`);
   if (e3) throw new Error(`Error contando estadísticas de tamizado: ${e3.message}`);
   return { totalPending: totalPending ?? 0, screened: screened ?? 0, doubtful: doubtful ?? 0 };
+}
+
+export interface VerificationPeriodStats {
+  vigentePending: number;
+  historicoPending: number;
+}
+
+/** Cuántos quedan pendientes en cada cola — vigente (verificar hoy) vs histórico (después, con más gente). */
+export async function getVerificationPeriodStats(client: SupabaseClient): Promise<VerificationPeriodStats> {
+  const [{ count: vigentePending, error: e1 }, { count: historicoPending, error: e2 }] = await Promise.all([
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null), "vigente"),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null), "historico"),
+  ]);
+  if (e1) throw new Error(`Error contando cola vigente: ${e1.message}`);
+  if (e2) throw new Error(`Error contando cola histórica: ${e2.message}`);
+  return { vigentePending: vigentePending ?? 0, historicoPending: historicoPending ?? 0 };
 }
 
 export interface ProjectTimelineEntry {

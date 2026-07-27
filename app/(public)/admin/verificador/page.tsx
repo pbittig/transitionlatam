@@ -5,8 +5,10 @@ import {
   getVerificationQueue,
   getDoubtfulProjects,
   getVerificationScreeningStats,
+  getVerificationPeriodStats,
   type VerificationQueueItem,
   type VerificationSortColumn,
+  type VerificationPeriod,
 } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../../components/Panel";
@@ -30,33 +32,39 @@ function isDoubtful(item: VerificationQueueItem): boolean {
 export default async function VerificadorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dudosos?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ dudosos?: string; sort?: string; dir?: string; periodo?: string }>;
 }) {
   if (!(await isAdmin())) return null;
   const params = await searchParams;
   const onlyDoubtful = params.dudosos === "1";
+  const period: VerificationPeriod = params.periodo === "historico" ? "historico" : "vigente";
   const sortColumn = isSortColumn(params.sort) ? params.sort : undefined;
   const sortDirection: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
   const sort = sortColumn ? { column: sortColumn, direction: sortDirection } : undefined;
   const client = await createSupabaseServerClient();
-  const [stats, queue] = await Promise.all([
+  const [stats, periodStats, queue] = await Promise.all([
     getVerificationScreeningStats(client),
+    getVerificationPeriodStats(client),
     onlyDoubtful
-      ? getDoubtfulProjects(client, QUEUE_PAGE_LIMIT, sort)
-      : getVerificationQueue(client, QUEUE_PAGE_LIMIT, sort),
+      ? getDoubtfulProjects(client, QUEUE_PAGE_LIMIT, sort, period)
+      : getVerificationQueue(client, QUEUE_PAGE_LIMIT, sort, period),
   ]);
 
   function buildSortHref(column: string, direction: "asc" | "desc"): string {
     const qs = new URLSearchParams();
+    qs.set("periodo", period);
     if (onlyDoubtful) qs.set("dudosos", "1");
     qs.set("sort", column);
     qs.set("dir", direction);
     return `/admin/verificador?${qs.toString()}`;
   }
 
-  function buildTabHref(doubtful: boolean): string {
+  function buildTabHref(overrides: { periodo?: VerificationPeriod; dudosos?: boolean }): string {
     const qs = new URLSearchParams();
-    if (doubtful) qs.set("dudosos", "1");
+    const nextPeriod = overrides.periodo ?? period;
+    const nextDoubtful = overrides.dudosos ?? onlyDoubtful;
+    if (nextPeriod === "historico") qs.set("periodo", "historico");
+    if (nextDoubtful) qs.set("dudosos", "1");
     if (sortColumn) {
       qs.set("sort", sortColumn);
       qs.set("dir", sortDirection);
@@ -72,17 +80,51 @@ export default async function VerificadorPage({
           Verificador de proyecto
         </h1>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          {stats.totalPending.toLocaleString("es-CL")} proyectos pendientes de revisar en total — mostrando los
-          primeros {queue.length.toLocaleString("es-CL")}
-          {onlyDoubtful ? ", solo dudosos" : sortColumn ? "" : ", vigentes primero"}.
+          {periodStats.vigentePending.toLocaleString("es-CL")} vigentes y{" "}
+          {periodStats.historicoPending.toLocaleString("es-CL")} históricos pendientes — mostrando los primeros{" "}
+          {queue.length.toLocaleString("es-CL")}
+          {onlyDoubtful ? ", solo dudosos" : ""}.
         </p>
         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
           {stats.screened.toLocaleString("es-CL")} proyectos tamizados con IA en total — {stats.doubtful.toLocaleString("es-CL")}{" "}
           dudosos pendientes de revisar.
         </p>
+
+        <div className="mt-4 flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+          <Link
+            href={buildTabHref({ periodo: "vigente" })}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+              period === "vigente"
+                ? "border-neutral-900 text-neutral-900 dark:border-neutral-50 dark:text-neutral-50"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+            }`}
+          >
+            Vigentes
+          </Link>
+          <Link
+            href={buildTabHref({ periodo: "historico" })}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+              period === "historico"
+                ? "border-neutral-900 text-neutral-900 dark:border-neutral-50 dark:text-neutral-50"
+                : "border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+            }`}
+          >
+            Histórico
+          </Link>
+        </div>
+        {period === "vigente" ? (
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            No rechazados/desistidos, desde el día 1 de este mes en adelante — verificar hoy.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            Rechazados, desistidos, vencidos o sin fecha — se puede dejar para después, con más gente.
+          </p>
+        )}
+
         <div className="mt-3 flex gap-2 text-xs">
           <Link
-            href={buildTabHref(false)}
+            href={buildTabHref({ dudosos: false })}
             className={`rounded-full border px-3 py-1 font-medium ${
               !onlyDoubtful
                 ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
@@ -92,7 +134,7 @@ export default async function VerificadorPage({
             Todos
           </Link>
           <Link
-            href={buildTabHref(true)}
+            href={buildTabHref({ dudosos: true })}
             className={`rounded-full border px-3 py-1 font-medium ${
               onlyDoubtful
                 ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
@@ -108,8 +150,10 @@ export default async function VerificadorPage({
         <Panel>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
             {onlyDoubtful
-              ? "No hay proyectos dudosos tamizados todavía."
-              : "No quedan proyectos pendientes de verificar."}
+              ? "No hay proyectos dudosos tamizados todavía en esta cola."
+              : period === "vigente"
+                ? "No quedan proyectos vigentes pendientes de verificar."
+                : "No quedan proyectos históricos pendientes de verificar."}
           </p>
         </Panel>
       ) : (

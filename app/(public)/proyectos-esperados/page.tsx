@@ -82,7 +82,12 @@ export default async function ProyectosEsperadosPage({
 }) {
   const params = await searchParams;
   const page = Number(params.page ?? "1") || 1;
-  const tab = params.tab === "historico" ? "historico" : "esperados";
+  // "Histórico" deshabilitado temporalmente en el sitio público hasta terminar de
+  // verificar ese lote (2026-07-27) — se sigue pudiendo pedir por URL, pero se ignora acá
+  // para no exponer datos históricos todavía sin revisar. El tab queda visible pero
+  // deshabilitado más abajo, en vez de ocultarlo, para que quede claro que viene después.
+  const HISTORICO_HABILITADO = false;
+  const tab = HISTORICO_HABILITADO && params.tab === "historico" ? "historico" : "esperados";
   const selectedKeys = parseChipKeys(params.tech);
   const technologyCodes = chipsToTechnologyCodes(selectedKeys);
   const namePatterns = chipsToNamePatterns(selectedKeys);
@@ -239,6 +244,17 @@ export default async function ProyectosEsperadosPage({
       <div className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
         {TABS.map((t) => {
           const active = t.key === tab;
+          if (t.key === "historico" && !HISTORICO_HABILITADO) {
+            return (
+              <span
+                key={t.key}
+                title="Disponible cuando termine la revisión de esta sección"
+                className="-mb-px cursor-not-allowed border-b-2 border-transparent px-3 py-2 text-sm font-medium text-neutral-300 dark:text-neutral-700"
+              >
+                {t.label} <span className="text-xs">(próximamente)</span>
+              </span>
+            );
+          }
           return (
             <Link
               key={t.key}
