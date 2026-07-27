@@ -1,4 +1,13 @@
-export type TechnologyCombo = "solar" | "wind" | "bess" | "solar_bess" | "wind_bess" | "solar_wind" | "hybrid_other";
+export type TechnologyCombo =
+  | "solar"
+  | "wind"
+  | "hydro"
+  | "bess"
+  | "solar_bess"
+  | "wind_bess"
+  | "hydro_bess"
+  | "solar_wind"
+  | "hybrid_other";
 
 export interface TechnologyComboConfig {
   label: string;
@@ -20,9 +29,11 @@ export interface TechnologyComboConfig {
 export const TECHNOLOGY_COMBOS: Record<TechnologyCombo, TechnologyComboConfig> = {
   solar: { label: "Solar", technologyCode: "solar_pv", includesStorage: false, projectKind: "generation" },
   wind: { label: "Eólico", technologyCode: "wind", includesStorage: false, projectKind: "generation" },
+  hydro: { label: "Hidroeléctrica", technologyCode: "hydro", includesStorage: false, projectKind: "generation" },
   bess: { label: "BESS", technologyCode: "bess", includesStorage: true, projectKind: "storage" },
   solar_bess: { label: "Solar + BESS", technologyCode: "solar_pv", includesStorage: true, projectKind: "hybrid" },
   wind_bess: { label: "Eólico + BESS", technologyCode: "wind", includesStorage: true, projectKind: "hybrid" },
+  hydro_bess: { label: "Hidroeléctrica + BESS", technologyCode: "hydro", includesStorage: true, projectKind: "hybrid" },
   solar_wind: { label: "Solar + Eólico", technologyCode: "hybrid", includesStorage: false, projectKind: "hybrid" },
   hybrid_other: { label: "Otro / Híbrido genérico", technologyCode: "hybrid", includesStorage: false, projectKind: "hybrid" },
 };
@@ -30,9 +41,11 @@ export const TECHNOLOGY_COMBOS: Record<TechnologyCombo, TechnologyComboConfig> =
 export const TECHNOLOGY_COMBO_ORDER: TechnologyCombo[] = [
   "solar",
   "wind",
+  "hydro",
   "bess",
   "solar_bess",
   "wind_bess",
+  "hydro_bess",
   "solar_wind",
   "hybrid_other",
 ];
@@ -48,5 +61,6 @@ export function comboFromProject(technologyCode: string | null, includesStorage:
   if (technologyCode === "bess") return "bess";
   if (technologyCode === "solar_pv") return includesStorage ? "solar_bess" : "solar";
   if (technologyCode === "wind") return includesStorage ? "wind_bess" : "wind";
+  if (technologyCode === "hydro") return includesStorage ? "hydro_bess" : "hydro";
   return null;
 }
