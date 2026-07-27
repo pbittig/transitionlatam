@@ -12,26 +12,39 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
 
+const SORT_COLUMNS = ["name", "capacityMw"] as const;
+type SortColumn = (typeof SORT_COLUMNS)[number];
+
+function isSortColumn(value: string | undefined): value is SortColumn {
+  return !!value && (SORT_COLUMNS as readonly string[]).includes(value);
+}
+
 export default async function EditarDataPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; sort?: string; dir?: string }>;
 }) {
   if (!(await isAdmin())) return null;
   const params = await searchParams;
   const page = Number(params.page ?? "1") || 1;
+  const sortBy = isSortColumn(params.sort) ? params.sort : undefined;
+  const sortDir = params.dir === "desc" ? "desc" : "asc";
   const client = await createSupabaseServerClient();
-  const result = await listProjects(client, { search: params.q }, page, PAGE_SIZE);
+  const result = await listProjects(client, { search: params.q, sortBy, sortDir }, page, PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
 
   function buildHref(overrides: Record<string, string | undefined>): string {
-    const merged = { q: params.q, page: params.page, ...overrides };
+    const merged = { q: params.q, page: params.page, sort: params.sort, dir: params.dir, ...overrides };
     const qs = new URLSearchParams();
     for (const [key, value] of Object.entries(merged)) {
       if (value) qs.set(key, value);
     }
     const query = qs.toString();
     return query ? `/admin/editar-data?${query}` : "/admin/editar-data";
+  }
+
+  function buildSortHref(column: string, direction: "asc" | "desc"): string {
+    return buildHref({ sort: column, dir: direction, page: undefined });
   }
 
   return (
@@ -49,7 +62,7 @@ export default async function EditarDataPage({
         placeholder="Buscar por nombre de proyecto..."
       />
       <Panel className="flex flex-col gap-4">
-        <AdminProjectListTable items={result.items} />
+        <AdminProjectListTable items={result.items} sortBy={sortBy} sortDir={sortDir} buildSortHref={buildSortHref} />
         <Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref({ page: String(p) })} />
       </Panel>
     </div>

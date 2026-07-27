@@ -6,6 +6,8 @@ import type { VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion
 
 const MAX_PAGE_SIZE = 100;
 
+export type SortDirection = "asc" | "desc";
+
 export interface ProjectFilters {
   technologyCode?: string;
   /** Multi-select — cualquiera de estos códigos matchea (usado por los chips de tecnología). */
@@ -35,6 +37,15 @@ export interface ProjectFilters {
   /** Rango adicional de fecha estimada de conexión (barra deslizante) — se combina con AND sobre connectionPeriod. */
   connectionDateFrom?: string;
   connectionDateTo?: string;
+  /**
+   * Orden estilo Excel para el listado de admin (Editar data) — solo aplica cuando no
+   * hay connectionPeriod (ese caso ya trae su propio orden). No incluye ordenar por
+   * empresa: Postgrest ignora `.order(col, { foreignTable })` sobre este embed en esta
+   * instancia (probado contra la base real, sin error pero sin efecto), así que solo se
+   * exponen columnas propias de `project`.
+   */
+  sortBy?: "name" | "capacityMw";
+  sortDir?: SortDirection;
 }
 
 export const REJECTED_STATUSES = ["Rechazada", "Desistida"];
@@ -167,6 +178,9 @@ export async function listProjects(
         `and(estimated_connection_date.lt.${todayIso()},estimated_connection_date.not.is.null),status.in.(${REJECTED_STATUSES.join(",")})`,
       )
       .order("estimated_connection_date", { ascending: false });
+  } else if (filters.sortBy) {
+    const ascending = (filters.sortDir ?? "asc") === "asc";
+    query = filters.sortBy === "capacityMw" ? query.order("capacity_mw", { ascending, nullsFirst: false }) : query.order("name", { ascending });
   } else {
     query = query.order("created_at", { ascending: false });
   }
@@ -364,59 +378,37 @@ export interface VerificationQueueItem {
   aiSeiaPick: string | null;
 }
 
-/**
- * Cola del Verificador: proyectos con verified_at null. Mismo criterio
- * "esperados primero" que scripts/sync-formulario-bulk.ts — vigentes (no
- * rechazados/desistidos, fecha de conexión desde el inicio de mes) antes que
- * el resto (rechazados, desistidos, vencidos, o sin fecha).
- */
-export async function getVerificationQueue(client: SupabaseClient, limit = 500): Promise<VerificationQueueItem[]> {
-  const startOfMonth = startOfCurrentMonthIso();
-  const selectClause =
-    "id, name, capacity_mw, estimated_connection_date, status, ai_screened_at, ai_data_sanity, ai_seia_pick, location:location_id(comuna, region:region_id(name))";
+export type VerificationSortColumn = "name" | "capacityMw" | "estimatedConnectionDate" | "status";
 
-  const [{ data: esperados, error: e1 }, { data: resto, error: e2 }] = await Promise.all([
-    client
-      .from("project")
-      .select(selectClause)
-      .is("verified_at", null)
-      .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
-      .gte("estimated_connection_date", startOfMonth)
-      .order("estimated_connection_date", { ascending: true })
-      .limit(limit),
-    client
-      .from("project")
-      .select(selectClause)
-      .is("verified_at", null)
-      .or(
-        `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
-      )
-      .order("created_at", { ascending: true })
-      .limit(limit),
-  ]);
-  if (e1) throw new Error(`Error obteniendo cola de verificación: ${e1.message}`);
-  if (e2) throw new Error(`Error obteniendo cola de verificación: ${e2.message}`);
+export interface VerificationSort {
+  column: VerificationSortColumn;
+  direction: SortDirection;
+}
 
-  type Row = {
-    id: string;
-    name: string;
-    capacity_mw: number | null;
-    estimated_connection_date: string | null;
-    status: string | null;
-    ai_screened_at: string | null;
-    ai_data_sanity: string | null;
-    ai_seia_pick: string | null;
-    location: { comuna: string | null; region: { name: string } | null } | null;
-  };
+const VERIFICATION_SORT_COLUMNS: Record<VerificationSortColumn, string> = {
+  name: "name",
+  capacityMw: "capacity_mw",
+  estimatedConnectionDate: "estimated_connection_date",
+  status: "status",
+};
 
-  const seen = new Set<string>();
-  const merged = [...((esperados ?? []) as unknown as Row[]), ...((resto ?? []) as unknown as Row[])].filter((row) => {
-    if (seen.has(row.id)) return false;
-    seen.add(row.id);
-    return true;
-  });
+const VERIFICATION_QUEUE_SELECT =
+  "id, name, capacity_mw, estimated_connection_date, status, ai_screened_at, ai_data_sanity, ai_seia_pick, location:location_id(comuna, region:region_id(name))";
 
-  return merged.slice(0, limit).map((row) => ({
+type VerificationQueueRow = {
+  id: string;
+  name: string;
+  capacity_mw: number | null;
+  estimated_connection_date: string | null;
+  status: string | null;
+  ai_screened_at: string | null;
+  ai_data_sanity: string | null;
+  ai_seia_pick: string | null;
+  location: { comuna: string | null; region: { name: string } | null } | null;
+};
+
+function mapVerificationQueueRow(row: VerificationQueueRow): VerificationQueueItem {
+  return {
     id: row.id,
     name: row.name,
     comuna: row.location?.comuna ?? null,
@@ -427,7 +419,68 @@ export async function getVerificationQueue(client: SupabaseClient, limit = 500):
     aiScreenedAt: row.ai_screened_at,
     aiDataSanity: row.ai_data_sanity as "ok" | "sospechoso" | null,
     aiSeiaPick: row.ai_seia_pick,
-  }));
+  };
+}
+
+/**
+ * Cola del Verificador: proyectos con verified_at null. Sin `sort` explícito, usa el
+ * mismo criterio "esperados primero" que scripts/sync-formulario-bulk.ts — vigentes (no
+ * rechazados/desistidos, fecha de conexión desde el inicio de mes) antes que el resto
+ * (rechazados, desistidos, vencidos, o sin fecha). Con `sort` (orden estilo Excel pedido
+ * desde la UI), se ignora ese agrupamiento y se ordena la cola completa por la columna
+ * elegida.
+ */
+export async function getVerificationQueue(
+  client: SupabaseClient,
+  limit = 500,
+  sort?: VerificationSort,
+): Promise<VerificationQueueItem[]> {
+  if (sort) {
+    const { data, error } = await client
+      .from("project")
+      .select(VERIFICATION_QUEUE_SELECT)
+      .is("verified_at", null)
+      .order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false })
+      .limit(limit);
+    if (error) throw new Error(`Error obteniendo cola de verificación: ${error.message}`);
+    return ((data ?? []) as unknown as VerificationQueueRow[]).map(mapVerificationQueueRow);
+  }
+
+  const startOfMonth = startOfCurrentMonthIso();
+
+  const [{ data: esperados, error: e1 }, { data: resto, error: e2 }] = await Promise.all([
+    client
+      .from("project")
+      .select(VERIFICATION_QUEUE_SELECT)
+      .is("verified_at", null)
+      .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
+      .gte("estimated_connection_date", startOfMonth)
+      .order("estimated_connection_date", { ascending: true })
+      .limit(limit),
+    client
+      .from("project")
+      .select(VERIFICATION_QUEUE_SELECT)
+      .is("verified_at", null)
+      .or(
+        `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
+      )
+      .order("created_at", { ascending: true })
+      .limit(limit),
+  ]);
+  if (e1) throw new Error(`Error obteniendo cola de verificación: ${e1.message}`);
+  if (e2) throw new Error(`Error obteniendo cola de verificación: ${e2.message}`);
+
+  const seen = new Set<string>();
+  const merged = [
+    ...((esperados ?? []) as unknown as VerificationQueueRow[]),
+    ...((resto ?? []) as unknown as VerificationQueueRow[]),
+  ].filter((row) => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
+
+  return merged.slice(0, limit).map(mapVerificationQueueRow);
 }
 
 /** Conteo total de proyectos sin verificar — para la tarjeta de /admin. */
@@ -470,43 +523,25 @@ export async function saveAiScreeningResult(
  * un candidato SEIA sugerido (confirmado con el usuario: vale la pena revisar aunque los
  * datos estén bien). Proyectos sin tamizar (ai_screened_at null) no aparecen acá.
  */
-export async function getDoubtfulProjects(client: SupabaseClient, limit = 100): Promise<VerificationQueueItem[]> {
-  const selectClause =
-    "id, name, capacity_mw, estimated_connection_date, status, ai_screened_at, ai_data_sanity, ai_seia_pick, location:location_id(comuna, region:region_id(name))";
-
-  const { data, error } = await client
+export async function getDoubtfulProjects(
+  client: SupabaseClient,
+  limit = 100,
+  sort?: VerificationSort,
+): Promise<VerificationQueueItem[]> {
+  let query = client
     .from("project")
-    .select(selectClause)
+    .select(VERIFICATION_QUEUE_SELECT)
     .is("verified_at", null)
-    .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null")
-    .order("ai_screened_at", { ascending: false })
-    .limit(limit);
+    .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null");
+
+  query = sort
+    ? query.order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false })
+    : query.order("ai_screened_at", { ascending: false });
+
+  const { data, error } = await query.limit(limit);
   if (error) throw new Error(`Error obteniendo proyectos dudosos: ${error.message}`);
 
-  type Row = {
-    id: string;
-    name: string;
-    capacity_mw: number | null;
-    estimated_connection_date: string | null;
-    status: string | null;
-    ai_screened_at: string | null;
-    ai_data_sanity: string | null;
-    ai_seia_pick: string | null;
-    location: { comuna: string | null; region: { name: string } | null } | null;
-  };
-
-  return ((data ?? []) as unknown as Row[]).map((row) => ({
-    id: row.id,
-    name: row.name,
-    comuna: row.location?.comuna ?? null,
-    region: row.location?.region?.name ?? null,
-    capacityMw: row.capacity_mw,
-    estimatedConnectionDate: row.estimated_connection_date,
-    status: row.status,
-    aiScreenedAt: row.ai_screened_at,
-    aiDataSanity: row.ai_data_sanity as "ok" | "sospechoso" | null,
-    aiSeiaPick: row.ai_seia_pick,
-  }));
+  return ((data ?? []) as unknown as VerificationQueueRow[]).map(mapVerificationQueueRow);
 }
 
 export interface VerificationScreeningStats {

@@ -1,7 +1,18 @@
 import Link from "next/link";
 import type { ProjectListItem } from "@/lib/data-access/projects";
+import { SortableHeader } from "./SortableHeader";
 
-export function AdminProjectListTable({ items }: { items: ProjectListItem[] }) {
+export function AdminProjectListTable({
+  items,
+  sortBy,
+  sortDir,
+  buildSortHref,
+}: {
+  items: ProjectListItem[];
+  sortBy: string | undefined;
+  sortDir: "asc" | "desc";
+  buildSortHref: (column: string, direction: "asc" | "desc") => string;
+}) {
   if (items.length === 0) {
     return <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin proyectos para esta búsqueda.</p>;
   }
@@ -10,10 +21,17 @@ export function AdminProjectListTable({ items }: { items: ProjectListItem[] }) {
       <table className="w-full min-w-[700px] text-sm">
         <thead className="border-b border-neutral-200 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:text-neutral-400">
           <tr>
-            <th className="px-4 py-3 font-medium">Proyecto</th>
+            <SortableHeader label="Proyecto" column="name" activeColumn={sortBy} activeDirection={sortDir} buildHref={buildSortHref} />
             <th className="px-4 py-3 font-medium">Empresa</th>
             <th className="px-4 py-3 font-medium">Región</th>
-            <th className="px-4 py-3 text-right font-medium">MW</th>
+            <SortableHeader
+              label="MW"
+              column="capacityMw"
+              activeColumn={sortBy}
+              activeDirection={sortDir}
+              buildHref={buildSortHref}
+              align="right"
+            />
             <th className="px-4 py-3" />
           </tr>
         </thead>

@@ -6,14 +6,22 @@ import {
   getDoubtfulProjects,
   getVerificationScreeningStats,
   type VerificationQueueItem,
+  type VerificationSortColumn,
 } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../../components/Panel";
+import { SortableHeader } from "../components/SortableHeader";
 
 export const metadata: Metadata = { title: "Verificador de proyecto" };
 export const dynamic = "force-dynamic";
 
 const QUEUE_PAGE_LIMIT = 100;
+
+const SORT_COLUMNS = ["name", "capacityMw", "estimatedConnectionDate", "status"] as const;
+
+function isSortColumn(value: string | undefined): value is VerificationSortColumn {
+  return !!value && (SORT_COLUMNS as readonly string[]).includes(value);
+}
 
 function isDoubtful(item: VerificationQueueItem): boolean {
   return item.aiDataSanity === "sospechoso" || item.aiSeiaPick !== null;
@@ -22,16 +30,40 @@ function isDoubtful(item: VerificationQueueItem): boolean {
 export default async function VerificadorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dudosos?: string }>;
+  searchParams: Promise<{ dudosos?: string; sort?: string; dir?: string }>;
 }) {
   if (!(await isAdmin())) return null;
-  const { dudosos } = await searchParams;
-  const onlyDoubtful = dudosos === "1";
+  const params = await searchParams;
+  const onlyDoubtful = params.dudosos === "1";
+  const sortColumn = isSortColumn(params.sort) ? params.sort : undefined;
+  const sortDirection: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
+  const sort = sortColumn ? { column: sortColumn, direction: sortDirection } : undefined;
   const client = await createSupabaseServerClient();
   const [stats, queue] = await Promise.all([
     getVerificationScreeningStats(client),
-    onlyDoubtful ? getDoubtfulProjects(client, QUEUE_PAGE_LIMIT) : getVerificationQueue(client, QUEUE_PAGE_LIMIT),
+    onlyDoubtful
+      ? getDoubtfulProjects(client, QUEUE_PAGE_LIMIT, sort)
+      : getVerificationQueue(client, QUEUE_PAGE_LIMIT, sort),
   ]);
+
+  function buildSortHref(column: string, direction: "asc" | "desc"): string {
+    const qs = new URLSearchParams();
+    if (onlyDoubtful) qs.set("dudosos", "1");
+    qs.set("sort", column);
+    qs.set("dir", direction);
+    return `/admin/verificador?${qs.toString()}`;
+  }
+
+  function buildTabHref(doubtful: boolean): string {
+    const qs = new URLSearchParams();
+    if (doubtful) qs.set("dudosos", "1");
+    if (sortColumn) {
+      qs.set("sort", sortColumn);
+      qs.set("dir", sortDirection);
+    }
+    const query = qs.toString();
+    return query ? `/admin/verificador?${query}` : "/admin/verificador";
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,7 +74,7 @@ export default async function VerificadorPage({
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
           {stats.totalPending.toLocaleString("es-CL")} proyectos pendientes de revisar en total — mostrando los
           primeros {queue.length.toLocaleString("es-CL")}
-          {onlyDoubtful ? ", solo dudosos" : ", vigentes primero"}.
+          {onlyDoubtful ? ", solo dudosos" : sortColumn ? "" : ", vigentes primero"}.
         </p>
         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
           {stats.screened.toLocaleString("es-CL")} de {stats.totalPending.toLocaleString("es-CL")} ya tamizados con IA
@@ -50,7 +82,7 @@ export default async function VerificadorPage({
         </p>
         <div className="mt-3 flex gap-2 text-xs">
           <Link
-            href="/admin/verificador"
+            href={buildTabHref(false)}
             className={`rounded-full border px-3 py-1 font-medium ${
               !onlyDoubtful
                 ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
@@ -60,7 +92,7 @@ export default async function VerificadorPage({
             Todos
           </Link>
           <Link
-            href="/admin/verificador?dudosos=1"
+            href={buildTabHref(true)}
             className={`rounded-full border px-3 py-1 font-medium ${
               onlyDoubtful
                 ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
@@ -85,11 +117,24 @@ export default async function VerificadorPage({
           <table className="w-full min-w-[700px] text-sm">
             <thead className="border-b border-neutral-200 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:text-neutral-400">
               <tr>
-                <th className="px-4 py-3 font-medium">Proyecto</th>
+                <SortableHeader label="Proyecto" column="name" activeColumn={sortColumn} activeDirection={sortDirection} buildHref={buildSortHref} />
                 <th className="px-4 py-3 font-medium">Comuna / Región</th>
-                <th className="px-4 py-3 text-right font-medium">MW</th>
-                <th className="px-4 py-3 font-medium">Fecha conexión</th>
-                <th className="px-4 py-3 font-medium">Estado</th>
+                <SortableHeader
+                  label="MW"
+                  column="capacityMw"
+                  activeColumn={sortColumn}
+                  activeDirection={sortDirection}
+                  buildHref={buildSortHref}
+                  align="right"
+                />
+                <SortableHeader
+                  label="Fecha conexión"
+                  column="estimatedConnectionDate"
+                  activeColumn={sortColumn}
+                  activeDirection={sortDirection}
+                  buildHref={buildSortHref}
+                />
+                <SortableHeader label="Estado" column="status" activeColumn={sortColumn} activeDirection={sortDirection} buildHref={buildSortHref} />
                 <th className="px-4 py-3" />
               </tr>
             </thead>
