@@ -16,7 +16,7 @@ export function VerifyButton({ projectId }: { projectId: string }) {
     startTransition(async () => {
       const result = await markProjectVerified(projectId);
       if (result.success) {
-        router.push(result.nextProjectId ? `/admin/verificador/${result.nextProjectId}` : "/admin/verificador");
+        router.push("/admin/verificador");
       } else {
         setError(result.error ?? "Error desconocido al verificar proyecto");
       }

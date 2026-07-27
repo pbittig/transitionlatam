@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
-import { getVerificationQueue } from "@/lib/data-access/projects";
 
 export type EditableProjectField =
   | "name"
@@ -120,15 +119,8 @@ export async function updateProjectField(
   }
 }
 
-/**
- * Marca un proyecto como verificado (sale de la cola para siempre) y
- * devuelve el id del siguiente proyecto pendiente para que el botón de la UI
- * pueda redirigir directo a él — ver spec: "redirige automáticamente al
- * siguiente proyecto pendiente".
- */
-export async function markProjectVerified(
-  projectId: string,
-): Promise<{ success: boolean; nextProjectId?: string | null; error?: string }> {
+/** Marca un proyecto como verificado (sale de la cola para siempre) — el botón de la UI redirige a la lista de la cola, no a un proyecto específico. */
+export async function markProjectVerified(projectId: string): Promise<{ success: boolean; error?: string }> {
   if (!(await isAdmin())) {
     return { success: false, error: "Debes iniciar sesión como administrador." };
   }
@@ -137,10 +129,9 @@ export async function markProjectVerified(
     const { error } = await client.from("project").update({ verified_at: new Date().toISOString() }).eq("id", projectId);
     if (error) throw new Error(error.message);
 
-    const queue = await getVerificationQueue(client, 1);
     revalidatePath("/admin/verificador");
     revalidatePath(`/admin/editar-data/${projectId}`);
-    return { success: true, nextProjectId: queue[0]?.id ?? null };
+    return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }
