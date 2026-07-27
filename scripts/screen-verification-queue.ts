@@ -46,34 +46,33 @@ async function main() {
       if (!project) {
         errors++;
         console.log(`  [error] ${projectId}: proyecto no encontrado`);
-        continue;
+      } else {
+        const searchTerm = distinctiveTokens(project.name).join(" ");
+        const seiaResponse = searchTerm
+          ? await searchSeiaByName(searchTerm, MAX_SEIA_CANDIDATES)
+          : { data: [] as RawSeiaProject[] };
+        const candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
+
+        const { suggestion, error: glmError } = await getGlmVerificationSuggestion(project, candidates);
+        if (glmError || !suggestion) {
+          errors++;
+          console.log(`  [error] ${project.name}: ${glmError ?? "GLM no devolvió una sugerencia"}`);
+        } else {
+          await saveAiScreeningResult(client, projectId, suggestion);
+          screened++;
+          if (suggestion.dataSanity === "sospechoso") sospechosos++;
+          if (suggestion.seiaPick) conPick++;
+          console.log(
+            `  [${suggestion.dataSanity}] ${project.name}${suggestion.seiaPick ? ` -> candidato ${suggestion.seiaPick}` : ""} (${Date.now() - start}ms)`,
+          );
+        }
       }
-
-      const searchTerm = distinctiveTokens(project.name).join(" ");
-      const seiaResponse = searchTerm
-        ? await searchSeiaByName(searchTerm, MAX_SEIA_CANDIDATES)
-        : { data: [] as RawSeiaProject[] };
-      const candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
-
-      const { suggestion, error: glmError } = await getGlmVerificationSuggestion(project, candidates);
-      if (glmError || !suggestion) {
-        errors++;
-        console.log(`  [error] ${project.name}: ${glmError ?? "GLM no devolvió una sugerencia"}`);
-        continue;
-      }
-
-      await saveAiScreeningResult(client, projectId, suggestion);
-      screened++;
-      if (suggestion.dataSanity === "sospechoso") sospechosos++;
-      if (suggestion.seiaPick) conPick++;
-      console.log(
-        `  [${suggestion.dataSanity}] ${project.name}${suggestion.seiaPick ? ` -> candidato ${suggestion.seiaPick}` : ""} (${Date.now() - start}ms)`,
-      );
     } catch (err) {
       errors++;
       console.log(`  [error] ${projectId}: ${(err as Error).message}`);
+    } finally {
+      await sleep(DELAY_MS);
     }
-    await sleep(DELAY_MS);
   }
 
   console.log("\n--- Resumen ---");
