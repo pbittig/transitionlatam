@@ -162,3 +162,30 @@ export async function unassignSeiaMatch(projectId: string): Promise<{ success: b
     return { success: false, error: (err as Error).message };
   }
 }
+
+/**
+ * Elimina un proyecto y todo lo que cuelga de él (permanente, sin deshacer).
+ * La mayoría de las tablas relacionadas (project_connection, seia_record,
+ * project_event, opportunity, followed_project) tienen `on delete cascade`
+ * en `project_id` y se limpian solas; `formulario_ingest_log` es la única
+ * excepción (su FK no tiene cascade), así que se borra primero a mano.
+ */
+export async function deleteProject(projectId: string): Promise<{ success: boolean; error?: string }> {
+  if (!(await isAdmin())) {
+    return { success: false, error: "Debes iniciar sesión como administrador." };
+  }
+  try {
+    const client = createSupabaseServiceClient();
+    const { error: formularioError } = await client.from("formulario_ingest_log").delete().eq("project_id", projectId);
+    if (formularioError) throw new Error(formularioError.message);
+
+    const { error } = await client.from("project").delete().eq("id", projectId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/admin/verificador");
+    revalidatePath("/admin/editar-data");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}

@@ -74,7 +74,7 @@ export default async function VerificarProyectoPage({ params }: { params: Promis
         </div>
       </div>
       <AiSuggestionPanel projectId={project.id} initialResult={await buildInitialAiResult(project)} />
-      <ProjectEditPageBody client={client} project={project} />
+      <ProjectEditPageBody client={client} project={project} backHref="/admin/verificador" />
     </div>
   );
 }

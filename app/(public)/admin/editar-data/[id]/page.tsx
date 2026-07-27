@@ -35,7 +35,7 @@ export default async function EditarProyectoPage({ params }: { params: Promise<{
             : "Pendiente de verificación"}
         </p>
       </div>
-      <ProjectEditPageBody client={client} project={project} />
+      <ProjectEditPageBody client={client} project={project} backHref="/admin/editar-data" />
     </div>
   );
 }

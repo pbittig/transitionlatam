@@ -4,11 +4,20 @@ import { getSeiaRecordForProject } from "@/lib/data-access/seia";
 import type { ProjectDetail } from "@/lib/data-access/projects";
 import { ProjectEditForm } from "./ProjectEditForm";
 import { UnassignSeiaButton } from "./UnassignSeiaButton";
+import { DeleteProjectButton } from "./DeleteProjectButton";
 import { SeiaMatchModal } from "../../proyectos/[id]/SeiaMatchModal";
 import { SeiaStatusCard } from "../../components/SeiaStatusCard";
 
 /** Cuerpo compartido de las pantallas de edición de admin (Verificador y Editar data) — el único que cambia entre ellas es el encabezado. */
-export async function ProjectEditPageBody({ client, project }: { client: SupabaseClient; project: ProjectDetail }) {
+export async function ProjectEditPageBody({
+  client,
+  project,
+  backHref,
+}: {
+  client: SupabaseClient;
+  project: ProjectDetail;
+  backHref: string;
+}) {
   const [connectionStatuses, seiaRecord] = await Promise.all([
     getConnectionStatuses(client),
     getSeiaRecordForProject(client, project.id),
@@ -34,6 +43,9 @@ export async function ProjectEditPageBody({ client, project }: { client: Supabas
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin expediente SEIA asociado todavía.</p>
           )}
         </div>
+      </div>
+      <div className="flex justify-end border-t border-neutral-100 pt-4 dark:border-neutral-900">
+        <DeleteProjectButton projectId={project.id} backHref={backHref} />
       </div>
     </>
   );
