@@ -9,6 +9,7 @@ export interface CurrentUserProfile {
   avatarUrl: string | null;
   planCode: string | null;
   trialEndsAt: string | null;
+  preferredLanguage: "es" | "en";
 }
 
 /** Perfil de la cuenta de autoservicio actualmente logueada (Supabase Auth) — distinto del admin único (cookie jose, ver lib/auth/session.ts). */
@@ -18,12 +19,23 @@ export async function getCurrentUserProfile(client: SupabaseClient): Promise<Cur
   } = await client.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await client
+  const { data: localizedData, error } = await client
     .from("user_profile")
-    .select("id, email, full_name, company_name, country, avatar_url, trial_ends_at, plan:plan_id(code)")
+    .select("id, email, full_name, company_name, country, avatar_url, trial_ends_at, preferred_language, plan:plan_id(code)")
     .eq("auth_user_id", user.id)
     .maybeSingle();
-  if (error) throw new Error(`Error obteniendo perfil de usuario: ${error.message}`);
+  let data = localizedData;
+  if (error?.code === "42703" || error?.code === "PGRST204") {
+    const { data: legacyData, error: legacyError } = await client
+      .from("user_profile")
+      .select("id, email, full_name, company_name, country, avatar_url, trial_ends_at, plan:plan_id(code)")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (legacyError) throw new Error(`Error obteniendo perfil de usuario: ${legacyError.message}`);
+    data = legacyData ? { ...legacyData, preferred_language: "es" } : null;
+  } else if (error) {
+    throw new Error(`Error obteniendo perfil de usuario: ${error.message}`);
+  }
   if (!data) return null;
 
   return {
@@ -35,6 +47,7 @@ export async function getCurrentUserProfile(client: SupabaseClient): Promise<Cur
     avatarUrl: data.avatar_url as string | null,
     planCode: (data.plan as unknown as { code: string } | null)?.code ?? null,
     trialEndsAt: data.trial_ends_at as string | null,
+    preferredLanguage: data.preferred_language === "en" ? "en" : "es",
   };
 }
 

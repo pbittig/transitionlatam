@@ -72,6 +72,22 @@ export function ProfileForm({ profile }: { profile: CurrentUserProfile }) {
         <p className="text-sm text-neutral-500 dark:text-neutral-400">{profile.email}</p>
       </div>
 
+      <div>
+        <label htmlFor="preferredLanguage" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          Idioma del portal / Portal language
+        </label>
+        <select
+          id="preferredLanguage"
+          name="preferredLanguage"
+          defaultValue={profile.preferredLanguage}
+          className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
+        >
+          <option value="es">Español (Chile)</option>
+          <option value="en">English</option>
+        </select>
+        <p className="mt-1 text-xs text-neutral-400">El cambio se aplicará al guardar el perfil.</p>
+      </div>
+
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
       {state?.success && <p className="text-sm text-emerald-600 dark:text-emerald-400">Cambios guardados.</p>}
 

@@ -9,6 +9,9 @@ import { getLastSyncTimestamp, getPowerPlantStats } from "@/lib/data-access/powe
 import { computePipelineByTechnology } from "@/lib/shared/marketSnapshot";
 import { LastSyncIndicator } from "./components/LastSyncIndicator";
 import { Panel } from "./components/Panel";
+import { PlanGate } from "./components/PlanGate";
+import { isAdmin } from "@/lib/auth/session";
+import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 
 export const metadata: Metadata = { title: "Inicio — Transition LATAM" };
 export const dynamic = "force-dynamic";
@@ -19,7 +22,7 @@ function formatGw(mw: number) {
 
 export default async function HomePage() {
   const client = await createSupabaseServerClient();
-  const [scope, scheduleInputs, construction, operating, calendar, companies, lastSync] = await Promise.all([
+  const [scope, scheduleInputs, construction, operating, calendar, companies, lastSync, admin, profile] = await Promise.all([
     getPipelineScopeTotals(client),
     getUpcomingScheduleInputs(client),
     getConstructionStats(client),
@@ -27,7 +30,10 @@ export default async function HomePage() {
     getConnectionCalendar(client, 6),
     getTopCompaniesByProjectCount(client, 5),
     getLastSyncTimestamp(client),
+    isAdmin(),
+    getCurrentUserProfile(client),
   ]);
+  const premiumLocked = !admin && profile?.planCode !== "premium";
 
   const technologies = computePipelineByTechnology(scheduleInputs);
   const bess = technologies.find((item) => /bess|almacenamiento/i.test(item.category));
@@ -36,39 +42,43 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-wrap items-end justify-between gap-5 border-b border-neutral-200 pb-6 dark:border-neutral-800">
+      <section className="relative overflow-hidden rounded-2xl border border-brand-primary/20 bg-gradient-to-r from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-7 text-white shadow-lg shadow-brand-deep/10 md:px-8">
+        <span className="absolute -top-20 right-8 h-52 w-52 rounded-full border border-white/10" aria-hidden />
+        <span className="absolute -right-12 -bottom-28 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
+        <div className="relative flex flex-wrap items-end justify-between gap-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
-            <Radar size={14} className="text-brand-primary" /> Torre de control · Chile
+          <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-brand-primary uppercase">
+            <Radar size={14} /> Torre de control · Chile
           </div>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">La transición, en movimiento.</h1>
-          <p className="mt-2 max-w-2xl text-neutral-600 dark:text-neutral-400">
-            Señales para priorizar proyectos, entender quién participa y abrir conversaciones comerciales con mejor contexto.
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white md:text-4xl">La transición, en movimiento.</h1>
+          <p className="mt-2 max-w-2xl text-white/75">
+            Inteligencia de mercado para la transición energética en Chile — generación, almacenamiento y data centers — para priorizar proyectos, entender quién participa y abrir conversaciones comerciales con mejor contexto.
           </p>
         </div>
         <LastSyncIndicator isoTimestamp={lastSync} />
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen del mercado">
-        <Panel className="p-4">
+        <Panel className="border-t-2 border-t-brand-primary p-4">
           <div className="flex items-center justify-between text-xs font-medium text-neutral-500 dark:text-neutral-400"><Activity size={15} /> Pipeline vigente</div>
           <p className="mt-4 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{scope.esperados.count.toLocaleString("es-CL")}</p>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{formatGw(scope.esperados.totalCapacityMw)} por conectar</p>
           <Link href="/proyectos-esperados" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-200">Abrir monitor <ArrowUpRight size={15} /></Link>
         </Panel>
-        <Panel className="p-4">
+        <Panel className="border-t-2 border-t-data-bess p-4">
           <div className="flex items-center justify-between text-xs font-medium text-neutral-500 dark:text-neutral-400"><BatteryCharging size={15} /> Almacenamiento</div>
           <p className="mt-4 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{bess?.count.toLocaleString("es-CL") ?? "—"}</p>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">proyectos BESS en pipeline</p>
           <Link href="/proyectos-esperados?tech=bess" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-200">Ver BESS <ArrowUpRight size={15} /></Link>
         </Panel>
-        <Panel className="p-4">
+        <Panel className="border-t-2 border-t-data-solar p-4">
           <div className="flex items-center justify-between text-xs font-medium text-neutral-500 dark:text-neutral-400"><Building2 size={15} /> En construcción</div>
           <p className="mt-4 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{construction.count.toLocaleString("es-CL")}</p>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{formatGw(construction.totalPotenciaMw)} declarados por CNE</p>
           <Link href="/mercado" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-200">Ver mercado <ArrowUpRight size={15} /></Link>
         </Panel>
-        <Panel className="p-4">
+        <Panel className="border-t-2 border-t-data-blue p-4">
           <div className="flex items-center justify-between text-xs font-medium text-neutral-500 dark:text-neutral-400"><Map size={15} /> Parque operativo</div>
           <p className="mt-4 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{formatGw(operating.operatingCapacityMw)}</p>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">capacidad instalada registrada</p>
@@ -101,26 +111,40 @@ export default async function HomePage() {
             <div><p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Relaciones</p><h2 className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50">Desarrolladores con mayor cartera</h2></div>
             <Network size={18} className="text-brand-primary" />
           </div>
-          <ol className="divide-y divide-neutral-100 dark:divide-neutral-800">
-            {companies.map((company, index) => (
-              <li key={company.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                <span className="w-5 text-sm tabular-nums text-neutral-400 dark:text-neutral-500">{index + 1}</span>
-                <Link href={`/mapa-stakeholder?empresa=${company.id}`} className="min-w-0 flex-1 truncate font-medium text-neutral-900 hover:text-brand-primary dark:text-neutral-50">{company.name}</Link>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{company.projectCount} proyectos</span>
-              </li>
-            ))}
-          </ol>
+          <PlanGate locked={premiumLocked} label="Disponible en plan Premium">
+            <ol className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              {companies.map((company, index) => (
+                <li key={company.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="w-5 text-sm tabular-nums text-neutral-400 dark:text-neutral-500">{index + 1}</span>
+                  <Link href={`/mapa-stakeholder?empresa=${company.id}`} className="min-w-0 flex-1 truncate font-medium text-neutral-900 hover:text-brand-primary dark:text-neutral-50">{company.name}</Link>
+                  <span className="text-sm text-neutral-500 dark:text-neutral-400">{company.projectCount} proyectos</span>
+                </li>
+              ))}
+            </ol>
+          </PlanGate>
           <Link href="/mapa-stakeholder" className="inline-flex items-center gap-1 self-start text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-200">Explorar relaciones <ArrowUpRight size={15} /></Link>
         </Panel>
 
-        <Panel className="flex flex-col justify-between gap-6 bg-neutral-50 dark:bg-neutral-900">
+        <Panel className="flex flex-col justify-between gap-6 border-brand-primary/25 bg-gradient-to-br from-brand-surface via-white to-brand-primary/10 dark:via-neutral-900 dark:to-brand-primary/5">
           <div>
             <UsersRound size={20} className="text-brand-primary" />
-            <p className="mt-4 text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Del dato a la conversación</p>
+            <p className="mt-4 text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">De los datos a la inteligencia de mercado</p>
             <h2 className="mt-1 text-xl font-semibold text-neutral-900 dark:text-neutral-50">Ubica al proyecto, a la empresa y a las personas detrás.</h2>
             <p className="mt-2 max-w-md text-sm text-neutral-600 dark:text-neutral-400">Consulta contactos extraídos de fuentes públicas junto con la cartera de cada desarrollador para preparar mejor el siguiente paso comercial.</p>
           </div>
-          <Link href="/crm" className="inline-flex w-fit items-center gap-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-50 dark:text-neutral-900">Abrir contactos <ArrowUpRight size={16} /></Link>
+          {premiumLocked ? (
+            <div className="flex flex-col gap-1.5">
+              <span
+                title="Disponible en plan Premium"
+                className="inline-flex w-fit cursor-not-allowed items-center gap-1 rounded-lg bg-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-500"
+              >
+                Abrir contactos <ArrowUpRight size={16} />
+              </span>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Los contactos y el CRM están incluidos en Premium.</p>
+            </div>
+          ) : (
+            <Link href="/crm" className="inline-flex w-fit items-center gap-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-50 dark:text-neutral-900">Abrir contactos <ArrowUpRight size={16} /></Link>
+          )}
         </Panel>
       </section>
     </div>

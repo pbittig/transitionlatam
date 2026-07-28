@@ -1,23 +1,23 @@
 import Link from "next/link";
 import type { ProjectListItem } from "@/lib/data-access/projects";
 import type { SeiaRecordForProject } from "@/lib/data-access/seia";
-import { regionToRomanNumeral } from "@/lib/shared/chileRegionRomanNumerals";
 import { computeHealthScore } from "@/lib/shared/projectHealthScore";
 import { ThermalStatusBar } from "./ThermalStatusBar";
 import { SeiaStatusBar } from "./SeiaStatusBar";
 import { HealthScoreBadge } from "./HealthScoreBadge";
 import { AddToCrmButton } from "./AddToCrmButton";
+import { PlanGate } from "./PlanGate";
 
 export function ProjectTable({
   items,
   seiaByProjectId,
-  admin,
   crmProjectIds,
+  isFree = false,
 }: {
   items: ProjectListItem[];
   seiaByProjectId?: Map<string, SeiaRecordForProject>;
-  admin: boolean;
   crmProjectIds: Set<string>;
+  isFree?: boolean;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin proyectos para este filtro.</p>;
@@ -25,20 +25,20 @@ export function ProjectTable({
 
   return (
     <div className="overflow-x-auto">
+      <p className="px-4 pt-3 text-[10px] text-neutral-400 md:hidden">Desliza horizontalmente para revisar todas las señales del proyecto.</p>
       <table className="w-full min-w-[1000px] text-sm">
-        <thead className="border-b border-neutral-200 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:text-neutral-400">
+        <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
           <tr>
             <th className="px-4 py-3 font-medium">Proyecto</th>
-            <th className="px-4 py-3 font-medium">Empresa</th>
-            <th className="px-4 py-3 font-medium">Región</th>
-            <th className="px-4 py-3 text-right font-medium">MW / MWh</th>
+            <th className="px-4 py-3 font-medium">Generación</th>
+            <th className="px-4 py-3 font-medium">Baterías</th>
             {seiaByProjectId && <th className="px-4 py-3 font-medium">Estado ambiental (SEIA)</th>}
-            <th className="px-4 py-3 font-medium">Estado de proceso de conexión</th>
-            <th className="px-4 py-3 font-medium">Fecha conexión</th>
-            <th className="px-4 py-3 font-medium" title="Lectura combinada propia del avance del proyecto — no es un dato oficial">
-              Health Score
+            <th className="px-4 py-3 font-medium">Avance de conexión</th>
+            <th className="px-4 py-3 font-medium">Conexión estimada</th>
+            <th className="px-4 py-3 font-medium" title="Estimación propia basada en avance, estado ambiental y fecha — no es un dato oficial">
+              Probabilidad de cumplir fecha
             </th>
-            {admin && <th className="px-4 py-3 font-medium">CRM</th>}
+            <th className="px-4 py-3 font-medium">CRM</th>
           </tr>
         </thead>
         <tbody>
@@ -55,66 +55,87 @@ export function ProjectTable({
                     {p.name}
                   </Link>
                   <div className="text-xs text-neutral-400 dark:text-neutral-500">{p.internalCode}</div>
-                  {p.includesStorage && !/bess/i.test(p.name) ? (
-                    <span
-                      className="ml-1 text-xs text-neutral-500 dark:text-neutral-400"
-                      title="Este proyecto también incluye un sistema de almacenamiento en baterías (BESS)"
-                    >
-                      + Almacenamiento (BESS)
-                    </span>
-                  ) : null}
                 </td>
-                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{p.developerCompany ?? "—"}</td>
-                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400" title={p.region ?? undefined}>
-                  {regionToRomanNumeral(p.region) ?? "—"}
+                <td className="px-4 py-3">
+                  {(() => {
+                    // Un BESS puro no genera — su "capacidad" es en realidad la de
+                    // almacenamiento (ver computeHeadlineCapacity), así que acá no se
+                    // muestra nada de generación para no confundirla con la de la otra
+                    // columna. Para híbridos, generation_capacity_mw es el dato correcto;
+                    // capacityMw queda de respaldo por si un proyecto viejo no lo tiene.
+                    const generationMw = p.projectKind === "storage" ? null : (p.generationCapacityMw ?? p.capacityMw);
+                    return generationMw !== null ? (
+                      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium tabular-nums text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                        {Math.round(generationMw).toLocaleString("es-CL")} MW
+                      </span>
+                    ) : (
+                      <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
+                    );
+                  })()}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
-                  {p.capacityMw !== null ? Math.round(p.capacityMw).toLocaleString("es-CL") : "—"}
-                  {p.includesStorage && (
-                    <div className="text-xs text-neutral-400 dark:text-neutral-500">
-                      {p.capacityMwh !== null ? `${Math.round(p.capacityMwh).toLocaleString("es-CL")} MWh` : "— MWh"}
-                    </div>
-                  )}
+                <td className="px-4 py-3">
+                  {(() => {
+                    if (!p.includesStorage) return <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>;
+                    // Un BESS puro no tiene generation_capacity_mw, así que su capacityMw
+                    // es la potencia de almacenamiento (ver computeHeadlineCapacity) —
+                    // se usa como respaldo si storage_capacity_mw todavía no está poblado.
+                    const storageMw = p.storageCapacityMw ?? (p.projectKind === "storage" ? p.capacityMw : null);
+                    const mwLabel = storageMw !== null ? `${Math.round(storageMw).toLocaleString("es-CL")} MW` : null;
+                    const mwhLabel = p.capacityMwh !== null ? `${Math.round(p.capacityMwh).toLocaleString("es-CL")} MWh` : null;
+                    return mwLabel || mwhLabel ? (
+                      <span className="bg-brand-primary/15 dark:bg-brand-primary/25 inline-flex flex-col items-center rounded-lg px-2 py-1 text-xs leading-tight font-medium tabular-nums text-blue-900 dark:text-blue-200">
+                        <span>{mwLabel ?? "—"}</span>
+                        <span>{mwhLabel ?? "—"}</span>
+                      </span>
+                    ) : (
+                      <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
+                    );
+                  })()}
                 </td>
                 {seiaByProjectId && (
                   <td className="px-4 py-3">
-                    {seia ? (
-                      <div>
-                        <SeiaStatusBar status={seia.status} submissionType={seia.submissionType} />
-                        {seia.titular && (
-                          <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{seia.titular}</div>
-                        )}
-                        {seia.matchConfidence && seia.matchConfidence !== "alta" && (
-                          <div className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
-                            match {seia.matchConfidence}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
-                    )}
+                    <PlanGate locked={isFree}>
+                      {seia ? (
+                        <div>
+                          <SeiaStatusBar status={seia.status} submissionType={seia.submissionType} />
+                          {seia.titular && (
+                            <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{seia.titular}</div>
+                          )}
+                          {seia.matchConfidence && seia.matchConfidence !== "alta" && (
+                            <div className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                              match {seia.matchConfidence}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
+                      )}
+                    </PlanGate>
                   </td>
                 )}
                 <td className="px-4 py-3">
-                  <ThermalStatusBar status={p.status} compact />
+                  <PlanGate locked={isFree}>
+                    <ThermalStatusBar status={p.status} compact />
+                  </PlanGate>
                 </td>
                 <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
                   {p.estimatedConnectionDate ? new Date(p.estimatedConnectionDate).toLocaleDateString("es-CL") : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <HealthScoreBadge health={health} compact />
+                  <PlanGate locked={isFree}>
+                    <HealthScoreBadge health={health} compact />
+                  </PlanGate>
                 </td>
-                {admin && (
-                  <td className="px-4 py-3">
-                    <AddToCrmButton
-                      projectId={p.id}
-                      projectName={p.name}
-                      developerCompanyId={p.developerCompanyId}
-                      initiallyInCrm={crmProjectIds.has(p.id)}
-                      compact
-                    />
-                  </td>
-                )}
+                <td className="px-4 py-3">
+                  <AddToCrmButton
+                    projectId={p.id}
+                    projectName={p.name}
+                    developerCompanyId={p.developerCompanyId}
+                    initiallyInCrm={crmProjectIds.has(p.id)}
+                    compact
+                    locked={isFree}
+                  />
+                </td>
               </tr>
             );
           })}

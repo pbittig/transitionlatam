@@ -1,11 +1,29 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+function isTerminalNegativeStatus(status: string | null | undefined): boolean {
+  return ["rechazada", "rechazado", "desistida", "desistido"].includes(status?.trim().toLowerCase() ?? "");
+}
+
 export async function isProjectFollowed(client: SupabaseClient, projectId: string): Promise<boolean> {
-  const { data } = await client.from("followed_project").select("project_id").eq("project_id", projectId).maybeSingle();
-  return !!data;
+  const { data } = await client
+    .from("followed_project")
+    .select("project_id, project:project_id(status)")
+    .eq("project_id", projectId)
+    .maybeSingle();
+  const project = data?.project as unknown as { status: string | null } | null;
+  return Boolean(data && !isTerminalNegativeStatus(project?.status));
 }
 
 export async function followProject(client: SupabaseClient, projectId: string): Promise<void> {
+  const { data: project, error: projectError } = await client
+    .from("project")
+    .select("status")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (projectError || !project) throw new Error("El proyecto ya no está disponible.");
+  if (isTerminalNegativeStatus(project.status as string | null)) {
+    throw new Error("No se puede seguir un proyecto rechazado o desistido.");
+  }
   const { error } = await client.from("followed_project").upsert({ project_id: projectId });
   if (error) throw new Error(`Error siguiendo proyecto: ${error.message}`);
 }
@@ -46,7 +64,7 @@ export async function getFollowedProjects(client: SupabaseClient): Promise<Follo
       status: project?.status ?? null,
       followedAt: r.created_at as string,
     };
-  });
+  }).filter((project) => !isTerminalNegativeStatus(project.status));
 }
 
 function mapWatchlistEvent(r: Record<string, unknown>): WatchlistEvent {
@@ -58,6 +76,27 @@ function mapWatchlistEvent(r: Record<string, unknown>): WatchlistEvent {
     occurredAt: r.occurred_at as string,
     description: r.description as string | null,
   };
+}
+
+const NEW_PROJECT_TECHNOLOGIES = new Set([
+  "solar_pv",
+  "wind",
+  "bess",
+  "hybrid",
+  "hydro",
+  "pumped_hydro",
+  "biomass",
+  "geothermal",
+]);
+
+function isRelevantNewProject(row: Record<string, unknown>): boolean {
+  const project = row.project as {
+    name?: string;
+    technology?: { code?: string } | null;
+  } | null;
+  const technologyCode = project?.technology?.code;
+  if (technologyCode && NEW_PROJECT_TECHNOLOGIES.has(technologyCode)) return true;
+  return /data\s*center|datacenter|centro\s+de\s+datos/i.test(project?.name ?? "");
 }
 
 /**
@@ -73,7 +112,7 @@ export async function getWatchlistEvents(
   const { data: followed } = await client.from("followed_project").select("project_id");
   const projectIds = (followed ?? []).map((r) => r.project_id as string);
 
-  const selectCols = "id, project_id, event_type, occurred_at, description, project:project_id(name)";
+  const selectCols = "id, project_id, event_type, occurred_at, description, project:project_id(name, status, technology:technology_id(code))";
   const [followedResult, newProjectsResult] = await Promise.all([
     projectIds.length > 0
       ? client.from("project_event").select(selectCols).in("project_id", projectIds).order("occurred_at", { ascending: false }).limit(limit)
@@ -86,16 +125,26 @@ export async function getWatchlistEvents(
   if (newProjectsResult.error) throw new Error(`Error obteniendo proyectos nuevos: ${newProjectsResult.error.message}`);
 
   const merged = new Map<string, WatchlistEvent>();
-  for (const row of [...(followedResult.data ?? []), ...(newProjectsResult.data ?? [])]) {
+  const hasActiveProject = (row: Record<string, unknown>) => {
+    const project = row.project as { status?: string | null } | null;
+    return !isTerminalNegativeStatus(project?.status);
+  };
+  const relevantFollowedEvents = (followedResult.data ?? []).filter((row) => hasActiveProject(row as Record<string, unknown>));
+  const relevantNewProjects = (newProjectsResult.data ?? []).filter((row) => {
+    const record = row as Record<string, unknown>;
+    return hasActiveProject(record) && isRelevantNewProject(record);
+  });
+  for (const row of [...relevantFollowedEvents, ...relevantNewProjects]) {
     const event = mapWatchlistEvent(row as Record<string, unknown>);
     merged.set(event.id, event);
   }
   return [...merged.values()].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, limit);
 }
 
-export async function getAppSetting(client: SupabaseClient, key: string): Promise<boolean> {
+export async function getAppSetting(client: SupabaseClient, key: string, defaultValue = false): Promise<boolean> {
   const { data } = await client.from("app_setting").select("value").eq("key", key).maybeSingle();
-  return data?.value === true;
+  if (!data) return defaultValue;
+  return data.value === true;
 }
 
 export async function setAppSetting(client: SupabaseClient, key: string, value: boolean): Promise<void> {

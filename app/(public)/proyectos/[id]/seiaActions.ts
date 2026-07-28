@@ -85,7 +85,12 @@ export async function revealStakeholders(
   }
   try {
     const client = createSupabaseServiceClient();
-    const stakeholders = await getProjectStakeholders(client, projectId, developerCompanyId);
+    // Sin respaldo por empresa acá: los contactos deben ser solo los que vienen
+    // realmente de la ficha/Formulario de ESTE proyecto, nunca los de otro proyecto
+    // de la misma empresa (mismo criterio que el editor de admin, ver
+    // ProjectEditPageBody — hallazgo real: mostraba contactos "que no tienen nada
+    // que ver" cuando el proyecto no tenía vínculo propio todavía).
+    const stakeholders = await getProjectStakeholders(client, projectId, developerCompanyId, { skipCompanyFallback: true });
     return { success: true, stakeholders };
   } catch (err) {
     return { success: false, error: (err as Error).message };

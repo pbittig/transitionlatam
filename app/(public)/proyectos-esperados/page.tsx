@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
-import { getProjectsForMap, getRecentlyAnnouncedProjects, getRecentProjectEvents, listProjects } from "@/lib/data-access/projects";
+import { getProjectsForMap, getRecentlyAnnouncedProjects, getRecentProjectEvents, getVigenteVerificationProgress, listProjects } from "@/lib/data-access/projects";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
 import { isAdmin } from "@/lib/auth/session";
 import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
@@ -16,7 +16,7 @@ import {
   getUpcomingScheduleInputs,
 } from "@/lib/data-access/pipeline";
 import { computeScheduleForecast, FORECAST_PHASE_LABELS } from "@/lib/shared/scheduleForecast";
-import { PHASE_COLORS, PHASE_GROUPS, PHASE_GROUP_LABELS, PHASE_TO_GROUP, type PhaseGroup } from "@/lib/shared/projectPhaseDurations";
+import { PHASE_COLORS, PHASE_GROUP_LABELS, PHASE_TO_GROUP, type PhaseGroup } from "@/lib/shared/projectPhaseDurations";
 import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
 import { computeMaturityFunnel } from "@/lib/shared/maturityFunnel";
 import {
@@ -53,7 +53,10 @@ import { MarketPulseCard } from "../components/MarketPulseCard";
 import { ActivityTimeline } from "../components/ActivityTimeline";
 import { MarketCalendarNarrative } from "../components/MarketCalendarNarrative";
 import { AgeBenchmarksPanel } from "../components/AgeBenchmarksPanel";
-import { Activity, ArrowUpRight, BatteryCharging, FolderKanban, Radar } from "lucide-react";
+import { VerificationProgressBar } from "../components/VerificationProgressBar";
+import { PlanGate } from "../components/PlanGate";
+import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
+import { Activity, ArrowUpRight, BatteryCharging, CalendarClock, FolderKanban, Gauge, MapPin, Radar, Zap } from "lucide-react";
 
 export const metadata: Metadata = { title: "Proyectos Esperados" };
 export const dynamic = "force-dynamic";
@@ -106,6 +109,10 @@ export default async function ProyectosEsperadosPage({
     connectionPeriod: (tab === "historico" ? "historico_completo" : "upcoming") as "historico_completo" | "upcoming",
     connectionDateFrom: tab === "esperados" && mesDesde > 0 ? monthOffsetToIso(mesDesde) : undefined,
     connectionDateTo: tab === "esperados" && mesHasta < MONTHS_HORIZON ? monthOffsetToIso(mesHasta) : undefined,
+    // Mientras se sigue verificando la cartera, el sitio público solo lista fichas ya
+    // revisadas a mano — el resto del pipeline se sigue mostrando en las estadísticas
+    // agregadas (GW, embudo, mapa), solo la tabla navegable se acota.
+    verifiedOnly: true,
   };
 
   const scheduleInputs = await getUpcomingScheduleInputs(client);
@@ -132,6 +139,7 @@ export default async function ProyectosEsperadosPage({
     recentEvents,
     newProjects,
     admin,
+    verificationProgress,
   ] = await Promise.all([
     listProjects(client, { ...filters, projectIds: etapaProjectIds }, page, PAGE_SIZE),
     getProjectsForMap(client, { technologyCodes, namePatterns, search }),
@@ -145,14 +153,16 @@ export default async function ProyectosEsperadosPage({
     getRecentProjectEvents(client, 10),
     getRecentlyAnnouncedProjects(client, 24),
     isAdmin(),
+    getVigenteVerificationProgress(client),
   ]);
+  const isFree = !admin && (await getIsFreeTier(client));
   const scopeTotal = scopeTotals[tab];
   const totalPages = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
   const seiaByProjectId = await getSeiaRecordsForProjects(
     client,
     result.items.map((p) => p.id),
   );
-  const crmProjectIds = admin
+  const crmProjectIds = admin || !isFree
     ? await getActiveOpportunityProjectIds(createSupabaseServiceClient(), result.items.map((p) => p.id))
     : new Set<string>();
 
@@ -202,46 +212,114 @@ export default async function ProyectosEsperadosPage({
     etapaGroup ? PHASE_GROUP_LABELS[etapaGroup] : undefined,
     hasDateRangeFilter ? "rango de fecha de conexión" : undefined,
   ].filter(Boolean);
+  const topTechnology = pipelineByTechnology[0];
+  const topRegion = pipelineByRegion[0];
+  const topTechnologyShare = topTechnology && pipelineTotals.totalCapacityMw > 0
+    ? (topTechnology.capacityMw / pipelineTotals.totalCapacityMw) * 100
+    : 0;
+  const topRegionShare = topRegion && pipelineTotals.totalCapacityMw > 0
+    ? (topRegion.capacityMw / pipelineTotals.totalCapacityMw) * 100
+    : 0;
+  const executiveSignals = [
+    {
+      icon: Zap,
+      label: "Tecnología dominante",
+      title: topTechnology?.category ?? "Sin tecnología dominante",
+      value: topTechnology ? `${topTechnologyShare.toLocaleString("es-CL", { maximumFractionDigits: 0 })}% de los MW del pipeline` : "Sin datos suficientes",
+      guidance: "Ayuda a dimensionar dónde se concentra la competencia y qué tipo de soluciones tendrá mayor demanda.",
+      color: "text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/10",
+    },
+    {
+      icon: MapPin,
+      label: "Concentración regional",
+      title: topRegion?.region ?? "Sin región dominante",
+      value: topRegion ? `${topRegionShare.toLocaleString("es-CL", { maximumFractionDigits: 0 })}% de la capacidad futura` : "Sin datos suficientes",
+      guidance: "Úsalo para priorizar estudios territoriales, puntos de conexión y actividad comercial por región.",
+      color: "text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-500/10",
+    },
+    {
+      icon: Gauge,
+      label: "Salud de la cartera",
+      title: `${pipelineHealth.bajaPct}% con riesgo alto`,
+      value: `${pipelineHealth.altaPct}% en desarrollo normal`,
+      guidance: "Permite separar volumen anunciado de proyectos con mejores señales de avance y cumplimiento de fecha.",
+      color: "text-brand-deep bg-brand-surface dark:text-brand-primary dark:bg-brand-primary/10",
+    },
+  ];
 
   return (
-    <div className="flex flex-col gap-8">
-      <section className="border-b border-neutral-200 pb-6 dark:border-neutral-800">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">
-          <Radar size={14} className="text-brand-primary" /> PROYECTOS FUTUROS · CHILE
-        </div>
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
+    <div className="flex flex-col gap-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-8 text-white shadow-xl shadow-brand-deep/10 md:px-8 md:py-10">
+        <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
+        <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">Pipeline de conexión</h1>
-            <p className="mt-2 max-w-2xl text-neutral-600 dark:text-neutral-400">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.14em] text-brand-primary uppercase">
+              <Radar size={14} /> Proyectos futuros · Chile
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Pipeline de conexión</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
               Proyectos en desarrollo, sus señales regulatorias y la ruta hacia su conexión. Fuente: Acceso Abierto. Distinto de{" "}
-              <Link href="/mercado" className="underline underline-offset-2">Mercado</Link> (centrales ya operativas).
+              <Link href="/mercado" className="font-medium text-white underline underline-offset-2">Infraestructura</Link> (centrales ya operativas).
             </p>
           </div>
-          <a href="#lista-proyectos" className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-300">
+          <a href="#lista-proyectos" className="inline-flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/15">
             Explorar cartera <ArrowUpRight size={16} />
           </a>
         </div>
       </section>
 
-      <div className="grid gap-px overflow-hidden rounded-xl border border-neutral-200 bg-neutral-200 sm:grid-cols-3 dark:border-neutral-800 dark:bg-neutral-800">
-        <div className="bg-white p-4 dark:bg-neutral-900">
-          <div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><FolderKanban size={15} /> Cobertura actual</div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{result.totalCount.toLocaleString("es-CL")}</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">solicitudes en esta vista</p>
+      <section aria-labelledby="pipeline-summary-title">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Foto de la cartera</p>
+            <h2 id="pipeline-summary-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Magnitud, composición y actividad reciente</h2>
+          </div>
+          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">Los indicadores respetan el filtro tecnológico cuando corresponde.</p>
         </div>
-        <div className="bg-white p-4 dark:bg-neutral-900">
-          <div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><Activity size={15} /> Potencia a monitorear</div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{(filteredCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">de los proyectos con el filtro activo</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { icon: FolderKanban, label: "Proyectos monitoreados", value: pipelineTotals.count.toLocaleString("es-CL"), detail: "solicitudes vigentes con cronograma", accent: "border-t-brand-primary", iconClass: "bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary" },
+            { icon: Activity, label: "Capacidad futura", value: `${(filteredCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: "con el filtro tecnológico activo", accent: "border-t-data-blue", iconClass: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300" },
+            { icon: BatteryCharging, label: "Proyectos con BESS", value: bessCount.toLocaleString("es-CL"), detail: "incluyen almacenamiento en baterías", accent: "border-t-data-bess", iconClass: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300" },
+            { icon: CalendarClock, label: "Actividad reciente", value: `+${solicitudes30d.toLocaleString("es-CL")}`, detail: "solicitudes ingresadas en 30 días", accent: "border-t-data-solar", iconClass: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300" },
+          ].map(({ icon: Icon, label, value, detail, accent, iconClass }) => (
+            <article key={label} className={`rounded-2xl border border-neutral-200 border-t-2 ${accent} bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">{label}</p>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClass}`}><Icon size={15} /></span>
+              </div>
+              <p className="mt-4 text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">{value}</p>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{detail}</p>
+            </article>
+          ))}
         </div>
-        <div className="bg-white p-4 dark:bg-neutral-900">
-          <div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><BatteryCharging size={15} /> Almacenamiento BESS</div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{bessCount.toLocaleString("es-CL")}</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">proyectos BESS dentro del pipeline</p>
-        </div>
-      </div>
+      </section>
 
-      <div className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+      <section className="rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-surface via-white to-white p-6 dark:via-neutral-950 dark:to-neutral-950" aria-labelledby="pipeline-reading-title">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Lectura ejecutiva</p>
+            <h2 id="pipeline-reading-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Dónde se concentra la oportunidad y qué vigilar</h2>
+          </div>
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">Estimaciones propias basadas en señales regulatorias y fechas disponibles</span>
+        </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          {executiveSignals.map(({ icon: Icon, label, title, value, guidance, color }) => (
+            <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <div className="flex items-center gap-3">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${color}`}><Icon size={17} /></span>
+                <p className="text-[10px] font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">{label}</p>
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-neutral-950 dark:text-white">{title}</h3>
+              <p className="mt-1 text-sm font-medium text-brand-deep dark:text-brand-primary">{value}</p>
+              <p className="mt-3 border-t border-neutral-100 pt-3 text-xs leading-5 text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"><span className="font-semibold text-neutral-700 dark:text-neutral-300">Cómo usarlo:</span> {guidance}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <div className="flex gap-1 rounded-xl border border-neutral-200 bg-white px-2 pt-1 dark:border-neutral-800 dark:bg-neutral-950">
         {TABS.map((t) => {
           const active = t.key === tab;
           if (t.key === "historico" && !HISTORICO_HABILITADO) {
@@ -286,7 +364,7 @@ export default async function ProyectosEsperadosPage({
           <div><p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Explorador de proyectos</p><h2 className="mt-1 text-xl font-semibold text-neutral-900 dark:text-neutral-50">Cartera de conexión</h2></div>
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} solicitudes en la vista</span>
         </div>
-        <Panel className="flex flex-col gap-5 border-neutral-200 bg-neutral-50 p-5 dark:border-neutral-800 dark:bg-neutral-950">
+        <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la cartera</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante.</p></div>{(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
         <SearchBar
           basePath="/proyectos-esperados"
@@ -301,8 +379,10 @@ export default async function ProyectosEsperadosPage({
         </Panel>
       </section>
 
-      <Panel className="flex flex-col gap-4">
-        <div>
+      <Panel className="flex flex-col gap-4 overflow-hidden p-0">
+        <div className="px-5 pt-5">
+        {tab === "esperados" && <VerificationProgressBar progress={verificationProgress} />}
+        <div className="mt-4">
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
             {result.totalCount.toLocaleString("es-CL")} solicitudes de conexión{hasTechFilter || search ? " con este filtro" : ""}
             {" · "}
@@ -317,11 +397,16 @@ export default async function ProyectosEsperadosPage({
             dato oficial verificado.
           </p>
         </div>
-        <ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} admin={admin} crmProjectIds={crmProjectIds} />
-        <Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} />
+        </div>
+        <div className="border-t border-neutral-100 dark:border-neutral-800"><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} crmProjectIds={crmProjectIds} isFree={isFree} /></div>
+        <div className="px-5 pb-5"><Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} /></div>
       </Panel>
 
-      <AnalysisDrawer title="Análisis del pipeline" description="Profundiza en madurez, fechas de conexión, demanda de equipos y salud de la cartera.">
+      <AnalysisDrawer title="Análisis detallado de proyectos futuros" description="Profundiza en madurez, fechas de conexión, demanda de equipos y salud de la cartera.">
+        <div className="rounded-2xl border border-brand-primary/25 bg-brand-surface p-5 dark:bg-brand-primary/10">
+          <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Cómo leer este análisis</p>
+          <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Comienza por el panorama actual y la salud de la cartera; después revisa regiones y antigüedad; finalmente usa los calendarios y la demanda de equipos para identificar ventanas comerciales.</p>
+        </div>
         <Panel className="flex flex-col gap-4">
           <div>
             <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
@@ -457,14 +542,16 @@ export default async function ProyectosEsperadosPage({
             </h2>
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
               Distinto del embudo de arriba: ese mide avance <strong>administrativo</strong> (SAC/SEIA); este mide en
-              qué macro-etapa real de desarrollo estimamos que está cada solicitud vigente (mismo modelo que "Estado
-              del Proyecto" en cada ficha). Respeta el filtro de tecnología de arriba.
+              qué macro-etapa real de desarrollo estimamos que está cada solicitud vigente (el mismo modelo llamado{" "}
+              <strong>Estado del proyecto</strong> en cada ficha). Respeta el filtro de tecnología de arriba.
               {maturityFunnel.skipped > 0
                 ? ` ${maturityFunnel.skipped} solicitudes vigentes quedaron fuera por no tener tecnología clasificada.`
                 : ""}
             </p>
           </div>
-          <MaturityFunnelChart funnel={maturityFunnel} />
+          <PlanGate locked={isFree}>
+            <MaturityFunnelChart funnel={maturityFunnel} />
+          </PlanGate>
         </Panel>
 
         <Panel className="flex flex-col gap-4">
@@ -476,7 +563,9 @@ export default async function ProyectosEsperadosPage({
               MW con fecha estimada de conexión por mes, próximos 24 meses (excluye rechazadas y desistidas).
             </p>
           </div>
-          <ConnectionCalendarChart entries={calendar} />
+          <PlanGate locked={isFree}>
+            <ConnectionCalendarChart entries={calendar} />
+          </PlanGate>
         </Panel>
 
         <Panel className="flex flex-col gap-6">

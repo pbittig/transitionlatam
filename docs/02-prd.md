@@ -31,10 +31,13 @@ El tipo de usuario se autodeclara en el registro y se corrige con comportamiento
 | 9 | Opportunity Finder | Búsqueda dirigida por intención declarada | P1 (post-MVP, arquitectura preparada) |
 | 10 | Report Builder | Generación de reportes dinámicos | P1 (post-MVP) |
 | 11 | Suscripciones / Billing | Planes pagos | P1 (post-MVP, entitlements desde el día 1) |
-| 12 | Stakeholder Intelligence avanzada | Personas, cargos, movimientos | P2 |
+| 12 | Empresas y relaciones | Grupo detrás de cada proyecto, malla societaria simplificada, cartera consolidada y contactos funcionales | P1 (alcance aprobado; depende de prueba de proveedor) |
 | 13 | Expansión LATAM (datos multi-país) | — | P2 |
 
 P0 = incluido en el MVP. P1 = arquitectura preparada, funcionalidad no construida aún. P2 = fuera de alcance por ahora.
+
+El alcance aprobado de **Empresas y relaciones** está documentado en
+[2026-07-28-empresas-y-relaciones-scope.md](superpowers/specs/2026-07-28-empresas-y-relaciones-scope.md).
 
 ## 2.3 Requerimientos funcionales clave
 

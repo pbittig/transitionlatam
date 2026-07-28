@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { getAppLocale } from "@/lib/i18n";
 
 export interface RegistroState {
   error?: string;
@@ -52,6 +53,7 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
   }
 
   const client = await createSupabaseServerClient();
+  const preferredLanguage = await getAppLocale();
 
   const { data: signUpData, error: signUpError } = await client.auth.signUp({ email, password });
   if (signUpError) {
@@ -80,7 +82,7 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
 
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  const { error: profileError } = await client.from("user_profile").insert({
+  const profilePayload = {
     auth_user_id: signUpData.user.id,
     email,
     full_name: fullName,
@@ -89,7 +91,15 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
     country,
     plan_id: freePlan?.id ?? null,
     trial_ends_at: trialEndsAt,
-  });
+    preferred_language: preferredLanguage,
+  };
+  let { error: profileError } = await client.from("user_profile").insert(profilePayload);
+  if (profileError?.code === "42703" || profileError?.code === "PGRST204") {
+    const { preferred_language: _preferredLanguage, ...legacyPayload } = profilePayload;
+    void _preferredLanguage;
+    const retry = await client.from("user_profile").insert(legacyPayload);
+    profileError = retry.error;
+  }
   if (profileError) {
     return { error: `No pudimos completar tu perfil: ${profileError.message}` };
   }

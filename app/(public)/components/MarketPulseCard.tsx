@@ -15,10 +15,8 @@ export function MarketPulseCard({ solicitudes7d, solicitudes30d }: { solicitudes
           <p className="text-xs text-neutral-500 dark:text-neutral-400">Solicitudes ingresadas, últimos 30 días</p>
         </div>
       </div>
-      <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
-        Por ahora solo podemos medir "solicitudes nuevas" con fecha real (ver Actividad reciente). Cambios de estado,
-        aprobaciones de RCA y MW conectados en una ventana de tiempo requieren una segunda sincronización del listado
-        con diff de estados — todavía no la tenemos (solo un snapshot). Los agregaremos aquí cuando esté disponible.
+      <p className="rounded-lg bg-neutral-50 px-3 py-2 text-[11px] leading-5 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400">
+        Este indicador mide nuevas solicitudes con fecha verificable. Las tendencias de cambios de estado se activarán cuando exista suficiente historial comparable.
       </p>
     </div>
   );

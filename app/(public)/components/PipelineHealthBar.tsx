@@ -13,7 +13,7 @@ export function PipelineHealthBar({ health }: { health: PipelineHealthDistributi
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        {health.total.toLocaleString("es-CL")} proyectos vigentes con "Probabilidad de cumplir COD" calculada.
+        {health.total.toLocaleString("es-CL")} proyectos vigentes con probabilidad estimada de cumplir su fecha de conexión.
       </p>
       <div className="flex h-3 w-full overflow-hidden rounded-full">
         <div style={{ width: `${health.altaPct}%`, backgroundColor: ALTA_COLOR }} title={`Alta: ${health.alta}`} />
@@ -37,9 +37,8 @@ export function PipelineHealthBar({ health }: { health: PipelineHealthDistributi
           <span className="text-neutral-500 dark:text-neutral-400">con riesgo alto</span>
         </span>
       </div>
-      <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
-        Bandas de "Probabilidad de cumplir COD" (mismo cálculo que en cada ficha) agregadas sobre todo el pipeline
-        vigente — estimación propia, no un dato oficial.
+      <p className="text-[11px] leading-5 text-neutral-400 dark:text-neutral-500">
+        Esta clasificación combina avance del proyecto, estado ambiental y fecha prevista. Es una estimación propia, no un dato oficial.
       </p>
     </div>
   );

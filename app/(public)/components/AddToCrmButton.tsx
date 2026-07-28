@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { BriefcaseBusiness, CircleCheck } from "lucide-react";
+import { ContactRound, CircleCheck } from "lucide-react";
 import { addProjectToOpportunity } from "../crmActions";
 
 export function AddToCrmButton({
@@ -11,15 +11,33 @@ export function AddToCrmButton({
   developerCompanyId,
   initiallyInCrm,
   compact = false,
+  locked = false,
 }: {
   projectId: string;
   projectName: string;
   developerCompanyId: string | null;
   initiallyInCrm: boolean;
   compact?: boolean;
+  locked?: boolean;
 }) {
   const [inCrm, setInCrm] = useState(initiallyInCrm);
   const [pending, startTransition] = useTransition();
+
+  if (locked) {
+    return (
+      <span
+        title="Disponible en plan Lite o Premium"
+        aria-label="Agregar al CRM — disponible en plan Lite o Premium"
+        className={
+          compact
+            ? "inline-flex h-7 w-7 cursor-not-allowed items-center justify-center rounded-md text-neutral-300 dark:text-neutral-700"
+            : "print:hidden flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg border border-neutral-200 text-neutral-300 dark:border-neutral-800 dark:text-neutral-700"
+        }
+      >
+        <ContactRound size={compact ? 15 : 16} strokeWidth={2} />
+      </span>
+    );
+  }
 
   if (inCrm) {
     return (
@@ -58,7 +76,7 @@ export function AddToCrmButton({
           : "print:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
       }
     >
-      <BriefcaseBusiness size={compact ? 15 : 16} strokeWidth={2} />
+      <ContactRound size={compact ? 15 : 16} strokeWidth={2} />
     </button>
   );
 }

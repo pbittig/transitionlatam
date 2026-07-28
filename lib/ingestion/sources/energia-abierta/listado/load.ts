@@ -1,14 +1,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeForMatch } from "./normalize";
 import type { NormalizedProject } from "./types";
+import { REJECTED_STATUSES } from "@/lib/data-access/projects";
 
 const DATA_SOURCE_NAME = "Acceso Abierto - Coordinador Eléctrico Nacional (listado)";
 const CONFIDENCE_PUBLIC = "PUBLICO";
+
+/**
+ * Regla de modelado Fehaciente/SUCTD (validada 2026-07-28 contra 43 casos reales +
+ * la API en vivo del Coordinador — ver docs/07-regla-fehaciente-suctd.md): NO son
+ * proyectos independientes, son solicitudes distintas para el mismo proyecto físico
+ * en distintas etapas. Un "Proyecto Fehaciente" que debe presentar SUCTD queda
+ * congelado en ese estado para siempre — la evolución real (autorizado, en
+ * construcción, rechazado) solo se ve en la solicitud SUCTD. Y no es 1:1: puede
+ * haber varios intentos de SUCTD (rechazados/desistidos) antes del que prospera.
+ * Por eso el "maestro" no es fijo (ni siempre Fehaciente ni siempre SUCTD) sino el
+ * expediente procesalmente más avanzado que no esté rechazado/desistido.
+ */
+const FEHACIENTE_AWAITING_SUCTD_MARKER = "debe presentar suctd";
+
+function statusRank(status: string | null): 0 | 1 | 2 {
+  if (!status) return 1;
+  const normalized = normalizeForMatch(status);
+  if (REJECTED_STATUSES.some((s) => normalizeForMatch(s) === normalized)) return 0;
+  if (normalized.includes(normalizeForMatch(FEHACIENTE_AWAITING_SUCTD_MARKER))) return 1;
+  return 2;
+}
 
 export interface LoadSummary {
   totalRows: number;
   projectsCreated: number;
   projectsUpdated: number;
+  projectsPromotedFromSibling: number;
+  solicitudesDiscardedAsInferior: number;
   companiesCreated: number;
   locationsCreated: number;
   connectionStatusesCreated: number;
@@ -25,6 +49,8 @@ export async function loadNormalizedProjects(
     totalRows: rows.length,
     projectsCreated: 0,
     projectsUpdated: 0,
+    projectsPromotedFromSibling: 0,
+    solicitudesDiscardedAsInferior: 0,
     companiesCreated: 0,
     locationsCreated: 0,
     connectionStatusesCreated: 0,
@@ -73,6 +99,38 @@ export async function loadNormalizedProjects(
   const companyCache = new Map<string, string>();
   const locationCache = new Map<string, string>();
   const connectionStatusCache = new Map<string, string>();
+
+  // Para la regla Fehaciente/SUCTD (ver statusRank arriba): mapa de proyectos
+  // existentes por nombre normalizado, para detectar "hermanos" sin una consulta
+  // por fila. Se actualiza en memoria al promover o crear, para que dos solicitudes
+  // nuevas del mismo proyecto dentro de la misma corrida también se detecten entre sí.
+  // Paginado explícito: PostgREST corta en 1000 filas por defecto sin esto —
+  // hallazgo real, con ~2700 proyectos muchos quedaban fuera del mapa y la regla
+  // nunca los detectaba como hermanos (ver "Estela Solar Retiro", duplicado a
+  // pesar de que la fila original ya estaba verificada).
+  const allProjectRows: Array<{ id: string; name: string; external_reference: string | null; status: string | null; verified_at: string | null }> = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data: page, error: pageError } = await client
+      .from("project")
+      .select("id, name, external_reference, status, verified_at")
+      .eq("country_id", countryId)
+      .range(offset, offset + 999);
+    if (pageError) throw new Error(`Error cargando proyectos existentes: ${pageError.message}`);
+    allProjectRows.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
+  }
+  const projectsByNormalizedName = new Map<
+    string,
+    { id: string; externalReference: string | null; status: string | null; verifiedAt: string | null }
+  >();
+  for (const p of allProjectRows) {
+    projectsByNormalizedName.set(normalizeForMatch(p.name as string), {
+      id: p.id as string,
+      externalReference: p.external_reference as string | null,
+      status: p.status as string | null,
+      verifiedAt: p.verified_at as string | null,
+    });
+  }
 
   async function getOrCreateCompany(name: string): Promise<string> {
     const key = normalizeForMatch(name);
@@ -295,6 +353,64 @@ export async function loadNormalizedProjects(
       return;
     }
 
+    // Regla Fehaciente/SUCTD (ver comentario junto a statusRank arriba): antes de
+    // crear una fila nueva para una solicitud nunca vista, buscar si ya existe otra
+    // fila (misma familia de nombre, distinto external_reference) representando el
+    // mismo proyecto físico en otra etapa del trámite.
+    const normalizedIncomingName = normalizeForMatch(row.projectName);
+    const sibling = projectsByNormalizedName.get(normalizedIncomingName);
+
+    if (sibling && sibling.externalReference !== row.externalId) {
+      if (sibling.verifiedAt) {
+        // Fila ya verificada a mano: nunca se toca ni se reemplaza automáticamente
+        // (mismo criterio de "congelado tras verificar" que el resto de este archivo).
+        summary.solicitudesDiscardedAsInferior += 1;
+        return;
+      }
+      const incomingRank = statusRank(row.statusLabel);
+      const siblingRank = statusRank(sibling.status);
+      if (incomingRank <= siblingRank) {
+        // La solicitud entrante es igual o menos avanzada que lo que ya tenemos
+        // (ej. un intento de SUCTD rechazado, o el Fehaciente original una vez que
+        // ya existe una SUCTD viva) — no aporta un proyecto nuevo, se descarta.
+        summary.solicitudesDiscardedAsInferior += 1;
+        return;
+      }
+
+      // La solicitud entrante es más avanzada: "promueve" la fila existente en vez
+      // de crear una hermana — mismo id, así los vínculos ya armados (contactos,
+      // empresa, SEIA) siguen apuntando al proyecto sin necesidad de migrarlos.
+      const { error: promoteError } = await client.from("project").update(projectFields).eq("id", sibling.id);
+      if (promoteError) {
+        throw new Error(`Error promoviendo proyecto '${row.projectName}' (${row.externalId}) sobre hermano ${sibling.id}: ${promoteError.message}`);
+      }
+      await client
+        .from("project_connection")
+        .update({
+          request_type: row.requestType,
+          connection_point: row.connectionPoint,
+          voltage_level: row.voltageLevel,
+          substation_bay: row.substationBay,
+          transmission_segment: row.transmissionSegment,
+        })
+        .eq("project_id", sibling.id);
+      await client.from("project_event").insert({
+        project_id: sibling.id,
+        event_type: "status_change",
+        occurred_at: new Date().toISOString(),
+        previous_value: JSON.stringify({ status: sibling.status }),
+        new_value: JSON.stringify({ status: row.statusLabel, externalReference: row.externalId }),
+        data_source_id: dataSourceId,
+        confidence_level: CONFIDENCE_PUBLIC,
+        description: `Nueva solicitud ${row.externalId} (${row.requestType ?? "sin tipo"}) reemplaza a la anterior para el mismo proyecto`,
+      });
+      summary.projectsPromotedFromSibling += 1;
+      projectsByNormalizedName.set(normalizedIncomingName, {
+        id: sibling.id, externalReference: row.externalId, status: row.statusLabel, verifiedAt: null,
+      });
+      return;
+    }
+
     const { data: project, error: projectError } = await client
       .from("project")
       .insert(projectFields)
@@ -305,6 +421,9 @@ export async function loadNormalizedProjects(
     }
     summary.projectsCreated += 1;
     const projectId = project.id as string;
+    projectsByNormalizedName.set(normalizedIncomingName, {
+      id: projectId, externalReference: row.externalId, status: row.statusLabel, verifiedAt: null,
+    });
 
     await client.from("project_connection").insert({
       project_id: projectId,

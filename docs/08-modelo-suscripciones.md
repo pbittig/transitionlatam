@@ -8,7 +8,7 @@ La lógica de "qué puede hacer/ver este usuario" nunca vive en componentes de U
 
 ```
 plan
-  id, code ('free','professional','business','enterprise'), name, description
+  id, code ('free','lite','premium'), name, description
 
 feature
   id, code ('advanced_filters','ai_extended','opportunity_scoring',
@@ -26,16 +26,15 @@ entitlement_override      -- excepciones puntuales (ej. cortesía Enterprise a u
   user_profile_id | organization_id, feature_id, limit_config, expires_at
 ```
 
-## 8.3 Planes (según brief, cualitativo — sin pricing aún)
+## 8.3 Planes comerciales vigentes
 
 | Plan | Incluye (resumen) |
 |---|---|
-| **Free** | Dashboard público, acceso básico a proyectos, Transition AI limitado, perfiles básicos |
-| **Professional** | Filtros avanzados, más detalle de proyecto, IA ampliada, comparación de proyectos, reportes avanzados, Stakeholder Intelligence |
-| **Business** | Inteligencia avanzada, Opportunity Scoring, Company Intelligence, mayor uso de IA, análisis de oportunidades |
-| **Enterprise** | Dashboards personalizados, datasets personalizados, agentes IA personalizados, integraciones dedicadas, advisory de ONIX |
+| **Free** | Prueba de 14 días, panorama de infraestructura, vista resumida de proyectos futuros y muestras de funciones avanzadas. 1 usuario. |
+| **Lite** | Todo Free, fichas completas, listado completo de proyectos futuros, seguimiento, alertas e historial de cambios. 2 usuarios de la misma empresa. |
+| **Premium** | Todo Lite, inteligencia de empresas y relaciones, CRM de oportunidades, Transition AI y creación asistida de reportes. 3 usuarios de la misma empresa. |
 
-Pricing y el momento exacto de activar cobro son decisiones de negocio pendientes (ver ambigüedad #8 en [02-prd.md](02-prd.md)) — no bloquean la construcción del sistema de entitlements.
+La contratación de Lite y Premium es anual. La interfaz puede mostrar el costo mensual equivalente por usuario únicamente como referencia comercial, siempre acompañado de la indicación explícita de que el contrato y el pago son anuales. Transition AI tendrá límites mensuales de uso configurados en `plan_feature.limit_config`.
 
 ## 8.4 Resolución de entitlements (cómo se usa en runtime)
 

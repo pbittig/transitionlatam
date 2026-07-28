@@ -48,6 +48,33 @@ function emailMatchesName(name: string, email: string): boolean {
   return nameWords.some((word) => localPart.includes(word));
 }
 
+/**
+ * Red de seguridad de forma para el teléfono, mismo criterio que RUT_PATTERN en
+ * extractWithAi.ts: un valor con forma equivocada es peor que null. No valida el
+ * número real (no hay forma de confirmarlo sin llamar), solo descarta lo que
+ * claramente no es un teléfono (texto, fechas mal leídas, campos vacíos con
+ * ruido) — entre 7 y 12 dígitos cubre fijos y móviles chilenos con o sin +56,
+ * y también prefijos de otros países que a veces aparecen en el Formulario.
+ */
+function isPlausiblePhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 12;
+}
+
+// Nombres/correos de ejemplo que trae el Formulario del Coordinador cuando el PDF
+// no estaba realmente lleno — la IA los extraía como si fueran contactos reales
+// (hallazgo real: "Juan Pérez"/juan.perez@empresa.com terminó vinculado como
+// representante legal de 8 empresas distintas). Se descartan enteros, no solo el
+// correo, porque el nombre en sí tampoco es un dato real.
+const PLACEHOLDER_NAME_PATTERNS = [/^juan\s+p[eé]rez$/i, /^mar[ií]a\s+l[oó]pez$/i, /^carlos\s+d[ií]az$/i, /^carlos\s+rojas$/i];
+const PLACEHOLDER_EMAIL_DOMAINS = new Set(["empresa.com", "empresa.cl"]);
+
+function isPlaceholderContact(name: string, email: string | null): boolean {
+  if (PLACEHOLDER_NAME_PATTERNS.some((re) => re.test(name.trim()))) return true;
+  const domain = email?.split("@")[1]?.toLowerCase().trim();
+  return !!domain && PLACEHOLDER_EMAIL_DOMAINS.has(domain);
+}
+
 export interface FormularioLoadResult {
   companyId: string | null;
   personIds: string[];
@@ -282,7 +309,7 @@ export async function loadFormularioResult(
     const cleanCompany = signedByCompany && isPlausibleContactField(signedByCompany) ? signedByCompany : null;
     const companyId = await getOrCreateCompany(client, cleanCompany, null, null);
     const personIds: string[] = [];
-    if (signedByName && isPlausibleContactField(signedByName)) {
+    if (signedByName && isPlausibleContactField(signedByName) && !isPlaceholderContact(signedByName, null)) {
       const personId = await getOrCreatePerson(client, signedByName, null, null, companyId);
       personIds.push(personId);
       const role = signedByRole && isPlausibleContactField(signedByRole) ? signedByRole : "signer";
@@ -302,8 +329,10 @@ export async function loadFormularioResult(
 
   for (const contact of data.contacts as FormularioContact[]) {
     if (!contact.name || !isPlausibleContactField(contact.name) || !ALLOWED_CONTACT_ROLES.has(contact.role)) continue;
+    if (isPlaceholderContact(contact.name, contact.email)) continue;
     const verifiedEmail = contact.email && emailMatchesName(contact.name, contact.email) ? contact.email : null;
-    const personId = await getOrCreatePerson(client, contact.name, verifiedEmail, contact.phone, companyId);
+    const verifiedPhone = contact.phone && isPlausiblePhone(contact.phone) ? contact.phone : null;
+    const personId = await getOrCreatePerson(client, contact.name, verifiedEmail, verifiedPhone, companyId);
     personIds.push(personId);
     // Vínculo a nivel de PROYECTO (autoritativo para getProjectStakeholders — solo
     // muestra contactos de la ficha específica, nunca del resto de proyectos de la

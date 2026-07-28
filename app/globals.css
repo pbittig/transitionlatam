@@ -4,14 +4,31 @@
   color-scheme: light dark;
   --background: #ffffff;
   --foreground: #171717;
-  /* Turquesa de marca (manual de marca web, sección 5) — único color de acento (KPIs, estado activo, CTA, indicadores positivos). */
   --brand-primary: #38d7c5;
+  --brand-deep: #126b64;
+  --brand-ink: #173c3a;
+  --brand-surface: #effbf9;
+  --data-blue: #3b82f6;
+  --data-solar: #eab308;
+  --data-wind: #22a66f;
+  --data-bess: #8b5cf6;
+  --data-hydrogen: #f97316;
+  --data-alert: #ef4444;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-brand-primary: var(--brand-primary);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-surface: var(--brand-surface);
+  --color-data-blue: var(--data-blue);
+  --color-data-solar: var(--data-solar);
+  --color-data-wind: var(--data-wind);
+  --color-data-bess: var(--data-bess);
+  --color-data-hydrogen: var(--data-hydrogen);
+  --color-data-alert: var(--data-alert);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -21,6 +38,9 @@
     --background: #0a0a0a;
     --foreground: #ededed;
     --brand-primary: #38d7c5;
+    --brand-deep: #1fa99c;
+    --brand-ink: #d9fffa;
+    --brand-surface: #102624;
   }
 }
 
@@ -63,4 +83,158 @@ body {
 }
 .range-thumb::-moz-range-track {
   background: transparent;
+}
+
+/* Impresión bloqueada en todo el sitio público (fichas de proyecto, listado de
+   Proyectos Futuros, etc.) — pedido explícito del usuario, no solo ocultar el
+   botón "Exportar a PDF". No se puede interceptar Ctrl+P/Archivo > Imprimir
+   desde JS, así que se reemplaza el contenido impreso por un aviso en vez de
+   dejar que el navegador imprima la página igual. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  body::before {
+    content: "La impresión/exportación a PDF no está disponible para este contenido.";
+    visibility: visible;
+    display: block;
+    position: fixed;
+    top: 40%;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    color: #000;
+  }
+}
+
+@keyframes follow-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.follow-toast {
+  animation: follow-toast-in 280ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .follow-toast {
+    animation: none;
+  }
+}
+
+@keyframes auth-panel-enter-left {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes auth-visual-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(-28px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.auth-panel-enter-left {
+  animation: auth-panel-enter-left 420ms ease-out both;
+}
+
+.auth-visual-enter-right {
+  animation: auth-visual-enter-right 520ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-panel-enter-left,
+  .auth-visual-enter-right {
+    animation: none;
+  }
+}
+
+::view-transition-old(.auth-forward) {
+  --auth-slide: -72px;
+  animation:
+    180ms ease-in both auth-view-fade reverse,
+    420ms ease-in-out both auth-view-slide reverse;
+}
+
+::view-transition-new(.auth-forward) {
+  --auth-slide: 72px;
+  animation:
+    260ms ease-out 120ms both auth-view-fade,
+    420ms ease-in-out both auth-view-slide;
+}
+
+::view-transition-old(.auth-back) {
+  --auth-slide: 72px;
+  animation:
+    180ms ease-in both auth-view-fade reverse,
+    420ms ease-in-out both auth-view-slide reverse;
+}
+
+::view-transition-new(.auth-back) {
+  --auth-slide: -72px;
+  animation:
+    260ms ease-out 120ms both auth-view-fade,
+    420ms ease-in-out both auth-view-slide;
+}
+
+::view-transition-group(.auth-visual) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-image-pair(.auth-visual) {
+  animation-name: auth-visual-soften;
+}
+
+@keyframes auth-view-fade {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes auth-view-slide {
+  from {
+    translate: var(--auth-slide);
+  }
+  to {
+    translate: 0;
+  }
+}
+
+@keyframes auth-visual-soften {
+  35% {
+    filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }

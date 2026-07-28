@@ -6,7 +6,6 @@ import { isAdmin } from "@/lib/auth/session";
 import { ProjectEditPageBody } from "../../components/ProjectEditPageBody";
 import { VerifyButton } from "../VerifyButton";
 import { AiSuggestionPanel } from "../AiSuggestionPanel";
-import { FormularioDocumentLink } from "../FormularioDocumentLink";
 import type { AiSuggestionResult } from "../aiSuggestionActions";
 import { searchSeiaByName } from "@/lib/ingestion/sources/seia/searchApi";
 import { distinctiveTokens } from "@/lib/ingestion/sources/seia/match";
@@ -70,7 +69,6 @@ export default async function VerificarProyectoPage({ params }: { params: Promis
         </div>
         <div className="flex flex-col items-end gap-2">
           <VerifyButton projectId={project.id} />
-          <FormularioDocumentLink projectId={project.id} />
         </div>
       </div>
       <AiSuggestionPanel projectId={project.id} initialResult={await buildInitialAiResult(project)} />

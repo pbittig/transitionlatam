@@ -3,17 +3,29 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { searchSeiaForAssociation, assignSeiaMatch, type SeiaCandidate } from "./seiaActions";
 
+// El buscador de SEIA hace un match casi literal del texto contra el nombre del
+// expediente — probar "BESS Chungará (Ex - BESS Parinacota)" completo da 0
+// resultados en el sitio real, mientras que "BESS Chungará" solo sí lo encuentra
+// (hallazgo real). Los alias entre paréntesis ("Ex - ...", "ex ...") son ruido
+// para esa búsqueda, así que se precargan fuera para no obligar al admin a
+// adivinar un término más corto.
+function stripAliasSuffix(name: string): string {
+  return name.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+}
+
 export function SeiaMatchModal({
   projectId,
+  projectName,
   hasExistingMatch,
   isAdmin = false,
 }: {
   projectId: string;
+  projectName: string;
   hasExistingMatch: boolean;
   isAdmin?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => stripAliasSuffix(projectName));
   const [candidates, setCandidates] = useState<SeiaCandidate[]>([]);
   const [adminSecret, setAdminSecret] = useState("");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);

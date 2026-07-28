@@ -18,7 +18,7 @@
 
 - Marketplace transaccional completo.
 - Billing/suscripciones con cobro real.
-- Stakeholder Intelligence avanzada (más allá de datos básicos de personas/cargos).
+- Empresas y relaciones completo (la preparación, prueba de proveedores y modelo de proveniencia sí quedan dentro del alcance preparatorio; implementación comercial en Fase 6).
 - Dataset multi-país real (solo el parámetro `country_code` existe).
 - Agentes de IA complejos/autónomos.
 - Microservicios separados (todo vive en el monolito Next.js + Supabase hasta que haya evidencia de necesidad).
@@ -45,7 +45,7 @@ graph LR
 | **Fase 3 — Auth y Captura de Leads** | Registro/onboarding, `user_profile`, captura de `behavior_event`, sistema de entitlements base | Fase 2 (puede solaparse parcialmente) |
 | **Fase 4 — Transition AI v1** | Capa de abstracción de proveedor, catálogo inicial de tools, guardrails, límites de uso | Fase 1 y 3 |
 | **Fase 5 — Intent Tracking y Handoff** | Lead scoring simple, umbral configurable, adaptador de CRM (webhook mínimo), notificaciones | Fase 3 y 4 |
-| **Fase 6+ (post-MVP)** | Activación de suscripciones/billing, Opportunity Finder, Report Builder, expansión a Perú, Stakeholder Intelligence avanzada | Validación del MVP |
+| **Fase 6+ (post-MVP)** | Activación de suscripciones/billing, Opportunity Finder, Report Builder, expansión a Perú y módulo Empresas y relaciones — grupo, SPV, cartera consolidada, contactos y alertas; ver [alcance aprobado](superpowers/specs/2026-07-28-empresas-y-relaciones-scope.md) | Validación del MVP + prueba de proveedor societario |
 
 Las fases 2 y 3 pueden ejecutarse con solapamiento (equipos distintos); las fases 4 y 5 dependen de que exista dataset real cargado (Fase 1) para que Transition AI y el scoring tengan sobre qué operar — no tiene sentido construir IA sobre datos vacíos.
 

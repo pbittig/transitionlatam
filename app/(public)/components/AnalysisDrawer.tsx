@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, X } from "lucide-react";
+import { BarChart3, ChevronLeft, X } from "lucide-react";
 
 /**
  * Franja fija en el borde derecho de la pantalla — al hacer click se
@@ -26,12 +26,13 @@ export function AnalysisDrawer({
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Mostrar análisis"
-        className={`fixed top-1/2 right-0 z-30 flex h-36 w-11 -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-xl border border-r-0 border-neutral-300 bg-neutral-200 text-xs font-semibold tracking-wide text-neutral-700 shadow-md transition-all hover:w-12 hover:bg-neutral-300 print:hidden dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 ${
+        className={`fixed top-1/2 right-0 z-30 flex -translate-y-1/2 items-center gap-2 rounded-l-xl border border-r-0 border-brand-primary/40 bg-brand-deep px-3 py-3 text-xs font-semibold text-white shadow-lg shadow-brand-deep/20 transition-all hover:pr-4 hover:bg-brand-ink print:hidden dark:bg-brand-primary dark:text-neutral-950 ${
           open ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
       >
         <ChevronLeft size={17} aria-hidden />
-        <span style={{ writingMode: "vertical-rl" }}>ANÁLISIS</span>
+        <BarChart3 size={16} aria-hidden />
+        <span className="hidden sm:inline">Ver análisis</span>
       </button>
 
       <div
@@ -40,16 +41,16 @@ export function AnalysisDrawer({
         }`}
         aria-hidden={!open}
       >
-        <div className="flex items-start justify-between border-b border-neutral-100 px-6 py-4 dark:border-neutral-900">
+        <div className="flex items-start justify-between border-b border-brand-primary/20 bg-gradient-to-r from-brand-ink to-brand-deep px-6 py-4 text-white">
           <div>
-            <h2 className="text-sm font-semibold tracking-widest text-neutral-600 uppercase dark:text-neutral-300">{title}</h2>
-            {description && <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{description}</p>}
+            <h2 className="text-sm font-semibold tracking-widest uppercase">{title}</h2>
+            {description && <p className="mt-1 text-sm text-white/65">{description}</p>}
           </div>
           <button
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Cerrar"
-            className="rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+            className="rounded-full p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>

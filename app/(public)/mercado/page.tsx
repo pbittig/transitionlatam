@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Activity, BatteryCharging, Building2, ChartNoAxesCombined, Factory, MapPin, Zap } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getPowerPlantRegionBubbles, getPowerPlantStats, listPowerPlants } from "@/lib/data-access/powerPlants";
 import { getConstructionStats, getConstructionProjects } from "@/lib/data-access/construction";
@@ -95,6 +96,7 @@ export default async function MercadoPage({
   for (const t of pipelineByTechnology) {
     pipelineValues[t.category] = t.capacityMw;
   }
+  const pipelineTotalMw = pipelineByTechnology.reduce((sum, item) => sum + item.capacityMw, 0);
   const heatmapColumns: HeatmapColumn[] = [
     { key: "operacion", label: "Operación", values: operationValues },
     { key: "construccion", label: "Construcción", values: constructionValues },
@@ -112,15 +114,98 @@ export default async function MercadoPage({
     params.estado,
     search ? `“${search}”` : undefined,
   ].filter(Boolean);
+  const constructionVsOperation = stats.operatingCapacityMw > 0
+    ? (constructionStats.totalPotenciaMw / stats.operatingCapacityMw) * 100
+    : 0;
+  const executiveSignals = [
+    {
+      icon: Factory,
+      label: "Estructura competitiva",
+      title: `Concentración ${concentrationLabel(stats.marketConcentrationIndex)}`,
+      value: `HHI ${Math.round(stats.marketConcentrationIndex).toLocaleString("es-CL")}`,
+      guidance: "Úsalo para dimensionar cuán fragmentado está el parque entre propietarios y contextualizar posibles contrapartes.",
+      color: "text-brand-deep bg-brand-surface dark:text-brand-primary dark:bg-brand-primary/10",
+    },
+    {
+      icon: MapPin,
+      label: "Concentración territorial",
+      title: topRegion?.region ?? "Sin región dominante",
+      value: topRegion ? `${Math.round(topRegion.capacityMw).toLocaleString("es-CL")} MW instalados` : "Sin datos suficientes",
+      guidance: "Sirve para priorizar análisis regionales de conexión, proveedores, operación y nueva demanda.",
+      color: "text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-500/10",
+    },
+    {
+      icon: Building2,
+      label: "Expansión en ejecución",
+      title: `${constructionStats.count.toLocaleString("es-CL")} proyectos en construcción`,
+      value: `${constructionVsOperation.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% de la capacidad operativa`,
+      guidance: "Compara el volumen en construcción con la base operativa para estimar la magnitud del cambio ya comprometido.",
+      color: "text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/10",
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-10">
-      <section className="border-b border-neutral-200 pb-7 dark:border-neutral-800">
-        <p className="text-xs font-medium tracking-[0.14em] text-neutral-500 uppercase dark:text-neutral-400">Panorama de mercado · infraestructura energética</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">Infraestructura del sistema</h1>
-        <p className="mt-2 max-w-2xl text-neutral-600 dark:text-neutral-400">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-8 text-white shadow-xl shadow-brand-deep/10 md:px-8 md:py-10">
+        <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
+        <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
+        <div className="relative">
+          <p className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-brand-primary uppercase"><Zap size={14} /> Mercado eléctrico · Chile</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Infraestructura del sistema</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
           Lee el sistema como una sola cartera: infraestructura operativa, obras en construcción y la capacidad que busca conexión. Fuentes: CNE y Coordinador Eléctrico Nacional.
-        </p>
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="system-summary-title">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Foto del sistema</p>
+            <h2 id="system-summary-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Capacidad por etapa de desarrollo</h2>
+          </div>
+          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">Compara lo que ya opera, lo que se está construyendo y lo que todavía busca materializarse.</p>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { icon: Activity, label: "En operación", value: `${(stats.operatingCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${stats.totalPlants.toLocaleString("es-CL")} centrales registradas`, accent: "border-t-brand-primary", iconClass: "bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary" },
+            { icon: Building2, label: "En construcción", value: `${(constructionStats.totalPotenciaMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${constructionStats.count.toLocaleString("es-CL")} proyectos declarados`, accent: "border-t-data-solar", iconClass: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300" },
+            { icon: ChartNoAxesCombined, label: "Proyectos futuros", value: `${(pipelineTotalMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: "capacidad en cartera de conexión", accent: "border-t-data-blue", iconClass: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300" },
+            { icon: BatteryCharging, label: "BESS en construcción", value: `${(bessTotalMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${bessProjects.length.toLocaleString("es-CL")} proyectos con baterías`, accent: "border-t-data-bess", iconClass: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300" },
+          ].map(({ icon: Icon, label, value, detail, accent, iconClass }) => (
+            <article key={label} className={`rounded-2xl border border-neutral-200 border-t-2 ${accent} bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">{label}</p>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClass}`}><Icon size={15} /></span>
+              </div>
+              <p className="mt-4 text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">{value}</p>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-surface via-white to-white p-6 dark:via-neutral-950 dark:to-neutral-950" aria-labelledby="executive-reading-title">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Lectura ejecutiva</p>
+            <h2 id="executive-reading-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Qué muestran los datos y cómo utilizarlos</h2>
+          </div>
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">Análisis descriptivo basado en los registros disponibles</span>
+        </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          {executiveSignals.map(({ icon: Icon, label, title, value, guidance, color }) => (
+            <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <div className="flex items-center gap-3">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${color}`}><Icon size={17} /></span>
+                <p className="text-[10px] font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">{label}</p>
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-neutral-950 dark:text-white">{title}</h3>
+              <p className="mt-1 text-sm font-medium text-brand-deep dark:text-brand-primary">{value}</p>
+              <p className="mt-3 border-t border-neutral-100 pt-3 text-xs leading-5 text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"><span className="font-semibold text-neutral-700 dark:text-neutral-300">Cómo usarlo:</span> {guidance}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="flex flex-col gap-5">
@@ -129,7 +214,7 @@ export default async function MercadoPage({
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{plantList.totalCount.toLocaleString("es-CL")} activos en la vista</span>
         </div>
 
-        <Panel className="flex flex-col gap-5 border-neutral-200 bg-neutral-50 p-5 dark:border-neutral-800 dark:bg-neutral-950">
+        <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la infraestructura</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnología, condición operativa y búsqueda por central o propietario.</p></div>{hasFilter && <Link href="/mercado" className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
           <SearchBar basePath="/mercado" value={search} otherParams={{ tech: params.tech }} placeholder="Buscar por nombre de central o propietario...">
             <select
@@ -154,20 +239,26 @@ export default async function MercadoPage({
           {activeFilterLabels.length > 0 && <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">Vista actual:</span> {activeFilterLabels.join(" · ")}</p>}
         </Panel>
 
-        <Panel className="flex flex-col gap-4">
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+        <Panel className="flex flex-col gap-4 overflow-hidden p-0">
+          <p className="px-5 pt-5 text-sm text-neutral-600 dark:text-neutral-400">
+            <span className="font-semibold text-neutral-900 dark:text-neutral-100">
             {plantList.totalCount.toLocaleString("es-CL")} centrales
+            </span>
             {hasFilter ? " con este filtro" : ""}
             {" · "}
             {(stats.operatingCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW operativos en
             total{hasFilter ? " (sin aplicar el filtro)" : ""} — fuente: Comisión Nacional de Energía (CNE).
           </p>
-          <PowerPlantTable items={plantList.items} />
-          <Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} />
+          <div className="border-t border-neutral-100 dark:border-neutral-800"><PowerPlantTable items={plantList.items} /></div>
+          <div className="px-5 pb-5"><Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} /></div>
         </Panel>
       </section>
 
-      <AnalysisDrawer title="Análisis de infraestructura" description="Profundiza en las tecnologías, regiones, propietarios y etapas que explican el sistema.">
+      <AnalysisDrawer title="Análisis detallado de infraestructura" description="Compara tecnologías, regiones, propietarios y etapas para profundizar en la estructura del sistema.">
+        <div className="rounded-2xl border border-brand-primary/25 bg-brand-surface p-5 dark:bg-brand-primary/10">
+          <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Cómo leer este análisis</p>
+          <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Comienza por las conclusiones principales; luego contrasta construcción y BESS, revisa el cambio tecnológico por etapa y termina con la concentración regional y empresarial.</p>
+        </div>
         <section className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Insights de mercado</h2>
           <MarketSnapshotList insights={marketInsights} />
@@ -191,7 +282,7 @@ export default async function MercadoPage({
         <section className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Almacenamiento BESS</h2>
           <p className="-mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Proyectos en construcción con batería: BESS standalone o incorporado a otra central (columna "+"). Fuente:
+            Proyectos en construcción con batería: BESS independiente o incorporado a otra central (indicador +). Fuente:
             Declaración en Construcción de la CNE — el registro de centrales operativas no distingue esto todavía.
           </p>
           <Panel className="flex flex-col gap-4">

@@ -46,6 +46,8 @@ export interface ProjectFilters {
    */
   sortBy?: "name" | "capacityMw";
   sortDir?: SortDirection;
+  /** Solo proyectos con verified_at — usado en /proyectos-esperados para no exponer fichas sin revisar mientras se sigue verificando la cartera. */
+  verifiedOnly?: boolean;
 }
 
 export const REJECTED_STATUSES = ["Rechazada", "Desistida"];
@@ -66,6 +68,7 @@ export interface ProjectListItem {
   technology: string | null;
   technologyCode: string | null;
   includesStorage: boolean;
+  projectKind: string | null;
   region: string | null;
   comuna: string | null;
   capacityMw: number | null;
@@ -133,7 +136,7 @@ export async function listProjects(
   let query = client
     .from("project")
     .select(
-      `id, name, internal_code, developer_company_id, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, technology:technology_id(name, code), ${locationEmbed}, ${countryEmbed}, developer:developer_company_id(name), spv:spv_id(name)`,
+      `id, name, internal_code, developer_company_id, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, project_kind, status, estimated_connection_date, technology:technology_id(name, code), ${locationEmbed}, ${countryEmbed}, developer:developer_company_id(name), spv:spv_id(name)`,
       { count: "exact" },
     )
     .range(from, to);
@@ -143,6 +146,7 @@ export async function listProjects(
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.search && filters.search.trim()) query = query.ilike("name", `%${filters.search.trim()}%`);
   if (filters.projectIds) query = query.in("id", filters.projectIds);
+  if (filters.verifiedOnly) query = query.not("verified_at", "is", null);
 
   // Tecnología (chips multi-select) y patrones de nombre (Data Center) se combinan
   // con OR cuando ambos están activos — cualquiera de los dos matchea. Si solo se
@@ -205,6 +209,7 @@ export async function listProjects(
       storage_capacity_mw: number | null;
       storage_hours: number | null;
       includes_storage: boolean;
+      project_kind: string | null;
       status: string | null;
       estimated_connection_date: string | null;
       technology: { name: string; code: string } | null;
@@ -219,6 +224,7 @@ export async function listProjects(
       technology: r.technology?.name ?? null,
       technologyCode: r.technology?.code ?? null,
       includesStorage: r.includes_storage,
+      projectKind: r.project_kind,
       region: r.location?.region?.name ?? null,
       comuna: r.location?.comuna ?? null,
       capacityMw: r.capacity_mw,
@@ -627,6 +633,25 @@ export async function getVerificationPeriodStats(client: SupabaseClient): Promis
   return { vigentePending: vigentePending ?? 0, historicoPending: historicoPending ?? 0 };
 }
 
+export interface VerificationProgress {
+  verified: number;
+  total: number;
+}
+
+/** Verificados vs. total del pipeline vigente — para la barra de progreso pública en /proyectos-esperados (que solo lista verificados mientras se sigue revisando el resto). */
+export async function getVigenteVerificationProgress(client: SupabaseClient): Promise<VerificationProgress> {
+  // Mismo shape de query en ambas llamadas a applyPeriodFilter (el filtro de
+  // verified_at se encadena DESPUÉS) — pasarle chains con formas distintas dispara
+  // "Type instantiation is excessively deep" en el genérico T (hallazgo real).
+  const [{ count: verified, error: e1 }, { count: total, error: e2 }] = await Promise.all([
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }), "vigente").not("verified_at", "is", null),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }), "vigente"),
+  ]);
+  if (e1) throw new Error(`Error contando verificados vigentes: ${e1.message}`);
+  if (e2) throw new Error(`Error contando total vigente: ${e2.message}`);
+  return { verified: verified ?? 0, total: total ?? 0 };
+}
+
 export interface ProjectTimelineEntry {
   id: string;
   eventType: string;
@@ -806,6 +831,14 @@ export async function getProjectStakeholders(
   client: SupabaseClient,
   projectId: string,
   developerCompanyId: string | null,
+  // El editor de admin (ProjectContactsEditor) necesita mostrar EXACTAMENTE lo que
+  // tiene vinculado este proyecto, nunca el respaldo por empresa — si un admin borra
+  // el último contacto a propósito, la lista debe quedar vacía, no repoblarse con
+  // contactos de otros proyectos de la misma empresa (hallazgo real: se veía como
+  // "guardé estos contactos y aparecen otros distintos"). La ficha pública sí sigue
+  // usando el respaldo, para no dejar sin contactos a lo que el Formulario aún no
+  // reprocesó con el vínculo por proyecto.
+  options: { skipCompanyFallback?: boolean } = {},
 ): Promise<ProjectStakeholder[]> {
   const { data: projectRows, error: projectRelError } = await client
     .from("entity_relationship")
@@ -814,7 +847,7 @@ export async function getProjectStakeholders(
     .eq("target_type", "project")
     .eq("target_id", projectId);
   if (projectRelError) throw new Error(`Error obteniendo stakeholders: ${projectRelError.message}`);
-  if (projectRows?.length) {
+  if (projectRows?.length || options.skipCompanyFallback) {
     return resolveStakeholders(
       client,
       projectRows.map((r) => ({ relationship_type: r.relationship_type as string, source_id: r.source_id as string })),

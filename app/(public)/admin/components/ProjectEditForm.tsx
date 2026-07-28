@@ -17,7 +17,7 @@ const TEXT_FIELDS: Array<{ key: EditableProjectField; label: string }> = [
   { key: "nup", label: "NUP" },
 ];
 
-/** Siempre visible — es el MW principal para los proyectos que no incluyen almacenamiento (la mayoría). */
+/** Es el MW principal de proyectos de generación (incluidos los híbridos con generación) — un BESS puro (project_kind = "storage") no genera, así que no se muestra ahí: su número es Potencia de almacenamiento. */
 const CAPACITY_FIELD: { key: EditableProjectField; label: string } = { key: "capacityMw", label: "Capacidad (MW)" };
 
 /** Solo tiene sentido cuando el proyecto incluye almacenamiento — mismo criterio que la ficha pública (`app/(public)/proyectos/[id]/page.tsx`). */
@@ -26,12 +26,6 @@ const STORAGE_NUMBER_FIELDS: Array<{ key: EditableProjectField; label: string }>
   { key: "capacityMwh", label: "Energía (MWh)" },
   { key: "storageHours", label: "Horas de almacenamiento" },
 ];
-
-/** Un BESS puro (project_kind = "storage") no tiene componente de generación — mostrar este campo ahí siempre queda vacío e irrelevante. */
-const GENERATION_FIELD: { key: EditableProjectField; label: string } = {
-  key: "generationCapacityMw",
-  label: "Potencia de generación (MW)",
-};
 
 const REQUEST_TYPE_OPTIONS = ["SAC", "SUCTD", "FEHACIENTE"];
 
@@ -158,29 +152,17 @@ export function ProjectEditForm({
         <StatusHint status={comboStatus} errorMessage={comboError} />
       </label>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-neutral-500 dark:text-neutral-400">{CAPACITY_FIELD.label}</span>
-        <input
-          type="number"
-          value={values[CAPACITY_FIELD.key]}
-          onChange={(e) => setValues((prev) => ({ ...prev, [CAPACITY_FIELD.key]: e.target.value }))}
-          onBlur={(e) => save(CAPACITY_FIELD.key, toNullableNumber(e.target.value))}
-          className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
-        />
-        <StatusHint status={status[CAPACITY_FIELD.key]} errorMessage={errorMessages[CAPACITY_FIELD.key]} />
-      </label>
-
-      {includesStorage && projectKind !== "storage" && (
+      {projectKind !== "storage" && (
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-neutral-500 dark:text-neutral-400">{GENERATION_FIELD.label}</span>
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">{CAPACITY_FIELD.label}</span>
           <input
             type="number"
-            value={values[GENERATION_FIELD.key]}
-            onChange={(e) => setValues((prev) => ({ ...prev, [GENERATION_FIELD.key]: e.target.value }))}
-            onBlur={(e) => save(GENERATION_FIELD.key, toNullableNumber(e.target.value))}
+            value={values[CAPACITY_FIELD.key]}
+            onChange={(e) => setValues((prev) => ({ ...prev, [CAPACITY_FIELD.key]: e.target.value }))}
+            onBlur={(e) => save(CAPACITY_FIELD.key, toNullableNumber(e.target.value))}
             className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
           />
-          <StatusHint status={status[GENERATION_FIELD.key]} errorMessage={errorMessages[GENERATION_FIELD.key]} />
+          <StatusHint status={status[CAPACITY_FIELD.key]} errorMessage={errorMessages[CAPACITY_FIELD.key]} />
         </label>
       )}
 

@@ -25,21 +25,23 @@ import { SeiaStatusCard } from "../../components/SeiaStatusCard";
 import { HealthScoreBadge } from "../../components/HealthScoreBadge";
 import { SeiaMatchModal } from "./SeiaMatchModal";
 import { RevealStakeholders } from "./RevealStakeholders";
-import { PrintButton } from "./PrintButton";
 import { FollowButton } from "./FollowButton";
 import { AddToCrmButton } from "../../components/AddToCrmButton";
 import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
+import { chipLabelForProject } from "../../components/techChips";
+import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
+import { PlanGate } from "../../components/PlanGate";
 
 export const dynamic = "force-dynamic";
 
 /** Si falta el dato se muestra la etiqueta igual con "—" — visibiliza qué campos quedan por completar a mano, en vez de ocultarlos. */
-function Field({ label, value }: { label: string; value: string | number | null | undefined }) {
+function Field({ label, value, locked = false }: { label: string; value: string | number | null | undefined; locked?: boolean }) {
   const isEmpty = value === null || value === undefined || value === "";
   return (
     <div>
       <dt className="text-xs text-neutral-500 dark:text-neutral-400">{label}</dt>
       <dd className={isEmpty ? "text-sm text-neutral-400 dark:text-neutral-600" : "text-sm font-medium text-neutral-900 dark:text-neutral-50"}>
-        {isEmpty ? "—" : value}
+        <PlanGate locked={locked && !isEmpty}>{isEmpty ? "—" : value}</PlanGate>
       </dd>
     </div>
   );
@@ -79,8 +81,10 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       voltageLevel: project.voltageLevel,
     }),
   ]);
-  const followed = admin ? await isProjectFollowed(createSupabaseServiceClient(), id) : false;
-  const alreadyInCrm = admin ? (await getActiveOpportunityProjectIds(createSupabaseServiceClient(), [id])).has(id) : false;
+  const isFree = !admin && (await getIsFreeTier(client));
+  const canInteract = admin || !isFree;
+  const followed = canInteract ? await isProjectFollowed(createSupabaseServiceClient(), id) : false;
+  const alreadyInCrm = canInteract ? (await getActiveOpportunityProjectIds(createSupabaseServiceClient(), [id])).has(id) : false;
 
   const estimatedPhase = computeEstimatedPhase(
     project.estimatedConnectionDate,
@@ -94,14 +98,11 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   const commercialWindow = computeCommercialWindow(estimatedPhase);
   const codOutlook = computeCodOutlook(project.status, seiaRecord?.status ?? null, project.estimatedConnectionDate);
 
-  const metaLine = [
-    project.technology ?? "Tecnología no clasificada",
-    project.includesStorage && !/bess/i.test(project.name) ? "+ BESS" : null,
-    [project.comuna, project.region].filter(Boolean).join(", ") || null,
-    project.developerCompany,
-    project.capacityMw ? `${project.capacityMw} MW` : null,
-    project.estimatedConnectionDate ? new Date(project.estimatedConnectionDate).toLocaleDateString("es-CL") : null,
-  ].filter(Boolean);
+  const baseTechLabel = chipLabelForProject(project.technologyCode, project.name);
+  const technologyLabel =
+    project.includesStorage && baseTechLabel !== "BESS" && !/bess/i.test(project.name)
+      ? `${baseTechLabel} + BESS`
+      : baseTechLabel;
 
   return (
     <div className="flex flex-col gap-12">
@@ -114,37 +115,24 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
             <p className="mt-1 text-sm text-neutral-400 dark:text-neutral-500">{project.internalCode}</p>
           </div>
           <div className="flex items-center gap-2">
-            {admin && (
-              <>
-                <FollowButton projectId={project.id} initiallyFollowed={followed} />
-                <AddToCrmButton
-                  projectId={project.id}
-                  projectName={project.name}
-                  developerCompanyId={project.developerCompanyId}
-                  initiallyInCrm={alreadyInCrm}
-                />
-              </>
-            )}
-            <PrintButton />
+            <FollowButton projectId={project.id} initiallyFollowed={followed} locked={isFree} />
+            <AddToCrmButton
+              projectId={project.id}
+              projectName={project.name}
+              developerCompanyId={project.developerCompanyId}
+              initiallyInCrm={alreadyInCrm}
+              locked={isFree}
+            />
           </div>
         </div>
-        <p className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-neutral-500 dark:text-neutral-400">
-          {metaLine.map((item, i) => (
-            <span key={i}>
-              {item}
-              {i < metaLine.length - 1 && <span className="mx-2 text-neutral-300 dark:text-neutral-700">·</span>}
-            </span>
-          ))}
-        </p>
-
         <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 md:grid-cols-4">
-          <Field label="RUT" value={project.developerCompanyRut} />
-          <Field label="Dirección legal" value={project.developerCompanyAddress} />
-          <Field label="SPV" value={project.spv} />
-          <Field label="Tipo de solicitud" value={project.requestType} />
+          <Field label="Tecnología" value={technologyLabel} />
+          <Field label="Ubicación" value={[project.comuna, project.region].filter(Boolean).join(", ") || null} />
+          <Field label="RUT" value={project.developerCompanyRut} locked={isFree} />
+          <Field label="Dirección legal" value={project.developerCompanyAddress} locked={isFree} />
+          <Field label="SPV/Propietario" value={project.spv} locked={isFree} />
           {project.includesStorage && (
             <>
-              <Field label="Potencia de generación" value={project.generationCapacityMw ? `${project.generationCapacityMw} MW` : null} />
               <Field label="Potencia de almacenamiento" value={project.storageCapacityMw ? `${project.storageCapacityMw} MW` : null} />
               <Field label="Energía" value={project.capacityMwh ? `${project.capacityMwh} MWh` : null} />
               <Field label="Horas de almacenamiento" value={project.storageHours} />
@@ -152,7 +140,10 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           )}
           <Field label="Punto de conexión" value={project.connectionPoint} />
           <Field label="Nivel de tensión" value={project.voltageLevel ? `${project.voltageLevel} kV` : null} />
-          <Field label="NUP" value={project.nup} />
+          <Field
+            label="Fecha de conexión del proyecto"
+            value={project.estimatedConnectionDate ? new Date(project.estimatedConnectionDate).toLocaleDateString("es-CL") : null}
+          />
         </dl>
       </div>
 
@@ -160,12 +151,14 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
           <SectionLabel>Estado del Proyecto</SectionLabel>
           <div className="mt-3">
-            <ProjectStatusSynthesis
-              synthesis={synthesis}
-              nextMilestone={nextMilestone}
-              commercialWindow={commercialWindow}
-              codOutlook={codOutlook}
-            />
+            <PlanGate locked={isFree}>
+              <ProjectStatusSynthesis
+                synthesis={synthesis}
+                nextMilestone={nextMilestone}
+                commercialWindow={commercialWindow}
+                codOutlook={codOutlook}
+              />
+            </PlanGate>
           </div>
         </section>
       )}
@@ -173,20 +166,22 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       {health.score !== null && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
           <SectionLabel>Health Score</SectionLabel>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <HealthScoreBadge health={health} />
-            <p className="max-w-xl text-xs text-neutral-500 dark:text-neutral-400">
-              Lectura propia combinada del avance del proyecto — no es un dato oficial. Pondera el avance del trámite
-              de conexión
-              {health.seiaScore !== null
-                ? " (60%) y del trámite ambiental SEIA (40%)"
-                : " (100%, sin expediente SEIA asociado)"}
-              {health.overdue
-                ? "; penalizado porque la fecha estimada de conexión ya pasó sin llegar a construcción"
-                : ""}
-              .
-            </p>
-          </div>
+          <PlanGate locked={isFree}>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <HealthScoreBadge health={health} />
+              <p className="max-w-xl text-xs text-neutral-500 dark:text-neutral-400">
+                Lectura propia combinada del avance del proyecto — no es un dato oficial. Pondera el avance del trámite
+                de conexión
+                {health.seiaScore !== null
+                  ? " (60%) y del trámite ambiental SEIA (40%)"
+                  : " (100%, sin expediente SEIA asociado)"}
+                {health.overdue
+                  ? "; penalizado porque la fecha estimada de conexión ya pasó sin llegar a construcción"
+                  : ""}
+                .
+              </p>
+            </div>
+          </PlanGate>
         </section>
       )}
 
@@ -200,55 +195,59 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
 
       {estimatedPhase && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <div className="flex items-center gap-2">
-            <SectionLabel>Etapa estimada de desarrollo</SectionLabel>
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-              Estimado · {estimatedPhase.groupLabel}
-            </span>
-          </div>
-          <p className="mt-3 mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            {estimatedPhase.pastConnectionDate
-              ? "La fecha estimada de conexión ya pasó — el proyecto debería estar en operación."
-              : estimatedPhase.currentPhase
-                ? `Con base en la fecha estimada de conexión y duraciones típicas de mercado para este tipo de proyecto (${estimatedPhase.groupLabel}), el proyecto debería estar en: ${
-                    estimatedPhase.milestones.find((m) => m.phase === estimatedPhase.currentPhase)!.label
-                  }.`
-                : "Aún no debería haber iniciado desarrollo según la fecha estimada de conexión."}{" "}
-            No es un dato confirmado del proyecto — es un modelo probabilístico (mínimo / más probable / máximo)
-            calculado hacia atrás desde la fecha estimada de conexión reportada por el Coordinador Eléctrico
-            Nacional. Duración total estimada: ~{Math.round(estimatedPhase.totalDurationMonths)} meses. Las bandas
-            rayadas muestran el rango real (no un ± fijo) de cada etapa, y la confianza de cada una baja mientras
-            más lejos está del COD.
-          </p>
-          <PhaseTimeline milestones={estimatedPhase.milestones} connectionDate={project.estimatedConnectionDate!} />
+          <SectionLabel>Etapa estimada de desarrollo</SectionLabel>
+          <PlanGate locked={isFree}>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                Estimado · {estimatedPhase.groupLabel}
+              </span>
+            </div>
+            <p className="mt-3 mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+              {estimatedPhase.pastConnectionDate
+                ? "La fecha estimada de conexión ya pasó — el proyecto debería estar en operación."
+                : estimatedPhase.currentPhase
+                  ? `Con base en la fecha estimada de conexión y duraciones típicas de mercado para este tipo de proyecto (${estimatedPhase.groupLabel}), el proyecto debería estar en: ${
+                      estimatedPhase.milestones.find((m) => m.phase === estimatedPhase.currentPhase)!.label
+                    }.`
+                  : "Aún no debería haber iniciado desarrollo según la fecha estimada de conexión."}{" "}
+              No es un dato confirmado del proyecto — es un modelo probabilístico (mínimo / más probable / máximo)
+              calculado hacia atrás desde la fecha estimada de conexión reportada por el Coordinador Eléctrico
+              Nacional. Duración total estimada: ~{Math.round(estimatedPhase.totalDurationMonths)} meses. Las bandas
+              rayadas muestran el rango real (no un ± fijo) de cada etapa, y la confianza de cada una baja mientras
+              más lejos está del COD.
+            </p>
+            <PhaseTimeline milestones={estimatedPhase.milestones} connectionDate={project.estimatedConnectionDate!} />
+          </PlanGate>
         </section>
       )}
 
       <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
         <div className="flex items-center justify-between">
           <SectionLabel>Estado ambiental</SectionLabel>
-          <SeiaMatchModal projectId={project.id} hasExistingMatch={!!seiaRecord} isAdmin={admin} />
+          <SeiaMatchModal projectId={project.id} projectName={project.name} hasExistingMatch={!!seiaRecord} isAdmin={admin} />
         </div>
         <div className="mt-3">
-          {seiaRecord ? (
-            <SeiaStatusCard record={seiaRecord} />
-          ) : (
-            <div>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin expediente SEIA asociado todavía.</p>
-              {estimatedPhase &&
-                (() => {
-                  const seiaRange = getSeiaDurationRangeMonths(estimatedPhase.group);
-                  if (!seiaRange) return null;
-                  return (
-                    <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
-                      Para {estimatedPhase.groupLabel}, la tramitación SEIA suele tomar entre {seiaRange.min} y{" "}
-                      {seiaRange.max} meses (típico ~{seiaRange.likely}) — estimación de mercado, no un dato del
-                      proyecto.
-                    </p>
-                  );
-                })()}
-            </div>
-          )}
+          <PlanGate locked={isFree}>
+            {seiaRecord ? (
+              <SeiaStatusCard record={seiaRecord} />
+            ) : (
+              <div>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin expediente SEIA asociado todavía.</p>
+                {estimatedPhase &&
+                  (() => {
+                    const seiaRange = getSeiaDurationRangeMonths(estimatedPhase.group);
+                    if (!seiaRange) return null;
+                    return (
+                      <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+                        Para {estimatedPhase.groupLabel}, la tramitación SEIA suele tomar entre {seiaRange.min} y{" "}
+                        {seiaRange.max} meses (típico ~{seiaRange.likely}) — estimación de mercado, no un dato del
+                        proyecto.
+                      </p>
+                    );
+                  })()}
+              </div>
+            )}
+          </PlanGate>
         </div>
       </section>
 
@@ -286,7 +285,9 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       <section>
         <SectionLabel>Contactos</SectionLabel>
         <div className="mt-4">
-          <RevealStakeholders projectId={project.id} developerCompanyId={project.developerCompanyId} isAdmin={admin} />
+          <PlanGate locked={isFree}>
+            <RevealStakeholders projectId={project.id} developerCompanyId={project.developerCompanyId} isAdmin={admin} />
+          </PlanGate>
         </div>
       </section>
     </div>

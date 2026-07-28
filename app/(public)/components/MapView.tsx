@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapPoint, RegionBubble } from "@/lib/data-access/projects";
@@ -77,17 +77,30 @@ export function MapView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  // maplibre-gl lanza sincrónicamente si no puede crear el contexto WebGL (ej.
+  // navegador sandboxeado, aceleración por hardware deshabilitada) — sin este
+  // try/catch, el error se propaga fuera del efecto y React tumba toda la página
+  // (hallazgo real, /proyectos-esperados). Se degrada a un mensaje en vez de romper.
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    mapRef.current = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE,
-      center: [-71.5, -35.6],
-      zoom: 3.6,
-    });
-    mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
+    try {
+      mapRef.current = new maplibregl.Map({
+        container: containerRef.current,
+        style: MAP_STYLE,
+        center: [-71.5, -35.6],
+        zoom: 3.6,
+      });
+      mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
+    } catch (err) {
+      const message = (err as Error).message || "No se pudo inicializar el mapa.";
+      // Diferido a un microtask: setState sincrónico dentro del cuerpo del efecto
+      // dispara la regla react-hooks/set-state-in-effect (cascading renders).
+      queueMicrotask(() => setMapError(message));
+      return;
+    }
 
     return () => {
       mapRef.current?.remove();
@@ -159,6 +172,20 @@ export function MapView({
       markersRef.current.push(marker);
     }
   }, [regionBubbles, precisePoints, powerPlants]);
+
+  if (mapError) {
+    return (
+      <div className="flex h-[600px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 text-center dark:border-neutral-800 dark:bg-neutral-900">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          No se pudo cargar el mapa en este navegador (WebGL no disponible).
+        </p>
+        <p className="max-w-md text-xs text-neutral-400 dark:text-neutral-600">
+          El resto de la página funciona con normalidad — prueba con otro navegador o revisando la aceleración por
+          hardware si necesitas ver el mapa.
+        </p>
+      </div>
+    );
+  }
 
   return <div ref={containerRef} className="h-[600px] w-full rounded-xl border border-neutral-200 dark:border-neutral-800" />;
 }

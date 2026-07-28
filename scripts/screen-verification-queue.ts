@@ -13,7 +13,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, "..", ".env.local") });
 
 const BATCH_SIZE = Number(process.argv[2] ?? "50");
-const DELAY_MS = 400; // no golpear el servidor público de SEIA ni el rate limit de GLM sin pausas
+// Tier gratuito de NVIDIA NIM: ~40 req/min. 1700ms entre proyectos ≈ 35/min,
+// deja margen bajo el límite (antes 400ms tiraba 429 en casi todas — completeWithGlm
+// ahora también reintenta con backoff si igual llega alguno).
+const DELAY_MS = 1700;
 const MAX_SEIA_CANDIDATES = 10;
 
 function sleep(ms: number) {

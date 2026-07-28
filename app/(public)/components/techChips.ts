@@ -48,6 +48,17 @@ export function chipsToNamePatterns(keys: string[]): string[] {
   return TECH_CHIPS.filter((c) => keys.includes(c.key)).flatMap((c) => c.namePatterns ?? []);
 }
 
+/** Misma nomenclatura que la barra de chips de tecnología, para una ficha de proyecto puntual — primer chip cuyo technologyCode o patrón de nombre matchea. */
+export function chipLabelForProject(technologyCode: string | null, name: string): string {
+  const normalizedName = name.toLowerCase();
+  const chip = TECH_CHIPS.find(
+    (c) =>
+      (technologyCode && c.technologyCodes?.includes(technologyCode)) ||
+      c.namePatterns?.some((p) => normalizedName.includes(p)),
+  );
+  return chip?.label ?? "Sin clasificar";
+}
+
 export function parseChipKeys(param: string | undefined): string[] {
   if (!param) return [];
   return param

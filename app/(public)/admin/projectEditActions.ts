@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { TECHNOLOGY_COMBOS, type TechnologyCombo } from "./technologyCombos";
+import { reprocessFormularioContacts } from "@/lib/ingestion/sources/energia-abierta/detalle-formulario/reprocess";
 
 export type EditableProjectField =
   | "name"
@@ -69,7 +70,13 @@ export async function updateProjectField(
     const client = createSupabaseServiceClient();
 
     if (PROJECT_COLUMNS[field]) {
-      const { error } = await client.from("project").update({ [PROJECT_COLUMNS[field]!]: value }).eq("id", projectId);
+      // Capacidad (MW) y Potencia de generación (MW) se unificaron en una sola celda
+      // en el formulario (eran el mismo dato mostrado dos veces para híbridos) —
+      // se espejan acá para que ningún código que todavía lea generation_capacity_mw
+      // (ficha pública, listado) quede desincronizado.
+      const patch: Record<string, string | number | null> = { [PROJECT_COLUMNS[field]!]: value };
+      if (field === "capacityMw") patch.generation_capacity_mw = value;
+      const { error } = await client.from("project").update(patch).eq("id", projectId);
       if (error) throw new Error(error.message);
     } else if (COMPANY_COLUMNS[field]) {
       const { data: projectRow, error: projectError } = await client
@@ -139,8 +146,19 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
     const { error } = await client.from("project").update({ verified_at: new Date().toISOString() }).eq("id", projectId);
     if (error) throw new Error(error.message);
 
+    // Contactos frescos al momento de verificar — así queda con la lógica de
+    // validación vigente (isPlausiblePhone/isPlaceholderContact, ver
+    // detalle-formulario/load.ts) sin depender de una corrida manual aparte.
+    // No bloquea la verificación si falla (ej. Nemotron caído): se registra el
+    // error pero el proyecto queda verificado igual.
+    const reprocess = await reprocessFormularioContacts(client, projectId);
+    if (!reprocess.success) {
+      console.warn(`No se pudieron refrescar los contactos de ${projectId} al verificar: ${reprocess.error}`);
+    }
+
     revalidatePath("/admin/verificador");
     revalidatePath(`/admin/editar-data/${projectId}`);
+    revalidatePath(`/proyectos/${projectId}`);
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };

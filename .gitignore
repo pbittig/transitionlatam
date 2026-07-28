@@ -48,3 +48,6 @@ next-env.d.ts
 # supabase local
 /supabase/.temp
 /supabase/.branches
+
+# claude code worktrees (isolated feature branches live here on disk)
+/.claude/

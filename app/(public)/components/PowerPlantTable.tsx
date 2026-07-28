@@ -7,8 +7,9 @@ export function PowerPlantTable({ items }: { items: PowerPlantListItem[] }) {
 
   return (
     <div className="overflow-x-auto">
+      <p className="px-4 pt-3 text-[10px] text-neutral-400 md:hidden">Desliza horizontalmente para ver todas las columnas.</p>
       <table className="w-full min-w-[800px] text-sm">
-        <thead className="border-b border-neutral-200 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:text-neutral-400">
+        <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
           <tr>
             <th className="px-4 py-3 font-medium">Central</th>
             <th className="px-4 py-3 font-medium">Propietario</th>
@@ -31,7 +32,11 @@ export function PowerPlantTable({ items }: { items: PowerPlantListItem[] }) {
               <td className="px-4 py-3 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
                 {plant.netCapacityMw !== null ? Math.round(plant.netCapacityMw).toLocaleString("es-CL") : "—"}
               </td>
-              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{plant.status ?? "—"}</td>
+              <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                <span className="inline-flex rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs font-medium text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                  {plant.status ?? "Sin estado"}
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>

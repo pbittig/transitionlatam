@@ -56,7 +56,7 @@ Developer, Investor, EPC, Technology Provider, Supplier, Financial Institution, 
 ## 3.6 Modelo de monetización por fases
 
 - **Fase MVP:** sin cobro directo. El "cliente" que paga es ONIX internamente (el producto es una inversión de adquisición de clientes).
-- **Fase de crecimiento:** introducción de planes Free/Professional/Business/Enterprise (ver [08-modelo-suscripciones.md](08-modelo-suscripciones.md)) una vez validado el funnel de leads y con suficiente profundidad de datos para justificar pago directo.
+- **Fase de crecimiento:** introducción de planes Free/Lite/Premium (ver [08-modelo-suscripciones.md](08-modelo-suscripciones.md)), con contratación anual por empresa y diferenciación progresiva entre exploración, análisis/seguimiento y gestión comercial asistida por IA.
 - **Fase LATAM:** posible modelo híbrido — suscripción para acceso a inteligencia profunda multi-país + generación de leads país por país para las oficinas locales de ONIX.
 
 ## 3.7 Riesgo de negocio a vigilar
