@@ -92,7 +92,11 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     project.includesStorage,
     project.capacityMw,
   );
-  const health = computeHealthScore(project.status, seiaRecord?.status ?? null, project.estimatedConnectionDate);
+  const health = computeHealthScore(project.status, seiaRecord?.status ?? null, project.estimatedConnectionDate, new Date(), {
+    projectKind: project.projectKind,
+    includesStorage: project.includesStorage,
+    seiaSubmissionType: seiaRecord?.submissionType,
+  });
   const synthesis = computeProjectSynthesis(estimatedPhase, project.estimatedConnectionDate);
   const nextMilestone = computeNextMilestone(estimatedPhase);
   const commercialWindow = computeCommercialWindow(estimatedPhase);

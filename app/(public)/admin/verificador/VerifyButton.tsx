@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { markProjectVerified } from "../projectEditActions";
 
-export function VerifyButton({ projectId }: { projectId: string }) {
+export function VerifyButton({ projectId, publishes = false }: { projectId: string; publishes?: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export function VerifyButton({ projectId }: { projectId: string }) {
     startTransition(async () => {
       const result = await markProjectVerified(projectId);
       if (result.success) {
-        router.push("/admin/verificador");
+        router.push(publishes ? "/admin/trabajo-hoy" : "/admin/verificador");
       } else {
         setError(result.error ?? "Error desconocido al verificar proyecto");
       }
@@ -31,7 +31,7 @@ export function VerifyButton({ projectId }: { projectId: string }) {
         disabled={pending}
         className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
       >
-        <CheckCircle2 size={16} /> {pending ? "Guardando…" : "Verificado"}
+        <CheckCircle2 size={16} /> {pending ? "Guardando…" : publishes ? "Verificar y publicar" : "Verificado"}
       </button>
       {error && <span className="text-xs text-red-600 dark:text-red-400">{error}</span>}
     </div>

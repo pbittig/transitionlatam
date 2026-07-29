@@ -33,7 +33,6 @@ export const TECH_CHIPS: TechChipConfig[] = [
       "transformador",
     ],
   },
-  { key: "data-center", label: "Data Center", namePatterns: ["data center", "datacenter", "centro de datos"] },
 ];
 
 export function chipsToTechnologyCodes(keys: string[]): string[] {

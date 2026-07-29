@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ContactRound, CircleCheck } from "lucide-react";
-import { addProjectToOpportunity } from "../crmActions";
+import { ContactRound, CircleCheck, XCircle } from "lucide-react";
+import { addProjectToOpportunity, deactivateProjectFromCrm } from "../crmActions";
 
 export function AddToCrmButton({
   projectId,
@@ -21,6 +21,8 @@ export function AddToCrmButton({
   locked?: boolean;
 }) {
   const [inCrm, setInCrm] = useState(initiallyInCrm);
+  const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   if (locked) {
@@ -40,6 +42,62 @@ export function AddToCrmButton({
   }
 
   if (inCrm) {
+    if (!compact) {
+      function handleDeactivate() {
+        setError(null);
+        startTransition(async () => {
+          const result = await deactivateProjectFromCrm(projectId);
+          if (result.success) {
+            setInCrm(false);
+            setConfirmingDeactivate(false);
+          } else {
+            setError(result.error ?? "No se pudo desactivar del CRM.");
+          }
+        });
+      }
+
+      return (
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link
+              href="/crm"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-900 bg-neutral-900 px-3 py-2 text-xs font-semibold text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+            >
+              <CircleCheck size={15} /> Ver en CRM
+            </Link>
+            {confirmingDeactivate ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleDeactivate}
+                  disabled={pending}
+                  className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  {pending ? "Desactivando…" : "Confirmar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDeactivate(false)}
+                  disabled={pending}
+                  className="rounded-lg border border-neutral-300 px-3 py-2 text-xs font-medium dark:border-neutral-700"
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDeactivate(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                <XCircle size={15} /> Desactivar del CRM
+              </button>
+            )}
+          </div>
+          {error && <span className="text-xs text-red-600">{error}</span>}
+        </div>
+      );
+    }
     return (
       <Link
         href="/crm"

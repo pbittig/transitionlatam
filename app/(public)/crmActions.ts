@@ -24,3 +24,26 @@ export async function addProjectToOpportunity(
     return { success: false, error: (err as Error).message };
   }
 }
+
+/** Desactiva un proyecto del CRM cerrando sus oportunidades activas, sin borrar el historial. */
+export async function deactivateProjectFromCrm(
+  projectId: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!(await isAdmin())) {
+    return { success: false, error: "Debes iniciar sesión como administrador." };
+  }
+  try {
+    const { error } = await createSupabaseServiceClient()
+      .from("opportunity")
+      .update({ stage: "cierre_perdido", updated_at: new Date().toISOString() })
+      .eq("project_id", projectId)
+      .not("stage", "in", "(cierre_ganado,cierre_perdido)");
+    if (error) throw new Error(error.message);
+    revalidatePath(`/proyectos/${projectId}`);
+    revalidatePath("/proyectos-esperados");
+    revalidatePath("/crm");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}

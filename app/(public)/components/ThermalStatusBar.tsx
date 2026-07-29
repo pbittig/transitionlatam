@@ -5,7 +5,15 @@ import { getStatusMaturity, isRejectedStatus, STATUS_BAND_LABEL } from "@/lib/sh
 // una sola tonalidad, porque es la metáfora pedida (temperatura del proceso).
 const THERMAL_GRADIENT = "linear-gradient(90deg, #2a78d6 0%, #1baf7a 35%, #eda100 65%, #e34948 100%)";
 
-export function ThermalStatusBar({ status, compact = false }: { status: string | null; compact?: boolean }) {
+export function ThermalStatusBar({
+  status,
+  compact = false,
+  showPercentage = false,
+}: {
+  status: string | null;
+  compact?: boolean;
+  showPercentage?: boolean;
+}) {
   if (!status) {
     return <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>;
   }
@@ -33,6 +41,11 @@ export function ThermalStatusBar({ status, compact = false }: { status: string |
           title={status}
         />
       </div>
+      {compact && showPercentage && (
+        <div className="mt-1 text-right text-xs font-medium tabular-nums text-neutral-500 dark:text-neutral-400">
+          {maturity.order}%
+        </div>
+      )}
       {!compact && (
         <div className="mt-1.5 flex items-center justify-between text-xs">
           <span className="text-neutral-500 dark:text-neutral-400">{STATUS_BAND_LABEL[maturity.band]}</span>

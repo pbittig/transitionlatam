@@ -25,7 +25,7 @@ import { Panel } from "../components/Panel";
 import { NewOpportunityForm } from "./NewOpportunityForm";
 import { PlanGate } from "../components/PlanGate";
 
-export const metadata: Metadata = { title: "Oportunidades" };
+export const metadata: Metadata = { title: "CRM" };
 export const dynamic = "force-dynamic";
 
 export default async function CrmPage() {
@@ -42,7 +42,7 @@ export default async function CrmPage() {
         <LockKeyhole size={28} className="text-brand-primary" />
         <div>
           <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Espacio interno</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Gestión de oportunidades</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">CRM</h1>
           <p className="mt-3 text-neutral-600 dark:text-neutral-400">Inicia sesión para acceder al seguimiento comercial — contactos, conversaciones y propuestas.</p>
         </div>
         <Link href="/login" className="inline-flex w-fit items-center gap-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-neutral-50 dark:text-neutral-900">Ingresar <ArrowUpRight size={16} /></Link>
@@ -72,7 +72,7 @@ export default async function CrmPage() {
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-3xl">
             <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-brand-primary uppercase"><Target size={14} /> Inteligencia comercial aplicada</div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Oportunidades</h1>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">CRM</h1>
             <p className="mt-3 text-sm leading-6 text-white/75 md:text-base">
               Convierte un proyecto detectado en una oportunidad accionable: entiende el contexto, identifica la empresa y el contacto correcto, define un responsable y nunca pierdas el próximo paso.
             </p>

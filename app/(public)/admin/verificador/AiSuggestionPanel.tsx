@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, CheckCircle2 } from "lucide-react";
 import { getAiVerificationSuggestion, type AiSuggestionResult } from "./aiSuggestionActions";
 import { assignSeiaMatch } from "../../proyectos/[id]/seiaActions";
+import type { RawSeiaProject } from "@/lib/ingestion/sources/seia/types";
 
 /**
  * Sugerencia de IA (GLM-5.2) para el Verificador — bajo demanda, nunca
@@ -21,13 +22,13 @@ export function AiSuggestionPanel({
 }) {
   const router = useRouter();
   const [result, setResult] = useState<AiSuggestionResult | null>(initialResult);
-  const [applied, setApplied] = useState(false);
+  const [appliedId, setAppliedId] = useState<string | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [loading, startLoading] = useTransition();
   const [applying, startApplying] = useTransition();
 
   function handleAsk() {
-    setApplied(false);
+    setAppliedId(null);
     setApplyError(null);
     startLoading(async () => {
       const r = await getAiVerificationSuggestion(projectId);
@@ -35,15 +36,12 @@ export function AiSuggestionPanel({
     });
   }
 
-  function handleApply() {
-    if (!result?.suggestion?.seiaPick || !result.candidates) return;
-    const candidate = result.candidates.find((c) => c.EXPEDIENTE_ID === result.suggestion!.seiaPick);
-    if (!candidate) return;
+  function handleApply(candidate: RawSeiaProject) {
     setApplyError(null);
     startApplying(async () => {
       const r = await assignSeiaMatch(projectId, candidate, "");
       if (r.success) {
-        setApplied(true);
+        setAppliedId(candidate.EXPEDIENTE_ID);
         router.refresh();
       } else {
         setApplyError(r.error ?? "No se pudo asociar el candidato.");
@@ -94,39 +92,59 @@ export function AiSuggestionPanel({
           </div>
 
           <div>
-            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Candidato SEIA sugerido</p>
-            {result.suggestion.seiaPick ? (
-              (() => {
-                const candidate = result.candidates?.find((c) => c.EXPEDIENTE_ID === result.suggestion!.seiaPick);
-                return (
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-sm text-neutral-900 dark:text-neutral-50">
-                      {candidate ? candidate.EXPEDIENTE_NOMBRE : `Expediente ${result.suggestion.seiaPick}`} —{" "}
-                      {result.suggestion.seiaPickReason}
-                    </p>
-                    {applied ? (
-                      <span className="flex w-fit items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 size={14} /> Candidato asociado
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleApply}
-                        disabled={applying || !candidate}
-                        className="w-fit rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200"
-                      >
-                        {applying ? "Asociando…" : "Usar este candidato"}
-                      </button>
-                    )}
-                    {applyError && <p className="text-xs text-red-600 dark:text-red-400">{applyError}</p>}
-                  </div>
-                );
-              })()
+            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Recomendación de IA</p>
+            <p className="mt-1 text-sm text-neutral-900 dark:text-neutral-50">
+              {result.suggestion.seiaPick
+                ? `${result.candidates?.find((candidate) => candidate.EXPEDIENTE_ID === result.suggestion!.seiaPick)?.EXPEDIENTE_NOMBRE ?? `Expediente ${result.suggestion.seiaPick}`} — ${result.suggestion.seiaPickReason}`
+                : `Ninguno — ${result.suggestion.seiaPickReason}`}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+              Expedientes encontrados por titular/SPV y proyecto
+            </p>
+            {result.candidates?.length ? (
+              <ul className="mt-2 grid gap-2">
+                {result.candidates.map((candidate) => {
+                  const recommended = candidate.EXPEDIENTE_ID === result.suggestion!.seiaPick;
+                  const applied = candidate.EXPEDIENTE_ID === appliedId;
+                  return (
+                    <li key={candidate.EXPEDIENTE_ID} className={`rounded-xl border p-3 ${recommended ? "border-brand-primary/60 bg-brand-surface/60 dark:bg-brand-primary/[0.06]" : "border-neutral-200 dark:border-neutral-800"}`}>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium text-neutral-950 dark:text-white">{candidate.EXPEDIENTE_NOMBRE}</p>
+                            {recommended && <span className="rounded-full bg-brand-primary/15 px-2 py-0.5 text-[10px] font-semibold text-brand-deep dark:text-brand-primary">Recomendado</span>}
+                          </div>
+                          <p className="mt-1 text-xs text-neutral-500">
+                            Titular: {candidate.TITULAR || "—"} · {candidate.REGION_NOMBRE || "Región sin dato"} · Ingreso:{" "}
+                            {candidate.FECHA_PRESENTACION_FORMAT || "sin fecha"}
+                          </p>
+                        </div>
+                        {applied ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 size={14} /> Asociado
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleApply(candidate)}
+                            disabled={applying}
+                            className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900"
+                          >
+                            {applying ? "Asociando…" : "Usar expediente"}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             ) : (
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                Ninguno — {result.suggestion.seiaPickReason}
-              </p>
+              <p className="mt-1 text-sm text-neutral-500">No se encontraron expedientes relacionados.</p>
             )}
+            {applyError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{applyError}</p>}
           </div>
         </div>
       )}

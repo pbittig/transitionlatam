@@ -1,6 +1,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { REJECTED_STATUSES, startOfCurrentMonthIso } from "./projects";
 
+const PIPELINE_SYNC_SETTING_KEY = "pipeline_last_synced_at";
+
+/** Marca de tiempo de la última corrida exitosa del sync de listado (Acceso Abierto) — separado del sync de centrales CNE (power_plant.synced_at), que es manual. */
+export async function getPipelineLastSyncedAt(client: SupabaseClient): Promise<string | null> {
+  const { data, error } = await client
+    .from("app_setting")
+    .select("updated_at")
+    .eq("key", PIPELINE_SYNC_SETTING_KEY)
+    .maybeSingle();
+  if (error) throw new Error(`No se pudo leer la fecha de sincronización del pipeline: ${error.message}`);
+  if (data?.updated_at) return data.updated_at;
+
+  // Compatibilidad para instalaciones que todavía no han ejecutado un sync
+  // desde que se agregó app_setting: muestra la última actividad real del
+  // listado y el próximo sync reemplazará este fallback por su hora exacta.
+  const { data: latestEvent, error: latestEventError } = await client
+    .from("project_event")
+    .select("recorded_at")
+    .order("recorded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestEventError) {
+    throw new Error(`No se pudo leer la última actividad del pipeline: ${latestEventError.message}`);
+  }
+  return latestEvent?.recorded_at ?? null;
+}
+
+/** Registra que el sync de listado acaba de correr — llamado al final de runListadoSync. */
+export async function recordPipelineSync(client: SupabaseClient): Promise<void> {
+  await client.from("app_setting").upsert({ key: PIPELINE_SYNC_SETTING_KEY, value: true, updated_at: new Date().toISOString() });
+}
+
 export interface PipelineFunnel {
   total: number;
   noRechazado: number;

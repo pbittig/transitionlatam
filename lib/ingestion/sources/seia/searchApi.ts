@@ -21,10 +21,34 @@ const SEARCH_URL = "https://seia.sea.gob.cl/busqueda/buscarProyectoResumenAction
 // separados por coma en un solo parámetro (confirmado contra el buscador real).
 const ENERGY_SECTOR_IDS = "7,13";
 
-export async function searchSeiaByName(nombre: string, limit = 20): Promise<SeiaSearchResponse> {
-  const body = new URLSearchParams({
+// El servidor espera el body del form en ISO-8859-1 (mismo charset que declara en la
+// respuesta, ver más abajo) — URLSearchParams siempre codifica en UTF-8 sin forma de
+// cambiarlo, lo que corrompía cualquier tilde/ñ en `nombre` (ej. "Marañón" -> bytes
+// UTF-8 interpretados como Latin-1 por el servidor = no matchea nada, 0 resultados).
+// Hallazgo real: "Llanos de Marañón" no encontraba "Parque Fotovoltaico Llanos de
+// Marañón" pese a existir en SEIA, hasta corregir la codificación acá.
+function latin1FormEncode(params: Record<string, string>): string {
+  const encodeValue = (input: string): string =>
+    [...input]
+      .map((ch) => {
+        const code = ch.codePointAt(0)!;
+        if ((code >= 0x30 && code <= 0x39) || (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a) || ch === "-" || ch === "_" || ch === ".") {
+          return ch;
+        }
+        if (ch === " ") return "+";
+        if (code <= 0xff) return `%${code.toString(16).padStart(2, "0").toUpperCase()}`;
+        return encodeURIComponent(ch);
+      })
+      .join("");
+  return Object.entries(params)
+    .map(([key, value]) => `${key}=${encodeValue(value)}`)
+    .join("&");
+}
+
+async function searchSeia(nombre: string, titular: string, limit = 20): Promise<SeiaSearchResponse> {
+  const body = latin1FormEncode({
     nombre,
-    titular: "",
+    titular,
     folio: "",
     selectRegion: "",
     selectComuna: "",
@@ -47,7 +71,7 @@ export async function searchSeiaByName(nombre: string, limit = 20): Promise<Seia
       "Content-Type": "application/x-www-form-urlencoded",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TransitionLATAM-market-intelligence/1.0",
     },
-    body: body.toString(),
+    body,
     signal: AbortSignal.timeout(30_000),
   });
 
@@ -62,4 +86,12 @@ export async function searchSeiaByName(nombre: string, limit = 20): Promise<Seia
   const json = JSON.parse(text) as SeiaSearchResponse;
   if (!json.status) throw new Error("SEIA búsqueda devolvió status=false");
   return json;
+}
+
+export async function searchSeiaByName(nombre: string, limit = 20): Promise<SeiaSearchResponse> {
+  return searchSeia(nombre, "", limit);
+}
+
+export async function searchSeiaByTitular(titular: string, limit = 20): Promise<SeiaSearchResponse> {
+  return searchSeia("", titular, limit);
 }

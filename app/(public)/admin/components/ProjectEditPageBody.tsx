@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { getConnectionStatuses } from "@/lib/data-access/connectionStatuses";
 import { getSeiaRecordForProject } from "@/lib/data-access/seia";
 import { getProjectStakeholders, type ProjectDetail } from "@/lib/data-access/projects";
@@ -9,17 +8,21 @@ import { ProjectContactsEditor } from "./ProjectContactsEditor";
 import { FormularioDocumentLink } from "../verificador/FormularioDocumentLink";
 import { SeiaMatchModal } from "../../proyectos/[id]/SeiaMatchModal";
 import { SeiaStatusCard } from "../../components/SeiaStatusCard";
+import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
+import { isAdmin } from "@/lib/auth/session";
 
 /** Cuerpo compartido de las pantallas de edición de admin (Verificador y Editar data) — el único que cambia entre ellas es el encabezado. */
 export async function ProjectEditPageBody({
-  client,
   project,
   backHref,
 }: {
-  client: SupabaseClient;
   project: ProjectDetail;
   backHref: string;
 }) {
+  if (!(await isAdmin())) return null;
+  // Se crea dentro del Server Component para que el objeto Supabase (con
+  // prototipos no serializables) nunca viaje como prop por el payload RSC.
+  const client = createSupabaseServiceClient();
   const [connectionStatuses, seiaRecord, stakeholders] = await Promise.all([
     getConnectionStatuses(client),
     getSeiaRecordForProject(client, project.id),

@@ -13,10 +13,12 @@ export function AnalysisDrawer({
   children,
   title = "Análisis",
   description,
+  triggerVariant = "fixed",
 }: {
   children: React.ReactNode;
   title?: string;
   description?: string;
+  triggerVariant?: "fixed" | "inline";
 }) {
   const [open, setOpen] = useState(false);
 
@@ -26,7 +28,10 @@ export function AnalysisDrawer({
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Mostrar análisis"
-        className={`fixed top-1/2 right-0 z-30 flex -translate-y-1/2 items-center gap-2 rounded-l-xl border border-r-0 border-brand-primary/40 bg-brand-deep px-3 py-3 text-xs font-semibold text-white shadow-lg shadow-brand-deep/20 transition-all hover:pr-4 hover:bg-brand-ink print:hidden dark:bg-brand-primary dark:text-neutral-950 ${
+        className={`${triggerVariant === "fixed"
+          ? "fixed top-1/2 right-0 z-30 -translate-y-1/2 rounded-l-xl border-r-0 px-3 py-3 text-xs hover:pr-4"
+          : "relative z-0 rounded-xl px-4 py-2.5 text-sm"
+        } flex items-center gap-2 border border-brand-primary/40 bg-brand-deep font-semibold text-white shadow-lg shadow-brand-deep/20 transition-all hover:bg-brand-ink print:hidden dark:bg-brand-primary dark:text-neutral-950 ${
           open ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
       >

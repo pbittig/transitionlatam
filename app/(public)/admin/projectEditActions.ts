@@ -143,7 +143,16 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
   }
   try {
     const client = createSupabaseServiceClient();
-    const { error } = await client.from("project").update({ verified_at: new Date().toISOString() }).eq("id", projectId);
+    const now = new Date().toISOString();
+    const { error } = await client
+      .from("project")
+      .update({
+        verified_at: now,
+        editorial_status: "published",
+        editorial_reviewed_at: now,
+        published_at: now,
+      })
+      .eq("id", projectId);
     if (error) throw new Error(error.message);
 
     // Contactos frescos al momento de verificar — así queda con la lógica de
@@ -157,6 +166,9 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
     }
 
     revalidatePath("/admin/verificador");
+    revalidatePath("/admin/trabajo-hoy");
+    revalidatePath("/");
+    revalidatePath("/proyectos-esperados");
     revalidatePath(`/admin/editar-data/${projectId}`);
     revalidatePath(`/proyectos/${projectId}`);
     return { success: true };
@@ -235,16 +247,28 @@ export async function updateProjectTechnologyCombo(
     const client = createSupabaseServiceClient();
     const config = TECHNOLOGY_COMBOS[combo];
 
-    const { data: tech, error: techError } = await client
+    const { data: existingTech, error: techError } = await client
       .from("technology")
       .select("id")
       .eq("code", config.technologyCode)
-      .single();
+      .limit(1)
+      .maybeSingle();
     if (techError) throw new Error(techError.message);
+
+    let technologyId = existingTech?.id as string | undefined;
+    if (!technologyId) {
+      const { data: createdTech, error: createTechError } = await client
+        .from("technology")
+        .insert({ code: config.technologyCode, name: config.label })
+        .select("id")
+        .single();
+      if (createTechError) throw new Error(createTechError.message);
+      technologyId = createdTech.id as string;
+    }
 
     const { error } = await client
       .from("project")
-      .update({ technology_id: tech.id, includes_storage: config.includesStorage, project_kind: config.projectKind })
+      .update({ technology_id: technologyId, includes_storage: config.includesStorage, project_kind: config.projectKind })
       .eq("id", projectId);
     if (error) throw new Error(error.message);
 

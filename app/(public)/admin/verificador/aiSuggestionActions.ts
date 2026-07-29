@@ -3,12 +3,9 @@
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { getProjectById, saveAiScreeningResult } from "@/lib/data-access/projects";
-import { searchSeiaByName } from "@/lib/ingestion/sources/seia/searchApi";
-import { distinctiveTokens } from "@/lib/ingestion/sources/seia/match";
+import { findVerificationSeiaCandidates } from "@/lib/ingestion/sources/seia/verificationCandidates";
 import { getGlmVerificationSuggestion, type VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
 import type { RawSeiaProject } from "@/lib/ingestion/sources/seia/types";
-
-const MAX_SEIA_CANDIDATES = 10;
 
 export interface AiSuggestionResult {
   success: boolean;
@@ -38,9 +35,7 @@ export async function getAiVerificationSuggestion(projectId: string): Promise<Ai
     // Mismas palabras distintivas que usa findBestSeiaMatch — ver
     // lib/ingestion/sources/seia/match.ts. Así GLM ve el mismo universo de
     // candidatos que el matching determinístico, no una búsqueda distinta.
-    const searchTerm = distinctiveTokens(project.name).join(" ");
-    const seiaResponse = searchTerm ? await searchSeiaByName(searchTerm, MAX_SEIA_CANDIDATES) : { data: [] as RawSeiaProject[] };
-    const candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
+    const candidates = await findVerificationSeiaCandidates(project);
 
     const { suggestion, error } = await getGlmVerificationSuggestion(project, candidates);
     if (error || !suggestion) {

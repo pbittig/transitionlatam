@@ -1,0 +1,359 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import {
+  Activity,
+  ArrowUpRight,
+  BatteryCharging,
+  ChartNoAxesCombined,
+  FolderKanban,
+  Gauge,
+  Layers3,
+  LockKeyhole,
+  Radar,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
+import { isAdmin } from "@/lib/auth/session";
+import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
+import { getSeiaStatusesForUpcomingProjects, getUpcomingScheduleInputs } from "@/lib/data-access/pipeline";
+import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
+import { PHASE_COLORS, PHASE_GROUP_LABELS, PHASE_TO_GROUP, type PhaseGroup } from "@/lib/shared/projectPhaseDurations";
+import { computePipelineHealth, computePipelineTotals } from "@/lib/shared/marketSnapshot";
+import { computeScheduleForecast, FORECAST_PHASE_LABELS } from "@/lib/shared/scheduleForecast";
+import { chipsToNamePatterns, chipsToTechnologyCodes, parseChipKeys, TECH_CHIPS } from "../components/techChips";
+import { AnalysisMultiFilters } from "../components/AnalysisMultiFilters";
+import { MilestoneCalendarChart } from "../components/MilestoneCalendarChart";
+import { Panel } from "../components/Panel";
+import { PipelineHealthBar } from "../components/PipelineHealthBar";
+import { PlanGate } from "../components/PlanGate";
+
+export const metadata: Metadata = { title: "Análisis dinámico" };
+export const dynamic = "force-dynamic";
+
+const RENEWABLE_AND_STORAGE_CODES = [
+  "solar_pv",
+  "wind",
+  "hydro",
+  "pumped_hydro",
+  "bess",
+  "hybrid",
+  "biomass",
+  "geothermal",
+];
+
+export default async function AnalisisDinamicoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tech?: string; etapa?: string }>;
+}) {
+  const params = await searchParams;
+  const selectedKeys = parseChipKeys(params.tech).filter((key) => key !== "termica" && key !== "transmision");
+  const technologyCodes = chipsToTechnologyCodes(selectedKeys);
+  const namePatterns = chipsToNamePatterns(selectedKeys);
+  const etapas = params.etapa?.split(",").filter(Boolean) as PhaseGroup[] | undefined;
+  const hasTechnologyFilter = technologyCodes.length > 0 || namePatterns.length > 0;
+
+  const client = await createSupabaseServerClient();
+  const admin = await isAdmin();
+  const isFree = !admin && (await getIsFreeTier(client));
+  if (isFree) return <LockedAnalysisPage />;
+
+  const [allProjects, seiaStatuses] = await Promise.all([
+    getUpcomingScheduleInputs(client),
+    getSeiaStatusesForUpcomingProjects(client),
+  ]);
+
+  const projects = allProjects.filter((project) => {
+    const isRenewableOrStorage =
+      (!!project.technologyCode && RENEWABLE_AND_STORAGE_CODES.includes(project.technologyCode)) ||
+      project.includesStorage;
+    const technologyMatch =
+      !hasTechnologyFilter ||
+      (!!project.technologyCode && technologyCodes.includes(project.technologyCode)) ||
+      namePatterns.some((pattern) => project.name.toLowerCase().includes(pattern.toLowerCase()));
+    const phase = computeEstimatedPhase(
+      project.estimatedConnectionDate,
+      project.technologyCode,
+      project.includesStorage,
+      project.capacityMw,
+    );
+    const phaseMatch =
+      !etapas?.length ||
+      (phase?.currentPhase != null && etapas.includes(PHASE_TO_GROUP[phase.currentPhase]));
+    return isRenewableOrStorage && technologyMatch && phaseMatch;
+  });
+
+  const totals = computePipelineTotals(projects);
+  const health = computePipelineHealth(projects, seiaStatuses);
+  const forecast = computeScheduleForecast(projects);
+  const bessCount = projects.filter((project) => project.includesStorage).length;
+  const capacityMw = projects.reduce((sum, project) => sum + (project.capacityMw ?? 0), 0);
+  const activeLabels = [
+    ...TECH_CHIPS.filter((chip) => selectedKeys.includes(chip.key)).map((chip) => chip.label),
+    ...(etapas ?? []).map((stage) => PHASE_GROUP_LABELS[stage]),
+  ].filter(Boolean);
+
+  const metrics = [
+    {
+      icon: FolderKanban,
+      label: "Proyectos",
+      value: totals.count.toLocaleString("es-CL"),
+      detail: "en la selección",
+      accent: "border-t-brand-primary",
+      iconStyle: "bg-brand-primary/10 text-brand-deep dark:text-brand-primary",
+    },
+    {
+      icon: Activity,
+      label: "Capacidad",
+      value: `${(capacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`,
+      detail: "capacidad futura",
+      accent: "border-t-data-blue",
+      iconStyle: "bg-data-blue/10 text-data-blue",
+    },
+    {
+      icon: BatteryCharging,
+      label: "Con BESS",
+      value: bessCount.toLocaleString("es-CL"),
+      detail: "incluyen almacenamiento",
+      accent: "border-t-data-bess",
+      iconStyle: "bg-data-bess/10 text-data-bess",
+    },
+    {
+      icon: Gauge,
+      label: "Riesgo alto",
+      value: `${health.bajaPct}%`,
+      detail: "de la selección",
+      accent: "border-t-data-solar",
+      iconStyle: "bg-data-solar/10 text-data-solar",
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-8 text-white shadow-[0_24px_70px_-35px_rgba(6,72,65,0.8)] sm:px-8 sm:py-10">
+        <div className="pointer-events-none absolute -top-20 -right-16 size-64 rounded-full border border-white/10 bg-white/5" />
+        <div className="pointer-events-none absolute -right-8 -bottom-28 size-72 rounded-full border border-brand-primary/25 bg-brand-primary/10" />
+        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-brand-primary uppercase">
+              <Radar size={16} />
+              Inteligencia de cartera · Chile
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Análisis dinámico</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
+              Explora la cartera futura con filtros combinables y recalcula al instante su escala, perfil de riesgo y calendario de hitos.
+            </p>
+          </div>
+          <Link
+            href="/proyectos-esperados"
+            className="group inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/20"
+          >
+            Abrir proyectos futuros
+            <ArrowUpRight size={16} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <Panel className="flex flex-col gap-4">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Cómo utilizarla</p>
+            <h2 className="mt-1 text-lg font-semibold text-neutral-950 dark:text-white">Construye el análisis en tres pasos</h2>
+          </div>
+          <ol className="grid gap-3 sm:grid-cols-3">
+            {[
+              { number: "1", icon: Search, title: "Filtra", description: "Selecciona la tecnología y etapa que deseas analizar." },
+              { number: "2", icon: Layers3, title: "Combina", description: "Cruza los criterios para analizar solamente la cartera relevante." },
+              { number: "3", icon: ChartNoAxesCombined, title: "Interpreta", description: "Revisa escala, riesgo y calendario; los resultados se recalculan automáticamente." },
+            ].map(({ number, icon: Icon, title, description }) => (
+              <li key={number} className="rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-900">
+                <div className="flex items-center justify-between">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-brand-primary/15 text-xs font-bold text-brand-deep dark:text-brand-primary">
+                    {number}
+                  </span>
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-white text-brand-deep shadow-sm ring-1 ring-neutral-100 dark:bg-neutral-800 dark:text-brand-primary dark:ring-neutral-700">
+                    <Icon size={18} />
+                  </span>
+                </div>
+                <h3 className="mt-3 text-sm font-semibold">{title}</h3>
+                <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+
+        <Panel className="border-brand-primary/25">
+          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Qué resultados entrega</p>
+          <h2 className="mt-1 text-lg font-semibold text-neutral-950 dark:text-white">Una lectura enfocada de la cartera</h2>
+          <ul className="mt-4 grid gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+            {[
+              "Cantidad de proyectos y capacidad total en MW/GW.",
+              "Proyectos que incorporan almacenamiento BESS.",
+              "Distribución de la cartera según su nivel de riesgo.",
+              "Fechas probables de los próximos hitos del proyecto.",
+            ].map((result) => (
+              <li key={result} className="flex items-start gap-2">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand-primary" />
+                <span>{result}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </section>
+
+      <Panel className="relative flex flex-col gap-6 overflow-hidden !rounded-3xl !border-brand-primary/40 !bg-[#f1faf7] p-7 shadow-[0_18px_50px_-32px_rgba(10,111,96,0.7)] dark:!bg-[#0c211f] sm:p-8">
+        <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-brand-primary/10" />
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-brand-deep uppercase dark:text-brand-primary">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-brand-primary/15">
+                <SlidersHorizontal size={16} />
+              </span>
+              Construye tu vista
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Filtros de análisis</h2>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">Selecciona tecnología y etapa para construir tu vista.</p>
+          </div>
+          {activeLabels.length > 0 && (
+            <Link
+              href="/analisis-dinamico"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm font-medium transition hover:border-brand-primary hover:text-brand-deep dark:border-neutral-700 dark:hover:text-brand-primary"
+            >
+              Restablecer filtros
+            </Link>
+          )}
+        </div>
+        <AnalysisMultiFilters />
+        <div className="relative flex items-center gap-2 rounded-xl bg-brand-deep px-4 py-3 text-sm text-white">
+          <Radar size={16} className="shrink-0 text-brand-primary" />
+          <span className="text-white/65">Vista activa:</span>
+          <span className="font-medium">{activeLabels.length ? activeLabels.join(" · ") : "todos los proyectos futuros"}</span>
+        </div>
+      </Panel>
+
+      <section>
+        <div className="mb-4">
+          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Resultado de la selección</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-950 dark:text-white">Magnitud y perfil de riesgo</h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {metrics.map(({ icon: Icon, label, value, detail, accent, iconStyle }) => (
+            <Panel key={label} className={`border-t-2 ${accent}`}>
+              <div className="flex items-center justify-between text-xs font-medium text-neutral-500">
+                <span>{label}</span>
+                <span className={`rounded-lg p-2 ${iconStyle}`}>
+                  <Icon size={16} />
+                </span>
+              </div>
+              <p className="mt-4 text-2xl font-semibold">{value}</p>
+              <p className="mt-1 text-xs text-neutral-500">{detail}</p>
+            </Panel>
+          ))}
+        </div>
+      </section>
+
+      <Panel className="flex flex-col gap-4">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Perfil de avance</p>
+          <h2 className="mt-1 text-lg font-semibold">Pipeline Health</h2>
+          <p className="text-sm text-neutral-500">Salud estimada de los proyectos filtrados.</p>
+        </div>
+        <PipelineHealthBar health={health} />
+      </Panel>
+
+      <Panel className="flex flex-col gap-6">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Proyección temporal</p>
+          <h2 className="mt-1 text-lg font-semibold">Calendario de hitos</h2>
+          <p className="text-sm text-neutral-500">Fechas probabilísticas recalculadas para la selección.</p>
+        </div>
+        {forecast.milestoneCalendars.map(({ phase, entries }) => (
+          <div key={phase}>
+            <h3 className="mb-2 text-sm font-medium">{FORECAST_PHASE_LABELS[phase]}</h3>
+            <MilestoneCalendarChart entries={entries} color={PHASE_COLORS[phase]} />
+          </div>
+        ))}
+      </Panel>
+    </div>
+  );
+}
+
+function LockedAnalysisPage() {
+  const deliverables = [
+    { icon: FolderKanban, title: "Cartera dimensionada", description: "Cantidad de proyectos y capacidad total para cada selección." },
+    { icon: Gauge, title: "Perfil de riesgo", description: "Distribución de la cartera según su nivel de avance estimado." },
+    { icon: BatteryCharging, title: "Lectura tecnológica", description: "Comparación de renovables, híbridos y proyectos con BESS." },
+    { icon: ChartNoAxesCombined, title: "Calendario probable", description: "Proyección de los próximos hitos de los proyectos analizados." },
+  ];
+
+  return (
+    <div className="flex flex-col gap-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-9 text-white shadow-xl shadow-brand-deep/10 sm:px-8 sm:py-11">
+        <div className="pointer-events-none absolute -top-24 right-0 size-72 rounded-full border border-white/10 bg-white/5" />
+        <div className="relative max-w-3xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-primary">
+            <LockKeyhole size={13} />
+            Beneficio incluido desde el plan Lite
+          </span>
+          <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">Análisis dinámico</h1>
+          <h2 className="mt-3 text-xl font-medium text-white/90">Convierte la cartera futura en una lectura para decidir</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
+            Análisis dinámico cruza tecnologías y etapas para entregar una visión enfocada del tamaño, riesgo y calendario probable de los proyectos renovables y BESS.
+          </p>
+          <Link href="/planes" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink shadow-sm transition hover:-translate-y-0.5">
+            Ver planes con acceso
+            <ArrowUpRight size={16} />
+          </Link>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-4">
+          <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">
+            <Sparkles size={14} />
+            El entregable
+          </p>
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Qué obtienes con esta sección</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-neutral-300">
+            Una vista recalculada según los criterios que selecciones, lista para entender dónde se concentra la oportunidad y qué hitos vienen.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {deliverables.map(({ icon: Icon, title, description }) => (
+            <Panel key={title} className="border-t-2 border-t-brand-primary">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-deep dark:text-brand-primary">
+                <Icon size={19} />
+              </span>
+              <h3 className="mt-4 font-semibold text-neutral-950 dark:text-white">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">{description}</p>
+            </Panel>
+          ))}
+        </div>
+      </section>
+
+      <PlanGate
+        locked
+        variant="showcase"
+        title="Desbloquea tu análisis de cartera"
+        description="Selecciona varias tecnologías y etapas para recalcular automáticamente el tamaño, riesgo y cronograma de la oportunidad."
+        features={[
+          "Multiselector de tecnologías renovables y BESS",
+          "Comparación simultánea de etapas",
+          "Indicadores de capacidad y riesgo",
+          "Calendario probabilístico de hitos",
+        ]}
+      >
+        <div className="grid min-h-72 gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
+          {["Proyectos", "Capacidad", "Con BESS", "Riesgo alto"].map((label, index) => (
+            <div key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+              <p className="text-xs text-neutral-500">{label}</p>
+              <p className="mt-5 text-3xl font-semibold">{[124, "8,6 GW", 47, "18%"][index]}</p>
+            </div>
+          ))}
+        </div>
+      </PlanGate>
+    </div>
+  );
+}

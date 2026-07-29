@@ -37,9 +37,15 @@ async function main() {
     );
   `);
 
+  const onlyIndex = process.argv.indexOf("--only");
+  const onlyFile = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : null;
   const files = readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
+    .filter((f) => !onlyFile || f === onlyFile)
     .sort();
+  if (onlyFile && files.length === 0) {
+    throw new Error(`Migración no encontrada: ${onlyFile}`);
+  }
 
   const { rows: applied } = await client.query("select name from _migrations");
   const appliedSet = new Set(applied.map((r) => r.name));

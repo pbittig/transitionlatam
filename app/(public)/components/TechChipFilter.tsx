@@ -32,14 +32,14 @@ export function TechChipFilter({
 
   return (
     <div className="flex flex-wrap gap-2">
-      <Link href={buildChipHref(basePath, otherParams, [])} className={pill(selectedKeys.length === 0)}>
+      <Link href={buildChipHref(basePath, otherParams, [])} scroll={false} className={pill(selectedKeys.length === 0)}>
         Todas
       </Link>
       {chips.map((chip) => {
         const isSelected = selectedKeys.includes(chip.key);
         const nextKeys = isSelected ? selectedKeys.filter((k) => k !== chip.key) : [...selectedKeys, chip.key];
         return (
-          <Link key={chip.key} href={buildChipHref(basePath, otherParams, nextKeys)} className={pill(isSelected)}>
+          <Link key={chip.key} href={buildChipHref(basePath, otherParams, nextKeys)} scroll={false} className={pill(isSelected)}>
             {chip.label}
           </Link>
         );

@@ -6,7 +6,15 @@ import { Trash2 } from "lucide-react";
 import { deleteProject } from "../projectEditActions";
 
 /** Borrado permanente — pide un segundo clic de confirmación porque, a diferencia de "Quitar" (SEIA), esto no se puede deshacer. */
-export function DeleteProjectButton({ projectId, backHref }: { projectId: string; backHref: string }) {
+export function DeleteProjectButton({
+  projectId,
+  backHref,
+  compact = false,
+}: {
+  projectId: string;
+  backHref: string;
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +25,8 @@ export function DeleteProjectButton({ projectId, backHref }: { projectId: string
     startTransition(async () => {
       const result = await deleteProject(projectId);
       if (result.success) {
-        router.push(backHref);
+        router.replace(backHref);
+        router.refresh();
       } else {
         setError(result.error ?? "No se pudo eliminar el proyecto.");
         setConfirming(false);
@@ -59,7 +68,7 @@ export function DeleteProjectButton({ projectId, backHref }: { projectId: string
         onClick={() => setConfirming(true)}
         className="print:hidden flex items-center gap-1.5 text-xs font-medium text-red-600 underline underline-offset-2 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
       >
-        <Trash2 size={13} /> Eliminar proyecto
+        <Trash2 size={13} /> {compact ? "Eliminar" : "Eliminar proyecto"}
       </button>
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>

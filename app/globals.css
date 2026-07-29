@@ -50,6 +50,24 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 767px) {
+  html {
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
 /* Slider de rango con dos manijas (ConnectionDateRangeFilter): dos <input type="range">
    superpuestos, el input en sí es invisible/pointer-events:none (para que no bloquee al
    otro), pero su manija sí debe recibir clics — ver el mismo truco documentado en

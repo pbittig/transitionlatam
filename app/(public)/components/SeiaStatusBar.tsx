@@ -20,7 +20,15 @@ function SubmissionTypeTag({ submissionType }: { submissionType?: string | null 
   );
 }
 
-export function SeiaStatusBar({ status, submissionType }: { status: string | null; submissionType?: string | null }) {
+export function SeiaStatusBar({
+  status,
+  submissionType,
+  compact = false,
+}: {
+  status: string | null;
+  submissionType?: string | null;
+  compact?: boolean;
+}) {
   if (!status) return <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>;
 
   if (isSeiaNegativeTerminal(status)) {
@@ -52,10 +60,16 @@ export function SeiaStatusBar({ status, submissionType }: { status: string | nul
           title={status}
         />
       </div>
-      <div className="mt-1 flex items-center text-xs text-neutral-500 dark:text-neutral-400">
-        {status}
-        <SubmissionTypeTag submissionType={submissionType} />
-      </div>
+      {compact ? (
+        <div className="mt-1 text-right text-xs font-medium tabular-nums text-neutral-500 dark:text-neutral-400">
+          {maturity.order}%
+        </div>
+      ) : (
+        <div className="mt-1 flex items-center text-xs text-neutral-500 dark:text-neutral-400">
+          {status}
+          <SubmissionTypeTag submissionType={submissionType} />
+        </div>
+      )}
     </div>
   );
 }

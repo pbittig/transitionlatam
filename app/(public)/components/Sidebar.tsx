@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Bell, CalendarDays, ChartNoAxesCombined, ContactRound, Network, LockKeyhole, LogIn, LogOut, ShieldCheck } from "lucide-react";
-import { LastSyncIndicator } from "./LastSyncIndicator";
+import { Activity, BarChart3, Bell, CalendarDays, ChartNoAxesCombined, ContactRound, Network, LockKeyhole, LogIn, LogOut, ShieldCheck } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import type { AppLocale } from "@/lib/i18n";
@@ -16,6 +15,7 @@ function getNavItems(locale: AppLocale) {
     ? [
         { href: "/mercado", label: "Power market", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/proyectos-esperados", label: "Future projects", icon: Activity, minPlan: "free" },
+        { href: "/analisis-dinamico", label: "Dynamic analysis", icon: BarChart3, minPlan: "lite" },
         { href: "/mapa-stakeholder", label: "Companies & relations", description: "Groups, SPVs and projects", icon: Network, minPlan: "premium" },
         { href: "/crm", label: "CRM", description: "Pipeline and next steps", icon: ContactRound, minPlan: "premium" },
         { href: "/alertas", label: "Tracking", description: "Alerts and key changes", icon: Bell, minPlan: "lite" },
@@ -23,6 +23,7 @@ function getNavItems(locale: AppLocale) {
     : [
         { href: "/mercado", label: "Matriz eléctrica", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/proyectos-esperados", label: "Proyectos futuros", icon: Activity, minPlan: "free" },
+        { href: "/analisis-dinamico", label: "Análisis dinámico", icon: BarChart3, minPlan: "lite" },
         { href: "/mapa-stakeholder", label: "Empresas y relaciones", description: "Grupos, SPV y proyectos", icon: Network, minPlan: "premium" },
         { href: "/crm", label: "CRM", description: "Pipeline y próximos pasos", icon: ContactRound, minPlan: "premium" },
         { href: "/alertas", label: "Seguimiento", description: "Alertas y cambios clave", icon: Bell, minPlan: "lite" },
@@ -30,13 +31,11 @@ function getNavItems(locale: AppLocale) {
 }
 
 export function Sidebar({
-  lastSync,
   isAdmin,
   userProfile,
   remainingTrialDays,
   locale,
 }: {
-  lastSync: string | null;
   isAdmin: boolean;
   userProfile: CurrentUserProfile | null;
   remainingTrialDays: number | null;
@@ -49,7 +48,7 @@ export function Sidebar({
   const navItems = isAdmin ? [...baseNavItems, { href: "/admin", label: "Admin", icon: ShieldCheck, minPlan: "free" }] : baseNavItems;
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-20 flex w-16 flex-col border-r border-brand-primary/20 bg-white/95 shadow-[8px_0_30px_rgba(18,107,100,0.04)] backdrop-blur-xl md:w-64 dark:border-brand-primary/15 dark:bg-neutral-950/95 print:hidden">
+    <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-brand-primary/20 bg-white/95 shadow-[8px_0_30px_rgba(18,107,100,0.04)] backdrop-blur-xl md:flex dark:border-brand-primary/15 dark:bg-neutral-950/95 print:hidden">
       <Link href="/" className="flex items-center justify-center px-3 pt-6 pb-5 md:justify-start md:px-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/tl-logo.png" alt="Transition LATAM" className="hidden h-9 w-auto md:block" />
@@ -193,9 +192,6 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="hidden border-t border-neutral-100 px-5 py-4 md:block dark:border-neutral-900">
-        <LastSyncIndicator isoTimestamp={lastSync} />
-      </div>
     </aside>
   );
 }

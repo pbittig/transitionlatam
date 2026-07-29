@@ -6,8 +6,26 @@ export function PowerPlantTable({ items }: { items: PowerPlantListItem[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <p className="px-4 pt-3 text-[10px] text-neutral-400 md:hidden">Desliza horizontalmente para ver todas las columnas.</p>
+    <>
+      <div className="grid gap-3 p-3 md:hidden">
+        {items.map((plant) => (
+          <article key={plant.id} className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-semibold leading-snug text-neutral-900 dark:text-white">{plant.name}</h3>
+              <span className="shrink-0 rounded-full bg-brand-surface px-2.5 py-1 text-xs font-semibold tabular-nums text-brand-deep dark:text-brand-primary">
+                {plant.netCapacityMw !== null ? `${Math.round(plant.netCapacityMw).toLocaleString("es-CL")} MW` : "—"}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">{plant.ownerName ?? "Propietario sin informar"}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+              <span>{[plant.comuna, plant.region].filter(Boolean).join(", ") || "Ubicación sin informar"}</span>
+              <span aria-hidden>·</span>
+              <span>{plant.status ?? "Sin estado"}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[800px] text-sm">
         <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
           <tr>
@@ -41,6 +59,7 @@ export function PowerPlantTable({ items }: { items: PowerPlantListItem[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

@@ -84,3 +84,21 @@ export async function downloadDocument(doc: AccesoAbiertoDocument): Promise<Buff
 export function findFormularioDocuments(docs: AccesoAbiertoDocument[]): AccesoAbiertoDocument[] {
   return docs.filter((d) => /formulario/i.test(d.tipoDocumento));
 }
+
+/**
+ * Informe emitido durante la autorización preliminar de conexión. Es una fuente
+ * secundaria: la pre-verificación solo lo consulta para horas de almacenamiento
+ * o para resolver si una solicitud combina generación + BESS.
+ *
+ * En datos históricos el nombre puede aparecer con o sin "de Conexión" y con
+ * pequeñas variaciones de acentos, por eso se exige la combinación distintiva
+ * "Informe" + "Autorización" + "Preliminar" en tipo o nombre del documento.
+ */
+export function findPreliminaryConnectionAuthorizationReports(
+  docs: AccesoAbiertoDocument[],
+): AccesoAbiertoDocument[] {
+  return docs.filter((doc) => {
+    const haystack = `${doc.tipoDocumento} ${doc.nombre}`;
+    return /informe/i.test(haystack) && /autorizaci[oó]n/i.test(haystack) && /preliminar/i.test(haystack);
+  });
+}

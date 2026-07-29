@@ -69,24 +69,9 @@ export function FollowNotifications({ events }: { events: WatchlistEvent[] }) {
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-40 print:hidden">
-        <button
-          type="button"
-          onClick={toggleOpen}
-          aria-label={unread ? `${unread} alertas nuevas` : "Abrir alertas de seguimiento"}
-          aria-expanded={open}
-          className="relative flex h-11 w-11 items-center justify-center rounded-full border border-brand-primary/30 bg-white text-brand-deep shadow-lg shadow-brand-deep/10 transition hover:-translate-y-0.5 hover:border-brand-primary dark:bg-neutral-950 dark:text-brand-primary"
-        >
-          <Bell size={19} />
-          {unread > 0 && (
-            <span className="absolute -top-1 -right-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-neutral-950">
-              {unread > 9 ? "9+" : unread}
-            </span>
-          )}
-        </button>
-
+      <div className="relative">
         {open && (
-          <div className="mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="absolute right-0 bottom-full mb-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-950">
             <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3 dark:border-neutral-800">
               <div>
                 <p className="text-sm font-semibold text-neutral-950 dark:text-white">Seguimiento</p>
@@ -113,6 +98,21 @@ export function FollowNotifications({ events }: { events: WatchlistEvent[] }) {
             </Link>
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-label={unread ? `${unread} alertas nuevas` : "Abrir alertas de seguimiento"}
+          aria-expanded={open}
+          className="relative flex h-11 w-11 items-center justify-center rounded-full border border-brand-primary/30 bg-white text-brand-deep shadow-lg shadow-brand-deep/10 transition hover:-translate-y-0.5 hover:border-brand-primary dark:bg-neutral-950 dark:text-brand-primary"
+        >
+          <Bell size={19} />
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-neutral-950">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
       </div>
 
       <div className="fixed top-20 right-4 z-30 flex w-[min(23rem,calc(100vw-2rem))] flex-col gap-2 print:hidden">

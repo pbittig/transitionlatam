@@ -283,6 +283,7 @@ export interface ProjectDetail extends ProjectListItem {
   developerCompanyRut: string | null;
   developerCompanyAddress: string | null;
   verifiedAt: string | null;
+  editorialStatus: "pending" | "published" | "excluded";
   aiScreenedAt: string | null;
   aiDataSanity: "ok" | "sospechoso" | null;
   aiDataSanityReason: string | null;
@@ -296,7 +297,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, ai_screened_at, ai_data_sanity, ai_data_sanity_reason, ai_seia_pick, ai_seia_pick_reason, project_kind, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
+      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, editorial_status, ai_screened_at, ai_data_sanity, ai_data_sanity_reason, ai_seia_pick, ai_seia_pick_reason, project_kind, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -320,6 +321,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     status: string | null;
     estimated_connection_date: string | null;
     verified_at: string | null;
+    editorial_status: "pending" | "published" | "excluded";
     ai_screened_at: string | null;
     ai_data_sanity: string | null;
     ai_data_sanity_reason: string | null;
@@ -358,6 +360,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     status: r.status,
     estimatedConnectionDate: r.estimated_connection_date,
     verifiedAt: r.verified_at,
+    editorialStatus: r.editorial_status,
     aiScreenedAt: r.ai_screened_at,
     aiDataSanity: r.ai_data_sanity as "ok" | "sospechoso" | null,
     aiDataSanityReason: r.ai_data_sanity_reason,
@@ -378,6 +381,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
 export interface VerificationQueueItem {
   id: string;
   name: string;
+  internalCode: string;
   comuna: string | null;
   region: string | null;
   capacityMw: number | null;
@@ -403,11 +407,12 @@ const VERIFICATION_SORT_COLUMNS: Record<VerificationSortColumn, string> = {
 };
 
 const VERIFICATION_QUEUE_SELECT =
-  "id, name, capacity_mw, estimated_connection_date, status, ai_screened_at, ai_data_sanity, ai_seia_pick, location:location_id(comuna, region:region_id(name))";
+  "id, name, internal_code, capacity_mw, estimated_connection_date, status, ai_screened_at, ai_data_sanity, ai_seia_pick, location:location_id(comuna, region:region_id(name))";
 
 type VerificationQueueRow = {
   id: string;
   name: string;
+  internal_code: string;
   capacity_mw: number | null;
   estimated_connection_date: string | null;
   status: string | null;
@@ -421,6 +426,7 @@ function mapVerificationQueueRow(row: VerificationQueueRow): VerificationQueueIt
   return {
     id: row.id,
     name: row.name,
+    internalCode: row.internal_code,
     comuna: row.location?.comuna ?? null,
     region: row.location?.region?.name ?? null,
     capacityMw: row.capacity_mw,
@@ -471,7 +477,11 @@ export async function getVerificationQueue(
   period?: VerificationPeriod,
 ): Promise<VerificationQueueItem[]> {
   if (sort || period) {
-    let query = client.from("project").select(VERIFICATION_QUEUE_SELECT).is("verified_at", null);
+    let query = client
+      .from("project")
+      .select(VERIFICATION_QUEUE_SELECT)
+      .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+      .is("verified_at", null);
     if (period) query = applyPeriodFilter(query, period);
 
     if (sort) {
@@ -493,6 +503,7 @@ export async function getVerificationQueue(
     client
       .from("project")
       .select(VERIFICATION_QUEUE_SELECT)
+      .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
       .is("verified_at", null)
       .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
       .gte("estimated_connection_date", startOfMonth)
@@ -501,6 +512,7 @@ export async function getVerificationQueue(
     client
       .from("project")
       .select(VERIFICATION_QUEUE_SELECT)
+      .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
       .is("verified_at", null)
       .or(
         `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
@@ -526,7 +538,11 @@ export async function getVerificationQueue(
 
 /** Conteo total de proyectos sin verificar — para la tarjeta de /admin. */
 export async function countUnverifiedProjects(client: SupabaseClient): Promise<number> {
-  const { count, error } = await client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null);
+  const { count, error } = await client
+    .from("project")
+    .select("id", { count: "exact", head: true })
+    .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+    .is("verified_at", null);
   if (error) throw new Error(`Error contando proyectos sin verificar: ${error.message}`);
   return count ?? 0;
 }
@@ -573,6 +589,7 @@ export async function getDoubtfulProjects(
   let query = client
     .from("project")
     .select(VERIFICATION_QUEUE_SELECT)
+    .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
     .is("verified_at", null)
     .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null");
   if (period) query = applyPeriodFilter(query, period);
@@ -603,11 +620,12 @@ export interface VerificationScreeningStats {
 export async function getVerificationScreeningStats(client: SupabaseClient): Promise<VerificationScreeningStats> {
   const [{ count: totalPending, error: e1 }, { count: screened, error: e2 }, { count: doubtful, error: e3 }] =
     await Promise.all([
-      client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null),
-      client.from("project").select("id", { count: "exact", head: true }).not("ai_screened_at", "is", null),
+      client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").is("verified_at", null),
+      client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").not("ai_screened_at", "is", null),
       client
         .from("project")
         .select("id", { count: "exact", head: true })
+        .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
         .is("verified_at", null)
         .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null"),
     ]);
@@ -625,8 +643,8 @@ export interface VerificationPeriodStats {
 /** Cuántos quedan pendientes en cada cola — vigente (verificar hoy) vs histórico (después, con más gente). */
 export async function getVerificationPeriodStats(client: SupabaseClient): Promise<VerificationPeriodStats> {
   const [{ count: vigentePending, error: e1 }, { count: historicoPending, error: e2 }] = await Promise.all([
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null), "vigente"),
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).is("verified_at", null), "historico"),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").is("verified_at", null), "vigente"),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").is("verified_at", null), "historico"),
   ]);
   if (e1) throw new Error(`Error contando cola vigente: ${e1.message}`);
   if (e2) throw new Error(`Error contando cola histórica: ${e2.message}`);
@@ -639,6 +657,44 @@ export interface VerificationProgress {
 }
 
 /** Verificados vs. total del pipeline vigente — para la barra de progreso pública en /proyectos-esperados (que solo lista verificados mientras se sigue revisando el resto). */
+export interface AdminVerificationProgress extends VerificationProgress {
+  verifiedToday: number;
+}
+
+/** Avance global y producción del día para la gestión interna del verificador. */
+export async function getAdminVerificationProgress(client: SupabaseClient): Promise<AdminVerificationProgress> {
+  const todayInChile = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const startOfDay = `${todayInChile}T00:00:00-04:00`;
+  const endOfDay = `${todayInChile}T23:59:59.999-04:00`;
+
+  const [{ count: verified, error: e1 }, { count: total, error: e2 }, { count: verifiedToday, error: e3 }] =
+    await Promise.all([
+      applyPeriodFilter(
+        client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null"),
+        "vigente",
+      ).not("verified_at", "is", null),
+      applyPeriodFilter(
+        client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null"),
+        "vigente",
+      ),
+      applyPeriodFilter(
+        client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null"),
+        "vigente",
+      )
+        .gte("verified_at", startOfDay)
+        .lte("verified_at", endOfDay),
+    ]);
+  if (e1) throw new Error(`Error contando proyectos verificados: ${e1.message}`);
+  if (e2) throw new Error(`Error contando proyectos totales: ${e2.message}`);
+  if (e3) throw new Error(`Error contando verificaciones de hoy: ${e3.message}`);
+  return { verified: verified ?? 0, total: total ?? 0, verifiedToday: verifiedToday ?? 0 };
+}
+
 export async function getVigenteVerificationProgress(client: SupabaseClient): Promise<VerificationProgress> {
   // Mismo shape de query en ambas llamadas a applyPeriodFilter (el filtro de
   // verified_at se encadena DESPUÉS) — pasarle chains con formas distintas dispara

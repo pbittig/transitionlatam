@@ -9,7 +9,7 @@ export function VerificationProgressBar({ progress }: { progress: VerificationPr
       <div className="flex items-center justify-between text-sm">
         <span className="text-neutral-600 dark:text-neutral-400">
           <strong className="text-neutral-900 dark:text-neutral-50">{progress.verified.toLocaleString("es-CL")}</strong> de{" "}
-          {progress.total.toLocaleString("es-CL")} proyectos verificados a mano
+          {progress.total.toLocaleString("es-CL")} proyectos verificados
         </span>
         <span className="text-brand-primary font-medium">{pct}%</span>
       </div>

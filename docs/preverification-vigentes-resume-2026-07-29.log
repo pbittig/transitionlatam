@@ -1,0 +1,792 @@
+◇ injected env (22) from .env.local // tip: ◈ encrypted .env [www.dotenvx.com]
+[worker 1] [preverification 1/428] 2d63acf8-4db7-4af7-a1e5-361c0dedb27b: iniciando
+[worker 2] [preverification 2/428] 87dbe19e-4db1-4504-ac5d-8529efdda2fd: iniciando
+[worker 3] [preverification 3/428] 1c8978a6-2d12-4ed2-8cc7-aaed6f54a46a: iniciando
+[worker 2] [preverification 2/428] Habilitación de Retiro de la Red BESS DAS: completado
+[worker 2] [preverification 4/428] 897fa8a8-be6e-4e10-b348-a86b69821d82: iniciando
+[worker 1] [preverification 1/428] Conexión Alimentador Bunster a Paño C3 - SE Deuco: completado
+[worker 1] [preverification 5/428] 50b99189-fec1-46f1-ab72-a5b6264ca856: iniciando
+[worker 2] [preverification 4/428] Nuevo Alimentador 12 kV Tiahuanaco en S/E Pajaritos: completado
+[worker 2] [preverification 6/428] 64b155d5-325a-4b18-9911-1f870c609c4e: iniciando
+[worker 1] [preverification 5/428] Nuevo Alimentador 12 kV Cencoriente2 en S/E Alonso de Córdova: completado
+[worker 1] [preverification 7/428] fb0e5a5a-07cb-4214-a14b-61b68e4a4d5f: iniciando
+[worker 3] [preverification 3/428] Actualización de Subestaciones Las Luces y Planta Óxido - Suministro Agua, Taltal,  Región de Antofagasta: completado
+[worker 3] [preverification 8/428] cf557db7-48a9-4a4a-80eb-52c95a69c18f: iniciando
+[worker 3] [preverification 8/428] Conexión Alimentador 4 a Paño E4 en SE Pichirropulli: completado
+[worker 3] [preverification 9/428] 22a2c8eb-2669-4aad-89d5-6c843ebe2483: iniciando
+[worker 2] [preverification 6/428] Nuevo Alimentador 12 kV Cencoriente1 en S/E Alonso de Córdova: completado
+[worker 2] [preverification 10/428] adaa3fd1-fd64-4610-8e4a-0419a4c139e9: iniciando
+[worker 1] [preverification 7/428] Nuevo Alimentador Los Leones: completado
+[worker 1] [preverification 11/428] 1975daa7-d979-44fb-8dba-0e36cf0ce850: iniciando
+[worker 3] [preverification 9/428] Nuevo Alimentador 12 kV Baker en S/E Alonso de Córdova: completado
+[worker 3] [preverification 12/428] 51814014-a6c5-43c2-8387-bb62506a5229: iniciando
+[worker 2] [preverification 10/428] Nuevo Alimentador 12 kV Yelcho en S/E Alonso de Córdova: completado
+[worker 2] [preverification 13/428] 69e4a258-c7c8-4140-b7ff-3306d2b594a1: iniciando
+[worker 1] [preverification 11/428] Nuevo Alimentador 23 kV EFE2 en S/E Santa Marta: completado
+[worker 1] [preverification 14/428] 74eca5c3-3644-43b2-a2b1-badc09d4d3bb: iniciando
+[worker 3] [preverification 12/428] Nuevo Alimentador 23 kV EFE1 en S/E Santa Marta: completado
+[worker 3] [preverification 15/428] 847e4f34-763c-4196-8344-59d6377d88ec: iniciando
+[worker 3] [preverification 15/428] Nuevo Alimentador Caburgua: completado
+[worker 3] [preverification 16/428] 6d7f9668-5445-487e-a398-d9bad68d4aa0: iniciando
+[worker 1] [preverification 14/428] Traslado Alimentador 12 kV Agrícola en S/E San Joaquín  : completado
+[worker 1] [preverification 17/428] 22bcc36f-fbea-4b43-abeb-2c1184e8c908: iniciando
+[worker 2] [preverification 13/428] Nuevo Alimentador 12 kV Versalles en S/E Pajaritos   : completado
+[worker 2] [preverification 18/428] 0522f1e4-0dfe-4184-b8ad-f021e654c667: iniciando
+[worker 2] [preverification 18/428] Nuevo Alimentador Homarg: completado
+[worker 2] [preverification 19/428] 22f43397-d977-4735-bc08-5e0b42e1d054: iniciando
+[worker 2] [preverification 19/428] Alimentador Quelén: completado
+[worker 2] [preverification 20/428] 45b287cf-dbaa-4803-b75b-597e4e5c8999: iniciando
+[worker 3] [preverification 16/428] Nuevo Alimentador El Rosario: completado
+[worker 3] [preverification 21/428] 7ce24423-b731-4002-8965-2f938ef9e66a: iniciando
+[worker 1] [preverification 17/428] Nuevo Alimentador Encón: completado
+[worker 1] [preverification 22/428] 3788450e-b6ac-4df4-9c5f-ae2ad14660bf: iniciando
+[worker 2] [preverification 20/428] Traslado Alimentador 12 kV Fruna en S/E Bicentenario: completado
+[worker 2] [preverification 23/428] 3c490d25-dbd1-4f54-8c8a-377b9397c18c: iniciando
+[worker 1] [preverification 22/428] Nuevo Alimentador 12 kV Perdices en S/E Macul     : completado
+[worker 1] [preverification 24/428] 71767588-61b4-497e-bfbf-9a6e0b3c3658: iniciando
+[worker 3] [preverification 21/428] Nuevo Alimentador 23 kV Velardi en S/E Lampa: completado
+[worker 3] [preverification 25/428] ff9138a5-eac8-459e-b120-bc9896834bf5: iniciando
+[worker 2] [preverification 23/428] Nuevo Alimentador 12 kV Villagra en S/E La Reina: completado
+[worker 2] [preverification 26/428] 7907b702-7062-4953-a27e-9edc9a9f5f61: iniciando
+[worker 1] [preverification 24/428] Nuevo Alimentador 23 kV Merino en S/E Lo Boza: completado
+[worker 1] [preverification 27/428] 57ab11b3-09fe-49d6-bb06-cb9350c34588: iniciando
+[worker 3] [preverification 25/428] Nuevo Alimentador 23 kV Chaitén en S/E San Pablo: completado
+[worker 3] [preverification 28/428] c90d1254-e6d4-47dc-8527-569ff5ba15b6: iniciando
+[worker 1] [preverification 27/428] Nuevo Alimentador 12 kV Choapa en S/E Panamericana: completado
+[worker 1] [preverification 29/428] 9fe12a6f-db28-4e9d-899b-f077501c33f0: iniciando
+[worker 1] [preverification 29/428] Conexión Alimentador Ruta 5 Lado Sur a Paño E4 - SE Reloncaví: completado
+[worker 1] [preverification 30/428] 15a632b5-1de8-43a3-8735-4aa316c2c41d: iniciando
+[worker 1] [preverification 30/428] Conexión Alimentador Ruta 5 Lado Norte a Paño E3 - SE Reloncaví: completado
+[worker 1] [preverification 31/428] bbe7e24e-282c-48cf-be2d-e0c03f5bfe76: iniciando
+[worker 1] [preverification 31/428] Conexión Alimentador Altos de Tepual a Paño E2 - SE Reloncaví: completado
+[worker 1] [preverification 32/428] 75274674-22c7-44ab-a18a-0ddc829562f0: iniciando
+[worker 1] [preverification 32/428] Conexión Alimentador Los Notros a Paño E1 - SE Reloncaví: completado
+[worker 1] [preverification 33/428] 5fc7c211-6a45-422b-a479-9b30d9730eab: iniciando
+[worker 2] [preverification 26/428] Nuevo Alimentador 12 kV Calbuco en S/E La Reina: completado
+[worker 2] [preverification 34/428] 23516866-d3cf-4b19-96d2-82370f3580df: iniciando
+[worker 3] [preverification 28/428] Nuevo Alimentador 23 kV Scala2 en S/E Quilicura: completado
+[worker 3] [preverification 35/428] 0604a8a3-9f8f-4d8d-b3d3-7823039fc9de: iniciando
+[worker 2] [preverification 34/428] Sistema Impulsion de Agua : completado
+[worker 2] [preverification 36/428] 5fd8781d-77ca-4e33-a81d-98b7d711b2b7: iniciando
+[worker 3] [preverification 35/428] Habilitadores Sulfuros Primarios (ex. Sistema Impulsión de Agua): completado
+[worker 3] [preverification 37/428] 5738d4fc-091f-4d2d-a77e-8f1b92bbf7b6: iniciando
+[worker 2] [preverification 36/428] Sistema de Impulsión de Agua: completado
+[worker 2] [preverification 38/428] cb0d7615-8b06-4001-ba6a-16f9eed917cb: iniciando
+[worker 3] [preverification 37/428] BESS Quintano: completado
+[worker 3] [preverification 39/428] 7f82a734-2ef9-416a-b338-318ffb366e74: iniciando
+[worker 1] [preverification 33/428] Llanos de Marañón 2: con errores
+[worker 1] [preverification 40/428] aff13963-a0d9-49e0-81fe-a7ec5ec2ddde: iniciando
+[worker 3] [preverification 39/428] Nuevo Alimentador 12 kV Osorno en S/E San Joaquín : completado
+[worker 3] [preverification 41/428] 487fccd7-7ece-41a0-978e-66e9e8b44193: iniciando
+[worker 1] [preverification 40/428] BESS Halcón 1: completado
+[worker 1] [preverification 42/428] ad762281-8ac0-4ee6-9624-e13b981cfb5f: iniciando
+[worker 2] [preverification 38/428] Nuevo Alimentador 12 kV Rodoviario en S/E Pudahuel: completado
+[worker 2] [preverification 43/428] fadff58a-07d9-4747-bc24-de6af1c3b3a6: iniciando
+[worker 1] [preverification 42/428] Instalación Sexto Transformador de Poder en S/E Collahuasi: completado
+[worker 1] [preverification 44/428] 970137ae-b19b-4156-9eb3-220e03658d21: iniciando
+[worker 1] [preverification 44/428] Ríos de Jerez (ex BESS La Palma del Lucero): completado
+[worker 1] [preverification 45/428] 6d2aa342-30c1-4dec-8f65-0d9164653d41: iniciando
+[worker 3] [preverification 41/428] Sandstone BESS IV Expansión 2: completado
+[worker 3] [preverification 46/428] f561c276-1cf8-4ff9-8fdd-8516e3c4e7c5: iniciando
+[worker 1] [preverification 45/428] Ríos de Talavera (Ex-BESS El Molino de Molina): completado
+[worker 1] [preverification 47/428] 773bf274-cf1c-4823-8f53-1cd8ca46ec45: iniciando
+[worker 2] [preverification 43/428] SynCon U15 Tocopilla: completado
+[worker 2] [preverification 48/428] b967ffd6-f1ad-4ca4-aa61-bc55f5012e43: iniciando
+[worker 3] [preverification 46/428] BESS Remanso: completado
+[worker 3] [preverification 49/428] 7d4d8847-218d-4583-b4ce-8af12669b757: iniciando
+[worker 2] [preverification 48/428] BESS Don Carlos: completado
+[worker 2] [preverification 50/428] 454a20f4-e5a3-4306-8f36-b1eb3ca34430: iniciando
+[worker 3] [preverification 49/428] Sistema de Almacenamiento del PE Valle de Los Vientos II: completado
+[worker 3] [preverification 51/428] 64904248-0ce6-48e8-b31a-db45a4fde8d7: iniciando
+[worker 1] [preverification 47/428] BESS Longos Solar: con errores
+[worker 1] [preverification 52/428] 0de2815a-c391-4966-bc32-0fe18d613ee1: iniciando
+[worker 1] [preverification 52/428] Alimentador San Francisco: completado
+[worker 1] [preverification 53/428] f3572e4a-6f13-4cc5-90d4-031cd6c93bde: iniciando
+[worker 1] [preverification 53/428] Nuevo Alimentador C3: completado
+[worker 1] [preverification 54/428] 72896d01-6d6e-42b8-9157-d6f80b24de3b: iniciando
+[worker 1] [preverification 54/428] Nuevo Alimentador C2: completado
+[worker 1] [preverification 55/428] 90bed3f8-dbd6-4ed7-9fd1-5966372a659a: iniciando
+[worker 3] [preverification 51/428] Planta RO I: completado
+[worker 3] [preverification 56/428] 3fd2f53f-d98a-4229-91ca-dacbac4890b6: iniciando
+[worker 3] [preverification 56/428] Nuevo Alimentador C24: completado
+[worker 3] [preverification 57/428] 23e1908a-20a9-4439-a8e4-a56210749bc2: iniciando
+[worker 1] [preverification 55/428] Nuevo Alimentador C1: completado
+[worker 1] [preverification 58/428] 428520f7-a18c-4ef1-a00d-4d77d8c65933: iniciando
+[worker 1] [preverification 58/428] Nuevo alimentador 52C14: completado
+[worker 1] [preverification 59/428] bf4fe3c5-5853-4c96-869c-fd56b8ea320f: iniciando
+[worker 3] [preverification 57/428] Nuevo Alimentador 3 Neuquen: completado
+[worker 3] [preverification 60/428] 92aff06d-b912-48bd-a5ac-479edca16fee: iniciando
+[worker 2] [preverification 50/428] Planta RO II: completado
+[worker 2] [preverification 61/428] d1bd294f-b251-4235-9470-3154c4787c31: iniciando
+[worker 3] [preverification 60/428] Nuevo Alimentador 1 – T4: completado
+[worker 3] [preverification 62/428] 07c46805-0048-44ef-8224-903d3450f412: iniciando
+[worker 3] [preverification 62/428] Santa Elena: con errores
+[worker 3] [preverification 63/428] a0d30599-597a-429c-a27f-14f9a7679520: iniciando
+[worker 1] [preverification 59/428] Nuevo Alimentador 2 – T4: completado
+[worker 1] [preverification 64/428] 6d79f9b6-7def-4193-9e93-6d1442f49a64: iniciando
+[worker 1] [preverification 64/428] Ríos de Ondarreta (Ex - Ríos Nueva Pozo Almonte): completado
+[worker 1] [preverification 65/428] 322397ff-c04a-4389-8c01-7fc5f4a7a546: iniciando
+[worker 3] [preverification 63/428] BESS POLPAICO NUEVA ENERGÍA 2: con errores
+[worker 3] [preverification 66/428] d43ce183-404e-41ea-bae9-c63bd40644f6: iniciando
+[worker 2] [preverification 61/428] BESS ATARDECER NUEVA ENERGÍA 1 (Ex-BESS LA LIGUA ENERGIA 1): completado
+[worker 2] [preverification 67/428] db3bb5b4-872e-4400-8371-e5a83875fa2e: iniciando
+[worker 2] [preverification 67/428] Franja Oeste (66 kV): completado
+[worker 2] [preverification 68/428] f3a03f23-77b0-41e0-986d-f690d5093928: iniciando
+[worker 1] [preverification 65/428] PFV + BESS Carrizalillo: con errores
+[worker 1] [preverification 69/428] be4cab01-f36f-407a-8c89-39102711a0d7: iniciando
+[worker 3] [preverification 66/428] BESS Las Cañas (Ex - BESS El Peñon): con errores
+[worker 3] [preverification 70/428] 3eea424d-19a2-4021-971a-00cae37e081e: iniciando
+[worker 2] [preverification 68/428] Franja Oeste (23 kV): completado
+[worker 2] [preverification 71/428] 3487d9ad-f6cb-48ab-9deb-6471e093c306: iniciando
+[worker 2] [preverification 71/428] SAE Volcán Caichinque: completado
+[worker 2] [preverification 72/428] 71d1b3a2-1924-4527-ad65-74b405594be5: iniciando
+[worker 1] [preverification 69/428] Respaldo Nueva Victoria: completado
+[worker 1] [preverification 73/428] 41c075ef-9529-4f53-80fe-8ec9c0671a32: iniciando
+[worker 3] [preverification 70/428] Arica Solar III: completado
+[worker 3] [preverification 74/428] f4946b9c-6e62-4cc0-ad12-fcdd297ada15: iniciando
+[worker 2] [preverification 72/428] SAE Volcán Puyuhuapi: completado
+[worker 2] [preverification 75/428] 5cd465ff-b7f7-432e-8e51-6fc4227bdd25: iniciando
+[worker 3] [preverification 74/428] Nuevo Alimentador Manuel Rodriguez: completado
+[worker 3] [preverification 76/428] 417783f9-cd11-44b3-b11d-1b819cb250da: iniciando
+[worker 1] [preverification 73/428] Proyecto Híbrido Las Pataguas: completado
+[worker 1] [preverification 77/428] b95d0753-5889-4b40-aeb3-5f2754931d99: iniciando
+[worker 2] [preverification 75/428] Nuevo Alimentador Til Til: completado
+[worker 2] [preverification 78/428] 87d9cb6f-74da-4989-be99-346eb5afec5d: iniciando
+[worker 1] [preverification 77/428] BESS Lucero (Ex Lucero Solar): con errores
+[worker 1] [preverification 79/428] f00c0375-4216-43a4-830a-25e3a75ceff5: iniciando
+[worker 3] [preverification 76/428] BESS VAL: completado
+[worker 3] [preverification 80/428] b920abf2-4661-4998-81fa-6ce69b317a5b: iniciando
+[worker 1] [preverification 79/428] PV El Radal: con errores
+[worker 1] [preverification 81/428] aea64537-19fb-4042-9258-6c0de134575d: iniciando
+[worker 2] [preverification 78/428] Parque Solar Fotovoltaico Tirana Oeste: completado
+[worker 2] [preverification 82/428] 549af1f0-b512-4a78-b2aa-59dfaf98ee3b: iniciando
+[worker 3] [preverification 80/428] BESS Río Escondido: con errores
+[worker 3] [preverification 83/428] 13c5cad8-02c9-42bd-9226-9e0b0d06cd55: iniciando
+[worker 2] [preverification 82/428] BESS Llanos del Viento: completado
+[worker 2] [preverification 84/428] 952b0769-41dc-40e5-b7a3-6b2cbe29c14a: iniciando
+[worker 1] [preverification 81/428] BESS Puelche Sur: completado
+[worker 1] [preverification 85/428] b9fe3736-a203-479c-b66a-050a0d6bf55c: iniciando
+[worker 1] [preverification 85/428] PE Pucará: completado
+[worker 1] [preverification 86/428] b56edf35-f5ae-47c7-8ceb-421fdf2f5e65: iniciando
+[worker 3] [preverification 83/428] BESS Cerro Tigre: completado
+[worker 3] [preverification 87/428] 7de92055-2412-420b-8432-264184cdff6d: iniciando
+[worker 3] [preverification 87/428] Parque Eólico Los Cardos: completado
+[worker 3] [preverification 88/428] fa39b782-6f97-4296-84c1-c3ef765252a9: iniciando
+[worker 2] [preverification 84/428] BESS Valle Escondido: completado
+[worker 2] [preverification 89/428] 5853e321-dab7-4ad1-b36d-ad060ed30c55: iniciando
+[worker 3] [preverification 88/428] BESS Gaia						: completado
+[worker 3] [preverification 90/428] 2dd2af55-3c05-475e-9c11-dda979806d63: iniciando
+[worker 1] [preverification 86/428] Parque FV Palmillas: completado
+[worker 1] [preverification 91/428] e5ec60a9-77b3-4ad4-a477-11061dc7c5f5: iniciando
+[worker 1] [preverification 91/428] SAE Volcán Reclus II: completado
+[worker 1] [preverification 92/428] c2b35e3f-ac9c-4ebb-8abf-ed9e1a0d046f: iniciando
+[worker 2] [preverification 89/428] BESS BELTRÁN: completado
+[worker 2] [preverification 93/428] 8652e5cc-843d-4f27-851f-fd6ba85d4421: iniciando
+[worker 3] [preverification 90/428] Parque Fotovoltaico Nacara: completado
+[worker 3] [preverification 94/428] 680a6e9d-acc5-4e9e-b8b3-89cdc9225653: iniciando
+[worker 2] [preverification 93/428] Santa Remedios MC (ex Santa Emilia MC): completado
+[worker 2] [preverification 95/428] 6208384f-0f24-400e-875c-169f59d806d4: iniciando
+[worker 1] [preverification 92/428] BESS Kronos: con errores
+[worker 1] [preverification 96/428] cb03ea60-9594-4c72-8012-82c6f0a50916: iniciando
+[worker 3] [preverification 94/428] Santa Amelia TU: completado
+[worker 3] [preverification 97/428] 2daa138d-815d-44c7-ba67-3f5277620940: iniciando
+[worker 2] [preverification 95/428] San Ramón GR: con errores
+[worker 2] [preverification 98/428] d5fb083e-2462-4ebe-b88a-2dd09e93a9c9: iniciando
+[worker 1] [preverification 96/428] Santa Paloma CU: completado
+[worker 1] [preverification 99/428] 5c48554e-ab93-4284-ac3c-d9f8c570c076: iniciando
+[worker 3] [preverification 97/428] San Agustín MP: con errores
+[worker 3] [preverification 100/428] 80f445e3-eb5a-4398-a842-43363830cb09: iniciando
+[worker 2] [preverification 98/428] Ríos de Ribagorda (ex Los Mejillones LCH): completado
+[worker 2] [preverification 101/428] 34a1643e-0eac-410d-9846-b6a3dc50895c: iniciando
+[worker 3] [preverification 100/428] Parque Solar Fotovoltaico Pedro de Valdivia: completado
+[worker 3] [preverification 102/428] 7ddc4cbd-f918-4d00-a12f-55566f3c8cce: iniciando
+[worker 1] [preverification 99/428] Parque Solar Fotovoltaico La Esperanza: completado
+[worker 1] [preverification 103/428] f2f7ce79-819e-4619-8a6e-c3eefac523bb: iniciando
+[worker 3] [preverification 102/428] BESS Parina Solar: completado
+[worker 3] [preverification 104/428] 375f3426-cd31-4c52-83c2-fdcbe8b247b5: iniciando
+[worker 2] [preverification 101/428]  Ríos de Tudela (ex Ríos Centinela del Tesoro): completado
+[worker 2] [preverification 105/428] 029f6197-2b37-449c-b83a-a22783061d9b: iniciando
+[worker 1] [preverification 103/428] Pita Solar: con errores
+[worker 1] [preverification 106/428] 52c8d933-e79e-4259-9ce3-ca0a66199b7d: iniciando
+[worker 1] [preverification 106/428] BESS Anteros: completado
+[worker 1] [preverification 107/428] 1152d0c2-6f17-4122-aae8-3ff8b364ccc9: iniciando
+[worker 2] [preverification 105/428] BESS Deguco Large: completado
+[worker 2] [preverification 108/428] 3f04b5bd-5164-4794-90a7-e94cfa89b7aa: iniciando
+[worker 1] [preverification 107/428] BESS Volta (Ex BESS Don Ignacio I): completado
+[worker 1] [preverification 109/428] 399c9343-9976-4f6a-9fca-97c00d741085: iniciando
+[worker 3] [preverification 104/428] BESS La Paz: completado
+[worker 3] [preverification 110/428] fe6c25f8-7dbd-4f52-b1d4-88c2e4bc97f3: iniciando
+[worker 1] [preverification 109/428] Yunobo Solar: completado
+[worker 1] [preverification 111/428] aa282215-a0e5-4b44-892c-c68ab4ce4ff4: iniciando
+[worker 2] [preverification 108/428] BESS Asiento Viejo: completado
+[worker 2] [preverification 112/428] e08b4a8b-c0f4-47cd-b0d9-eea93ed5a22f: iniciando
+[worker 1] [preverification 111/428] Proyecto Hortensias: completado
+[worker 1] [preverification 113/428] ccf8a153-306d-479a-bc79-2c65442625a7: iniciando
+[worker 3] [preverification 110/428] Arena Generación: completado
+[worker 3] [preverification 114/428] 4088e3b0-2d49-4e06-a09a-0e70e67b50e5: iniciando
+[worker 2] [preverification 112/428] Parque Eólico Las Nieves: completado
+[worker 2] [preverification 115/428] 727534d2-0fd9-41b5-9cbc-c862156ba1c7: iniciando
+[worker 1] [preverification 113/428] Cuatro Vientos: con errores
+[worker 1] [preverification 116/428] b821b00b-1153-4fd3-a03e-c30c4f380c2b: iniciando
+[worker 2] [preverification 115/428] Parque Eólico Chanchan: completado
+[worker 2] [preverification 117/428] 9510f295-3efe-4abe-ae58-d083cf334172: iniciando
+[worker 3] [preverification 114/428] Reserva Taltal: completado
+[worker 3] [preverification 118/428] a37a196a-2dbf-4f55-a70c-5d817b6e1dc3: iniciando
+[worker 1] [preverification 116/428] Sistema de Almacenamiento del PFV Finis Terrae: completado
+[worker 1] [preverification 119/428] f8e1c916-d2bb-4732-8d75-cc8c1ea16d50: iniciando
+[worker 3] [preverification 118/428] PFV + BESS Entre Valles: completado
+[worker 3] [preverification 120/428] f635f984-35ba-48b5-a87c-16d5f9fc67c0: iniciando
+[worker 1] [preverification 119/428] BESS Terral (Ex-BESS Duqueco): completado
+[worker 1] [preverification 121/428] a1efc7d6-b198-4db5-83d1-b12d5dcea151: iniciando
+[worker 1] [preverification 121/428] BESS Codorniz: completado
+[worker 1] [preverification 122/428] a8a34c90-8b66-4fb4-a7af-9825e8452eac: iniciando
+[worker 2] [preverification 117/428] PSF BESS Nogal: con errores
+[worker 2] [preverification 123/428] 13ba0117-4496-45e2-97df-5267d85ae766: iniciando
+[worker 2] [preverification 124/428] 745f00fa-a875-45e9-aaf8-dec7cda2bd54: iniciando
+[worker 1] [preverification 122/428] ACS DC SANTIAGO I: completado
+[worker 1] [preverification 125/428] 6a3df064-5661-46b5-90bd-219c732ae7e8: iniciando
+[worker 1] [preverification 125/428] Parque Eólico Antofagasta Fase 2: completado
+[worker 1] [preverification 126/428] 2136f13b-73b9-457d-9a2a-cf1345ee90fc: iniciando
+[worker 3] [preverification 120/428] BESS Copihue Nuevo: completado
+[worker 3] [preverification 127/428] 36ac4247-56db-4f61-bacc-c1a1fe634e5a: iniciando
+[worker 2] [preverification 124/428] BESS Halcón 35: completado
+[worker 2] [preverification 128/428] 4d693d93-a6b2-4ddc-9e17-242c7f2c097f: iniciando
+[worker 2] [preverification 128/428] BESS Guanchoi: completado
+[worker 2] [preverification 129/428] 87b456e0-1bc1-4acf-bbd6-637a2ad0688f: iniciando
+[worker 1] [preverification 126/428] BESS Chaguales: completado
+[worker 1] [preverification 130/428] 5fbffed8-e348-49e2-bb10-37fe8b92e8c7: iniciando
+[worker 3] [preverification 127/428] Finis Terrae II: completado
+[worker 3] [preverification 131/428] 9e83fa72-3030-421b-8806-43f550312971: iniciando
+[worker 3] [preverification 131/428] BESS Los Castaños: completado
+[worker 3] [preverification 132/428] 80eef6dc-990d-4ef1-b615-b43ff4ae2ba5: iniciando
+[worker 1] [preverification 130/428] BESS Coo Energía: completado
+[worker 1] [preverification 133/428] 7a909a72-ae71-445f-9f87-9e92f1b1a866: iniciando
+[worker 3] [preverification 132/428] BESS Halcón 31: con errores
+[worker 3] [preverification 134/428] 9cc9d54c-c5eb-46b5-9368-344a2645fde7: iniciando
+[worker 2] [preverification 129/428] Parque Eólico Wayra: completado
+[worker 2] [preverification 135/428] 05b5db77-bbcf-40a3-804d-bf5d997911ea: iniciando
+[worker 1] [preverification 133/428] BESS San Juan II: completado
+[worker 1] [preverification 136/428] 35d8e9be-a594-48f4-9eac-60924492f8ad: iniciando
+[worker 1] [preverification 136/428] BESS Rey Cobre: completado
+[worker 1] [preverification 137/428] 3d35f5b5-8c58-4ee3-8848-ee79040e7045: iniciando
+[worker 2] [preverification 135/428] San Nicolás del Parral: completado
+[worker 2] [preverification 138/428] 34a85497-cd57-4e5c-958f-d3658d5d0802: iniciando
+[worker 1] [preverification 137/428] BESS Punta del Viento: completado
+[worker 1] [preverification 139/428] af5420ee-784d-4a38-a2d0-6a4702e64cb2: iniciando
+[worker 1] [preverification 139/428] Tatara: completado
+[worker 1] [preverification 140/428] 8507ed53-f57e-4ae2-8105-02ac0b27c483: iniciando
+[worker 3] [preverification 134/428] Santa Ana de Maipo: con errores
+[worker 3] [preverification 141/428] 6ca90e56-c901-4c0d-9be0-211c3873af21: iniciando
+[worker 2] [preverification 138/428] PE Entre Ríos: completado
+[worker 2] [preverification 142/428] f8b0f4a0-fb2c-46c0-b75b-78324a43b9f4: iniciando
+[worker 3] [preverification 141/428] Lolol: completado
+[worker 3] [preverification 143/428] 91a9f788-38a0-47f9-a604-b1aa2837d85a: iniciando
+[worker 1] [preverification 140/428] Llanos del Sol: completado
+[worker 1] [preverification 144/428] c05de607-7e30-4459-b789-7ebf24ab101d: iniciando
+[worker 2] [preverification 142/428] BESS Queldón: completado
+[worker 2] [preverification 145/428] 8b8d49b8-9bf1-48c5-929d-335b560a7587: iniciando
+[worker 3] [preverification 143/428] BESS Pájaro Plomo: completado
+[worker 3] [preverification 146/428] 8b66ae34-e8c8-4abe-8e18-a99d682c5e05: iniciando
+[worker 3] [preverification 146/428] Híbrido Longotoma: completado
+[worker 3] [preverification 147/428] 1a1b33a5-947e-4482-be35-3d9e9f3c74f4: iniciando
+[worker 3] [preverification 147/428] BESS Elysium: completado
+[worker 3] [preverification 148/428] c0ea7b6f-5825-4717-a7bf-d266619863cb: iniciando
+[worker 1] [preverification 144/428] Sendero Solar: completado
+[worker 1] [preverification 149/428] 306e14d4-c1b0-479d-a7e8-52659115c291: iniciando
+[worker 1] [preverification 149/428] BESS Júpiter: completado
+[worker 1] [preverification 150/428] b28f83eb-d3d2-4b40-9988-b0b069a6b30b: iniciando
+[worker 2] [preverification 145/428] Proyecto Rivera: completado
+[worker 2] [preverification 151/428] f45197b3-c706-4829-afc4-089a614bc1fd: iniciando
+[worker 2] [preverification 151/428] PFV Cartabio (ex BESS Dulcinea): completado
+[worker 2] [preverification 152/428] 8ecb1ee7-004e-477e-a19a-11f9a8a4cc18: iniciando
+[worker 3] [preverification 148/428] BESS Kaus: completado
+[worker 3] [preverification 153/428] b9e4698c-c748-46d0-ae04-53c56ef92f8f: iniciando
+[worker 1] [preverification 150/428] BESS Troya: completado
+[worker 1] [preverification 154/428] 82797da5-2f87-473e-8a38-8e9401f54eb6: iniciando
+[worker 1] [preverification 154/428] BESS Altair (Ex BESS Antara): con errores
+[worker 1] [preverification 155/428] 9b87e3e0-f706-43a9-8ad4-06fef66434ee: iniciando
+[worker 2] [preverification 152/428] Parque Eólico El Alba: completado
+[worker 2] [preverification 156/428] 2369f0f0-abe4-441c-8ea9-7250254fc52d: iniciando
+[worker 1] [preverification 155/428] BESS La Solana (Ex BESS Las Terrazas): completado
+[worker 1] [preverification 157/428] ef1fd0fe-23df-4f5d-9dac-f9c2918b0670: iniciando
+[worker 3] [preverification 153/428] PSF Kolgnag II: con errores
+[worker 3] [preverification 158/428] 5ff09270-9ac1-49f3-b5a5-34e421c28844: iniciando
+[worker 2] [preverification 156/428] Bess Esperanza: completado
+[worker 2] [preverification 159/428] 6385af57-a910-41d3-b53a-1bd335162340: iniciando
+[worker 3] [preverification 158/428] DDA BESS Expansión I: completado
+[worker 3] [preverification 160/428] 463488f5-8ace-4ff1-8e89-f5f57c4ab5d2: iniciando
+[worker 1] [preverification 157/428] Tierruca del Verano: completado
+[worker 1] [preverification 161/428] 9c57ab02-e0c2-4ded-abc4-a84efdcf5480: iniciando
+[worker 2] [preverification 159/428] BESS Fumarel: completado
+[worker 2] [preverification 162/428] ea339e73-c672-47e8-8a17-da2a9e6d742a: iniciando
+[worker 2] [preverification 162/428] BESS Herrerillo: completado
+[worker 2] [preverification 163/428] 39b32db5-533e-4681-b15d-f9c79f2801c8: iniciando
+[worker 1] [preverification 161/428] BESS Abanto: completado
+[worker 1] [preverification 164/428] b6b10a16-dfa0-40b5-8647-0dbc623be099: iniciando
+[worker 2] [preverification 163/428] BESS Triguero: completado
+[worker 2] [preverification 165/428] fc55d2fa-abdc-4938-82bd-3ebd484e3faf: iniciando
+[worker 3] [preverification 160/428] CRCA Michilla Bajo: completado
+[worker 3] [preverification 166/428] 21dd115e-ce46-4580-9d45-7297a1c5767a: iniciando
+[worker 3] [preverification 166/428] Llanos de Chulo: completado
+[worker 3] [preverification 167/428] c59c302a-dabc-4a2e-9141-1022cf038ef8: iniciando
+[worker 3] [preverification 167/428] BESS Cerro Coloso: completado
+[worker 3] [preverification 168/428] b00515be-0927-4e42-a875-792308b7608d: iniciando
+[worker 1] [preverification 164/428] BESS FLOR DE LOTO: completado
+[worker 1] [preverification 169/428] 225c533d-e6a6-4c00-a5c3-aea2d61a2c79: iniciando
+[worker 2] [preverification 165/428] BESS Vicuña: completado
+[worker 2] [preverification 170/428] 2713feed-1eaa-4aa8-b577-8521a4ea0668: iniciando
+[worker 3] [preverification 168/428] BESS Quilleco: completado
+[worker 3] [preverification 171/428] f765e027-b3d2-4feb-871f-38fdf17a29de: iniciando
+[worker 1] [preverification 169/428] BESS Machalí: completado
+[worker 1] [preverification 172/428] fdf0cd6a-a9e7-41af-9658-bcdc91ff7291: iniciando
+[worker 1] [preverification 172/428] BESS Parque Fotovoltaico Pedro de Valdivia Etapa 2: completado
+[worker 1] [preverification 173/428] 815abfe1-21c9-4ad8-88fa-793457912e9e: iniciando
+[worker 2] [preverification 170/428] BESS Parque Fotovoltaico Pedro de Valdivia: completado
+[worker 2] [preverification 174/428] 7ca75399-f36c-4135-a789-d7853b9b20f0: iniciando
+[worker 3] [preverification 171/428] BESS El Copao: completado
+[worker 3] [preverification 175/428] c9313025-f3d8-464d-be2c-254d5528a747: iniciando
+[worker 2] [preverification 174/428] Parque Fotovoltaico La Verdiona Solar: completado
+[worker 2] [preverification 176/428] 0f50ebaa-5ad5-40ab-8ea9-27f2d222bc0d: iniciando
+[worker 1] [preverification 173/428] BESS Chinchilla: con errores
+[worker 1] [preverification 177/428] f057b444-8ca1-42e5-9a31-4e2cd8d59127: iniciando
+[worker 3] [preverification 175/428] Explotación de Sulfuros Radomiro Tomic Fase II: completado
+[worker 3] [preverification 178/428] 3fd4b16a-35d9-4e71-9b14-6ed9401d9a30: iniciando
+[worker 3] [preverification 178/428] PE La Pradera: completado
+[worker 3] [preverification 179/428] 0192d7e9-dcfe-4cb3-a8a7-1f933f635986: iniciando
+[worker 2] [preverification 176/428] Data Center Santiago Chile 4 (SCL4): completado
+[worker 2] [preverification 180/428] 3c51961d-40f0-4d8e-91f9-e8488ab4c404: iniciando
+[worker 1] [preverification 177/428] Data Center Santiago Chile 4 (SCL4): completado
+[worker 1] [preverification 181/428] 5c96f96d-e12b-454d-9661-dd644d062d0a: iniciando
+[worker 3] [preverification 179/428] PFV HUGO LORENZO: completado
+[worker 3] [preverification 182/428] f9a77e09-a21a-4fb6-a921-b3bd28a4f708: iniciando
+[worker 1] [preverification 181/428] BESS Kelas: completado
+[worker 1] [preverification 183/428] 257b7b85-17f5-4eeb-8ec2-941389b2e249: iniciando
+[worker 3] [preverification 182/428] BESS Naos: completado
+[worker 3] [preverification 184/428] 0bf7c412-e185-43d9-b360-948822e1e854: iniciando
+[worker 2] [preverification 180/428] BESS Relbún: con errores
+[worker 2] [preverification 185/428] bd36a01a-0614-4972-941a-ff02fe047ff5: iniciando
+[worker 3] [preverification 184/428] BESS Hamal: completado
+[worker 3] [preverification 186/428] 8ced31e0-8706-4064-a0b6-791ae972c398: iniciando
+[worker 2] [preverification 185/428] PE MAGUILLIN : completado
+[worker 2] [preverification 187/428] eb339143-182a-4a9c-b1ec-41475089cf49: iniciando
+[worker 3] [preverification 186/428] Los Merengues: completado
+[worker 3] [preverification 188/428] 65e92dd2-ed1c-4bc4-8a11-68af1f5b9b7e: iniciando
+[worker 2] [preverification 187/428] Tropical: completado
+[worker 2] [preverification 189/428] efeda841-5293-4580-997e-c888c461a1aa: iniciando
+[worker 3] [preverification 188/428] Ramaditas (Ex-Tamarugal Solar 3): completado
+[worker 3] [preverification 190/428] 65eac522-fdce-408a-bb8d-361d6917ca0e: iniciando
+[worker 1] [preverification 183/428] BESS Los Ñisñiles: completado
+[worker 1] [preverification 191/428] 87723308-8bc3-4356-a187-20989df85ce3: iniciando
+[worker 3] [preverification 190/428] BESS Romadilla (ex-BESS Puquio): completado
+[worker 3] [preverification 192/428] ee092c36-45da-46b3-bab4-99b86cfe6589: iniciando
+[worker 2] [preverification 189/428] Ampliación PE Lebu-Toro: con errores
+[worker 2] [preverification 193/428] 365f2dd9-110f-47bd-b6aa-e9913d40b5ce: iniciando
+[worker 3] [preverification 192/428] Sol de Lila 4: completado
+[worker 3] [preverification 194/428] 1c93155e-5283-4915-8a98-73767cfb9055: iniciando
+[worker 1] [preverification 191/428] Chinchilla SPA: completado
+[worker 1] [preverification 195/428] 60aecdf4-a779-41ff-95a3-2f7382d92507: iniciando
+[worker 3] [preverification 194/428] Solar Millán Etapa II Almacenamiento: completado
+[worker 3] [preverification 196/428] ff959fad-dbfe-44e2-88ef-581825a971ce: iniciando
+[worker 3] [preverification 196/428] Volcán Puntiagudo Etapa II: completado
+[worker 3] [preverification 197/428] 9ca4faf3-224c-442b-9da0-5f35bf74cc7b: iniciando
+[worker 1] [preverification 195/428] Ciclón Exploradora: completado
+[worker 1] [preverification 198/428] 99c8651f-e045-442f-92b7-f5a6882c7484: iniciando
+[worker 2] [preverification 193/428] UHYB Los Sauces de Leyda: completado
+[worker 2] [preverification 199/428] f9d1abae-0e32-4a74-baa6-cb54037b4d53: iniciando
+[worker 1] [preverification 198/428] Datacenter Campus Norte Etapa II: completado
+[worker 1] [preverification 200/428] 59549ed2-cae8-4366-b8ec-9ea139c51fdd: iniciando
+[worker 2] [preverification 199/428] SAE Volcán Puntas Negras: completado
+[worker 2] [preverification 201/428] dab4867e-2b8d-468b-a7a2-e62f21b2d7ca: iniciando
+[worker 3] [preverification 197/428] Fehaciente Guanay: completado
+[worker 3] [preverification 202/428] b9c3c64d-5ed6-4085-b545-c1154b8e9857: iniciando
+[worker 1] [preverification 200/428] Sandstone BESS IV Expansión: completado
+[worker 1] [preverification 203/428] fcd7d91f-015e-43b4-959b-7e6462e4a64c: iniciando
+[worker 1] [preverification 203/428] Parque Fotovoltaico Pillancó: completado
+[worker 1] [preverification 204/428] 58c3e347-fce2-4540-8914-a54290a70bfe: iniciando
+[worker 3] [preverification 202/428] PFV Nos: completado
+[worker 3] [preverification 205/428] 1a5e7949-5a4e-4f50-8192-1f440633a444: iniciando
+[worker 2] [preverification 201/428] Sistema de Almacenamiento Sol de Lila 3: completado
+[worker 2] [preverification 206/428] 739b6568-0b3a-40ec-916d-d685870d0928: iniciando
+[worker 3] [preverification 205/428] Tranque Solar (ex BESS Tranque): completado
+[worker 3] [preverification 207/428] 2e3068dd-be95-46ac-907a-c9c286e524ba: iniciando
+[worker 1] [preverification 204/428] PFV Beta Solar: completado
+[worker 1] [preverification 208/428] 1f082eb0-838b-4a24-a0a6-07dbacb5f12d: iniciando
+[worker 3] [preverification 207/428] Parque Eólico Morros: completado
+[worker 3] [preverification 209/428] 1fe5cd3b-1a0b-4582-a4fd-e225fad7d26c: iniciando
+[worker 1] [preverification 208/428] Banderita: completado
+[worker 1] [preverification 210/428] afe19087-f3c7-4445-a583-6d6068338b97: iniciando
+[worker 2] [preverification 206/428] PE Cerro Los Loros: con errores
+[worker 2] [preverification 211/428] b90c896d-95ca-4f18-b459-c2eba8f29283: iniciando
+[worker 1] [preverification 210/428] Parque Eólico Quirihue Poniente: completado
+[worker 1] [preverification 212/428] bfd6352a-9b82-49ae-8798-1de4e83df2b0: iniciando
+[worker 1] [preverification 212/428] Parque Eólico Monterrey: completado
+[worker 1] [preverification 213/428] 7c70dbf3-f195-4bde-a7db-793c0016f788: iniciando
+[worker 2] [preverification 211/428] Minera Comahue: completado
+[worker 2] [preverification 214/428] c80503d7-2b2b-4e00-afc0-750cf72db35a: iniciando
+[worker 3] [preverification 209/428] BESS Pirque Solaris: completado
+[worker 3] [preverification 215/428] 685e11cf-28d9-4dd5-9601-b4a694656f2f: iniciando
+[worker 1] [preverification 213/428] Parque Eólico Culenco: completado
+[worker 1] [preverification 216/428] dacacefd-9278-43e0-8451-a8a7525d9dd8: iniciando
+[worker 1] [preverification 216/428] central fotovoltaica Inca de Varas I: completado
+[worker 1] [preverification 217/428] 4754695d-23c7-4f70-8855-b223de89ef21: iniciando
+[worker 2] [preverification 214/428] BESS Lo Prado: con errores
+[worker 2] [preverification 218/428] 0a62aed9-a406-4a6d-bd83-028cda1fb81c: iniciando
+[worker 1] [preverification 217/428] Híbrido Socos: con errores
+[worker 1] [preverification 219/428] b228adc6-1f87-46f4-b41b-149de5f8c276: iniciando
+[worker 3] [preverification 215/428] Central fotovoltaica inca de varas II: con errores
+[worker 3] [preverification 220/428] 3843a155-1810-4452-80c6-98f8a79981c2: iniciando
+[worker 3] [preverification 220/428] Híbrido El Lino: completado
+[worker 3] [preverification 221/428] 12cd36f2-6deb-4aed-abd9-7b732c73533c: iniciando
+[worker 2] [preverification 218/428] Solar Oriente: completado
+[worker 2] [preverification 222/428] 6adeafd9-9538-4ec4-b6bf-3d8e052ce375: iniciando
+[worker 1] [preverification 219/428] BESS Don Renato (Ex BESS Peñablanca): completado
+[worker 1] [preverification 223/428] e4cdebf8-463f-4af7-92ce-b258b9cd4501: iniciando
+[worker 1] [preverification 223/428] BESS Pegaso: completado
+[worker 1] [preverification 224/428] 3a91a300-392b-474f-b0a4-581ddfd5d862: iniciando
+[worker 2] [preverification 222/428] BESS Solution 3: completado
+[worker 2] [preverification 225/428] ac42a828-bb31-4097-9648-736a8952d27c: iniciando
+[worker 3] [preverification 221/428] BESS VOLTIO: completado
+[worker 3] [preverification 226/428] 935f146e-359d-474e-a6fd-2a62d1e9a9c9: iniciando
+[worker 1] [preverification 224/428] PFV Tres Cruces + BESS: completado
+[worker 1] [preverification 227/428] 07886a5d-1a4c-42d1-8f59-f3485c17b113: iniciando
+[worker 3] [preverification 226/428] Porvenir II: completado
+[worker 3] [preverification 228/428] e57f3902-45a9-487f-ac60-a3e1eacd1cb3: iniciando
+[worker 2] [preverification 225/428] BESS Javiera: completado
+[worker 2] [preverification 229/428] bda43f9c-ace5-493b-b445-e2314388bbb3: iniciando
+[worker 3] [preverification 228/428] BESS San Esteban: completado
+[worker 3] [preverification 230/428] 235263b6-ce85-4354-9f64-d3a08baf693d: iniciando
+[worker 1] [preverification 227/428] Parque Solar La Espuela: completado
+[worker 1] [preverification 231/428] ffabf8e6-0073-41fa-922b-a20d71f050e6: iniciando
+[worker 3] [preverification 230/428] Parque Fotovoltaico El Trébol : completado
+[worker 3] [preverification 232/428] 2f1d17a6-1e67-4b36-bed9-be52d840ef9f: iniciando
+[worker 2] [preverification 229/428] BESS Almirante: con errores
+[worker 2] [preverification 233/428] 0b6759e6-8b7c-4059-af29-fd5b23857328: iniciando
+[worker 1] [preverification 231/428] PV Victoria: completado
+[worker 1] [preverification 234/428] 06c62911-e2ec-46cf-a933-231692074a1c: iniciando
+[worker 1] [preverification 234/428] Odata San Bernardo Expansión: completado
+[worker 1] [preverification 235/428] 4c766168-7844-43b1-894c-a66e71a39419: iniciando
+[worker 3] [preverification 232/428] BESS Parque Fotovoltaico Oro y Cielo: completado
+[worker 3] [preverification 236/428] f94e96b8-dd36-4579-a041-6ccb2756b3a5: iniciando
+[worker 2] [preverification 233/428] Bennu Wind: completado
+[worker 2] [preverification 237/428] ef50e9ae-ef37-45fc-a76b-aa0fdd6b2a5c: iniciando
+[worker 1] [preverification 235/428] PH Futuro Solar (ex BESS Ladera Sur 2): completado
+[worker 1] [preverification 238/428] 0b6e7177-57bc-4ec1-9f1f-db5fc72e406f: iniciando
+[worker 3] [preverification 236/428] BESS Ladera Sur 1: completado
+[worker 3] [preverification 239/428] 121531a5-7dd4-4b0b-b3aa-dd5678ae3045: iniciando
+[worker 3] [preverification 240/428] 6eece465-7319-4eb2-a7b7-e832a77da091: iniciando
+[worker 3] [preverification 240/428] SE PLANTA CERRILLOS 110/23 KV 50MVA: completado
+[worker 3] [preverification 241/428] cd8d662f-f223-448d-af9d-7e731585c58d: iniciando
+[worker 1] [preverification 238/428] Parque Eólico Los Coihues: completado
+[worker 1] [preverification 242/428] 369991b6-c99f-4898-9fa9-8bdc823dbf84: iniciando
+[worker 2] [preverification 237/428] BESS Alto Valle (Ex Parque Eólico Alto Valle): completado
+[worker 2] [preverification 243/428] 1dc04024-9aca-489d-b1e6-20f0a252db01: iniciando
+[worker 3] [preverification 241/428] BESS Siete Ríos: con errores
+[worker 3] [preverification 244/428] 6d95ef01-c2fb-4443-afe2-8c05e807e8eb: iniciando
+[worker 3] [preverification 244/428] BESS Rembrandt: completado
+[worker 3] [preverification 245/428] 5d7132c0-c1f4-444b-b544-e3d7292fd849: iniciando
+[worker 1] [preverification 242/428] Reconversión CTM2: completado
+[worker 1] [preverification 246/428] 53b8dd2f-93b1-4138-8f32-72745eba028e: iniciando
+[worker 2] [preverification 243/428] Reconversión CTM1: completado
+[worker 2] [preverification 247/428] dd5fe819-fbb6-4f2f-b83e-4c4d47a0c84c: iniciando
+[worker 3] [preverification 245/428] Ampliación Mila del Verano Solar: con errores
+[worker 3] [preverification 248/428] 6a48b334-6df9-4b3c-8691-121a599857e8: iniciando
+[worker 1] [preverification 246/428] Ampliación Tierruca del Verano: con errores
+[worker 1] [preverification 249/428] 64fe5e18-3137-4109-ad2d-1ef460cb6e3d: iniciando
+[worker 1] [preverification 250/428] fa66492a-80a5-4aca-8856-bd7f864d31f2: iniciando
+[worker 2] [preverification 247/428] Ampliación Catalina del Verano: completado
+[worker 2] [preverification 251/428] d0754fa6-0fef-4260-9a0a-4e29102e8dda: iniciando
+[worker 3] [preverification 248/428] BESS PFV Zaldivar: completado
+[worker 3] [preverification 252/428] ff2b0229-4545-46d6-80d6-4a5b51122f55: iniciando
+[worker 3] [preverification 252/428] BESS Helios: completado
+[worker 3] [preverification 253/428] 43f75027-aaaf-4e42-8613-fede2ced571f: iniciando
+[worker 3] [preverification 253/428] BESS Agape: completado
+[worker 3] [preverification 254/428] 3be6de96-1c1f-4b36-8b92-6fb1d768a64d: iniciando
+[worker 1] [preverification 250/428] SAE Vestas: completado
+[worker 1] [preverification 255/428] b4769ff1-06cc-4fad-89da-b5c799b4ece3: iniciando
+[worker 2] [preverification 251/428] BESS Nemesis: completado
+[worker 2] [preverification 256/428] 722c630e-2c26-4646-a3eb-8ce5834dd007: iniciando
+[worker 2] [preverification 256/428] LIBRILLO SOLAR: completado
+[worker 2] [preverification 257/428] bf7dfd22-00c3-45dd-b4f8-b0ac4f229ae6: iniciando
+[worker 1] [preverification 255/428] BLANCO: con errores
+[worker 1] [preverification 258/428] 56a0276a-7f19-4587-8c23-8706b48f82c1: iniciando
+[worker 3] [preverification 254/428] Hornillo Generación (Ex Punitaqui Generación): con errores
+[worker 3] [preverification 259/428] 0e8dd9a0-1861-4d18-ab1e-92c871262fb1: iniciando
+[worker 2] [preverification 257/428] Parque Fotovoltaico Hades: con errores
+[worker 2] [preverification 260/428] c457c347-3148-49da-8d2c-934beddbf8aa: iniciando
+[worker 1] [preverification 258/428] Pampino: con errores
+[worker 1] [preverification 261/428] 3ed03b17-c2e6-463f-ba1c-aec06dc5dfd5: iniciando
+[worker 3] [preverification 259/428] Pampino: completado
+[worker 3] [preverification 262/428] 99d5a370-7bce-4cba-aa2f-af381fd43e9c: iniciando
+[worker 2] [preverification 260/428] Parque Eólico Trumao: completado
+[worker 2] [preverification 263/428] 3e79c284-1565-477f-bf34-b73d21b8fa29: iniciando
+[worker 2] [preverification 263/428] Puma BESS (Ex-SAE Monte Mina): completado
+[worker 2] [preverification 264/428] 6a0e14ae-394e-4572-8dde-bc6a359bf521: iniciando
+[worker 1] [preverification 261/428] Anselmo Solar (Ex San Felipe): completado
+[worker 1] [preverification 265/428] 60c4608f-c4e4-457c-9862-6347341409ce: iniciando
+[worker 3] [preverification 262/428] BESS Rocío: completado
+[worker 3] [preverification 266/428] d422cee6-9b68-4a8f-a331-5580c71c03ec: iniciando
+[worker 2] [preverification 264/428] Valle Grande Generación (Ex-Lampa Generación): completado
+[worker 2] [preverification 267/428] 75595630-8d71-4874-874d-2cb4c8221ec2: iniciando
+[worker 2] [preverification 267/428] ACS DC SANTIAGO II: completado
+[worker 2] [preverification 268/428] 3f827dcc-30b2-4c87-895b-0d74af3f8ac2: iniciando
+[worker 1] [preverification 265/428] PE San Lorenzo: completado
+[worker 1] [preverification 269/428] d6f47cad-16d0-4ffb-9aa2-7a68e57c8346: iniciando
+[worker 3] [preverification 266/428] Parque Fotovoltaico Don Patricio: completado
+[worker 3] [preverification 270/428] 9d12758d-6f19-4714-9f30-b816109e7360: iniciando
+[worker 1] [preverification 271/428] 625925ff-7fe9-4899-9835-dac488af96cf: iniciando
+[worker 3] [preverification 272/428] adebcc12-7143-4211-a9f4-e3106a39bb7f: iniciando
+[worker 2] [preverification 273/428] 093d40b9-d1fd-4267-8a06-0453cf7fbe1d: iniciando
+[worker 3] [preverification 272/428] Marina II: completado
+[worker 3] [preverification 274/428] 0a4d32a7-1468-4041-b7d2-542267f9a201: iniciando
+[worker 1] [preverification 271/428] PE Malvilla : completado
+[worker 1] [preverification 275/428] 59af3443-c842-46d6-b5e0-4dfff0943307: iniciando
+[worker 2] [preverification 273/428] Quilaco Solar: completado
+[worker 2] [preverification 276/428] 3424e73d-7cc1-4909-971e-ddd2616163a2: iniciando
+[worker 3] [preverification 274/428] Ampliación Parque Eólico Chequenes (ex Pemuco) + BESS: con errores
+[worker 3] [preverification 277/428] becfd852-160f-4175-8beb-2bce8521dfbe: iniciando
+[worker 2] [preverification 276/428] Parque Fotovoltaico Llanos de Rungue: completado
+[worker 2] [preverification 278/428] 64248745-66a6-431b-b4ed-941f4f868bc4: iniciando
+[worker 1] [preverification 275/428] BESS Fidelia: completado
+[worker 1] [preverification 279/428] 506cc46c-c7e8-419d-b332-08cdd2519993: iniciando
+[worker 1] [preverification 279/428] Proyecto Tirana Solar Tirana Oeste Fase II: completado
+[worker 1] [preverification 280/428] a3399d04-dd0a-40ac-bcb2-7a0ab84c64fb: iniciando
+[worker 3] [preverification 277/428] Marina: completado
+[worker 3] [preverification 281/428] 4043a7c5-cee8-4a73-93d4-2548c60eacd5: iniciando
+[worker 3] [preverification 281/428] BESS Nudo Norte: completado
+[worker 3] [preverification 282/428] de5afff9-39d9-4779-9902-6cbdcacdd67a: iniciando
+[worker 2] [preverification 278/428] Parque Fotovoltaico Las Cunas: completado
+[worker 2] [preverification 283/428] 60a8fb6a-7f73-4c47-900e-57e13802a94e: iniciando
+[worker 3] [preverification 282/428] Parque Fotovoltaico y Almacenamiento Semillero: completado
+[worker 3] [preverification 284/428] 3831e266-fc3b-4a0d-9fc1-8c8328cbeb55: iniciando
+[worker 1] [preverification 280/428] Tovaku Costa: completado
+[worker 1] [preverification 285/428] 1ed098ee-63b6-4e1a-b7ff-3b06c64eea05: iniciando
+[worker 1] [preverification 285/428] Meseta de los Andes BESS: completado
+[worker 1] [preverification 286/428] b8b7cf17-ebc1-4b45-b144-b25b278ef2b4: iniciando
+[worker 2] [preverification 283/428] SAE Fénix: completado
+[worker 2] [preverification 287/428] 74d89c04-a236-4a05-a638-7030078441ac: iniciando
+[worker 3] [preverification 284/428] SAE Capilla: completado
+[worker 3] [preverification 288/428] 8e952372-c23f-443f-94ad-6e571bb61fa8: iniciando
+[worker 2] [preverification 287/428] Ampliación Mega Data Center Lampa: completado
+[worker 2] [preverification 289/428] 1b20fe6a-9c19-406c-a5d0-71a643c59965: iniciando
+[worker 2] [preverification 289/428] Parque Eólico Las Fresias: completado
+[worker 2] [preverification 290/428] 7157e011-3e4b-470e-ba5c-a73f7cc7022d: iniciando
+[worker 1] [preverification 286/428] SAE Lux: con errores
+[worker 1] [preverification 291/428] d6d050ce-ded2-44ac-a446-5fa9fc2f4dac: iniciando
+[worker 3] [preverification 288/428] Parque Eólico Lavanda: completado
+[worker 3] [preverification 292/428] 3a9f3495-f679-4537-8844-f128d645120a: iniciando
+[worker 3] [preverification 292/428] Central Fotovoltaica Lucas: completado
+[worker 3] [preverification 293/428] 4e687761-2ae9-42b3-8fda-5024336e9a65: iniciando
+[worker 2] [preverification 290/428] Parque Rigel: completado
+[worker 2] [preverification 294/428] 114643fd-b016-47dc-b11d-27b8ffff35ff: iniciando
+[worker 1] [preverification 291/428] AR CHANGOS SOLAR II: completado
+[worker 1] [preverification 295/428] 6c3dce96-09a7-4f1f-b103-0c7c8f3040de: iniciando
+[worker 2] [preverification 294/428] Central Fotovoltaica Camino al Sol: completado
+[worker 2] [preverification 296/428] 5debdb35-f1ea-4cb2-8c59-ac64e4392ea7: iniciando
+[worker 1] [preverification 295/428] Central Fotovoltaica Gabriel: completado
+[worker 1] [preverification 297/428] 0f8d1f0c-d666-40a3-9a13-e73a7f0e0cf3: iniciando
+[worker 2] [preverification 296/428] Central Fotovoltaica Florencia: completado
+[worker 2] [preverification 298/428] 4ad6cdc5-2b86-4b2f-9bcb-ac0d2b00e78e: iniciando
+[worker 1] [preverification 297/428] Central Fotovoltaica Teodoro: completado
+[worker 1] [preverification 299/428] ee1bb452-cea4-4c86-9ace-a257a3146127: iniciando
+[worker 3] [preverification 293/428] RETIROS AR CHANGOS BESS: completado
+[worker 3] [preverification 300/428] 72f838d3-921f-40d1-ae39-bb16970d3cbf: iniciando
+[worker 1] [preverification 299/428] Santa Ema Solar: completado
+[worker 1] [preverification 301/428] 558b0d04-bf18-4987-925f-c86c0359cabe: iniciando
+[worker 2] [preverification 298/428] Puerto y Desaladora Minera Santo Domingo: con errores
+[worker 2] [preverification 302/428] 823f3fcc-cce9-4a8f-9918-ed3153a61643: iniciando
+[worker 3] [preverification 300/428] BESS Calama: con errores
+[worker 3] [preverification 303/428] 1b9941eb-0ed9-4e7d-b3cb-f4f0a0aff501: iniciando
+[worker 1] [preverification 301/428] El Pasajero: completado
+[worker 1] [preverification 304/428] 9e640c6b-8a66-4ef1-95cd-3bb5ef856d13: iniciando
+[worker 3] [preverification 303/428] Parque Fotovoltaico Los Durmientes: completado
+[worker 3] [preverification 305/428] c0337860-57bf-4b56-84ed-49d14c92549f: iniciando
+[worker 3] [preverification 305/428] Lucia Solar BESS: completado
+[worker 3] [preverification 306/428] 812b79ee-48f3-4f7e-88c0-4c373656e8e9: iniciando
+[worker 3] [preverification 306/428] Don Ciriaco: completado
+[worker 3] [preverification 307/428] fbba403f-069c-4320-8dd6-d78b3f5317c1: iniciando
+[worker 3] [preverification 307/428] Cerro Los Dorados: completado
+[worker 3] [preverification 308/428] 6d2c40cb-0288-466b-93ce-9d30ea3ea3a3: iniciando
+[worker 2] [preverification 302/428] BESS Alto Guayacanes: con errores
+[worker 2] [preverification 309/428] 89442cf5-83df-4be1-9db9-5e18ea3191eb: iniciando
+[worker 3] [preverification 308/428] Parque Eólico Cobquecura: completado
+[worker 3] [preverification 310/428] 938112bb-1d38-4ab7-b6ee-b1adbdf763d5: iniciando
+[worker 1] [preverification 304/428] PFV Tata Inti + BESS: con errores
+[worker 1] [preverification 311/428] d6d09a31-edaa-4ac8-8dad-2e23dd7b2460: iniciando
+[worker 2] [preverification 309/428] Tebe: completado
+[worker 2] [preverification 312/428] 8e9fa990-c067-4845-9f57-74b462abc446: iniciando
+[worker 2] [preverification 312/428] Cerro Carnero: con errores
+[worker 2] [preverification 313/428] 41adad7d-4aa7-4552-9f18-ff504ad955d4: iniciando
+[worker 2] [preverification 313/428] BESS PFV Los Boldos Etapa 2: completado
+[worker 2] [preverification 314/428] 43d86b5f-02be-422a-9df5-799f4becedfe: iniciando
+[worker 1] [preverification 311/428] BESS Desierto: completado
+[worker 1] [preverification 315/428] ed11cc03-5f36-412a-9944-ea1e089628a4: iniciando
+[worker 2] [preverification 314/428] AR-SEG Eólico Capilla: completado
+[worker 2] [preverification 316/428] 6dfef7dd-a620-41fc-9361-57e39b999312: iniciando
+[worker 3] [preverification 310/428] Lobo Marte 2: con errores
+[worker 3] [preverification 317/428] 5a301f31-ec1b-4f80-82cd-9e3d836dd93c: iniciando
+[worker 2] [preverification 316/428] PE Cerro Los Loros Ampliación II: completado
+[worker 2] [preverification 318/428] 692b583d-ce8c-4786-9f88-52f18e57260c: iniciando
+[worker 3] [preverification 317/428] Híbrido Gene: completado
+[worker 3] [preverification 319/428] e659c9fb-10d3-4abc-aa9d-ce850b298245: iniciando
+[worker 2] [preverification 318/428] SAND: completado
+[worker 2] [preverification 320/428] f4449210-8ece-4f2c-84a0-6510d9912412: iniciando
+[worker 1] [preverification 315/428] PH Sendero: completado
+[worker 1] [preverification 321/428] f049d801-a763-4276-85e4-459e2ec85d8d: iniciando
+[worker 3] [preverification 319/428] BESS Halcon 10: completado
+[worker 3] [preverification 322/428] 157ee843-7c86-46c3-8491-1efdf92992bf: iniciando
+[worker 1] [preverification 321/428] SAE Titania: con errores
+[worker 1] [preverification 323/428] 96c871c1-54d5-4389-ba7b-3dc72b5abfa0: iniciando
+[worker 3] [preverification 322/428] Retiros BESS Parque Fotovoltaico Usya: completado
+[worker 3] [preverification 324/428] 964da281-5ee7-4ba9-872e-be5166d2ae04: iniciando
+[worker 2] [preverification 320/428] SAE Nimbus: con errores
+[worker 2] [preverification 325/428] 1c516a74-99d2-4c6b-9f0c-97a90a9fe6b3: iniciando
+[worker 3] [preverification 324/428] Inti Pacha 2: completado
+[worker 3] [preverification 326/428] 1484657e-8ed0-4974-b3b6-9a3c688988a2: iniciando
+[worker 3] [preverification 326/428] Siroco: completado
+[worker 3] [preverification 327/428] 5dc0ee5c-63ce-473b-b92a-1b1e5dd80e3b: iniciando
+[worker 1] [preverification 323/428] BESS Halcón 6: completado
+[worker 1] [preverification 328/428] 98c353ea-cf1b-4dd3-9681-d2634d6ad9d5: iniciando
+[worker 3] [preverification 327/428] Parque Fotovoltaico Sol de Algarrobal (ex PF La Jaula): completado
+[worker 3] [preverification 329/428] 9110c11b-7134-42b6-83bf-bde548114e8f: iniciando
+[worker 2] [preverification 325/428] Inti Pacha 1: con errores
+[worker 2] [preverification 330/428] d92f3bc8-0bf9-4748-a590-09380af2ea0d: iniciando
+[worker 1] [preverification 328/428] El Zorro: con errores
+[worker 1] [preverification 331/428] b0ec58ad-8918-4c23-be5b-61a6ec1f317f: iniciando
+[worker 3] [preverification 329/428] BESS Nodo Sur 1: completado
+[worker 3] [preverification 332/428] 3b728c23-ea37-4aa7-97a5-ece640ec0416: iniciando
+[worker 2] [preverification 330/428] Santa Regina: completado
+[worker 2] [preverification 333/428] a1ece385-43d2-4c15-8b30-a8c6a328dbba: iniciando
+[worker 3] [preverification 332/428] SP El Destello: completado
+[worker 3] [preverification 334/428] f3bbbc40-e2d1-4958-9f7e-fcace21d418f: iniciando
+[worker 3] [preverification 334/428] Repotenciamiento Eléctrico SAR (SANTA FILOMENA): completado
+[worker 3] [preverification 335/428] 3ee108ba-1bea-43c4-8d31-4a6dcb5ef9ee: iniciando
+[worker 1] [preverification 331/428] SP Umbrella: completado
+[worker 1] [preverification 336/428] 78c3393a-6cda-4b4b-bb6d-b2e6e1345e7e: iniciando
+[worker 2] [preverification 333/428] Magnus Solaris: completado
+[worker 2] [preverification 337/428] bbad3d74-d472-45ec-bab3-0fd93b473c08: iniciando
+[worker 3] [preverification 335/428] BESS Don Lucas: completado
+[worker 3] [preverification 338/428] aedc0159-31aa-4ea3-ac8d-9b9b176c8a05: iniciando
+[worker 1] [preverification 336/428] El Cerrillo Solar: completado
+[worker 1] [preverification 339/428] cb4aaf2d-742a-4630-b0f4-0cfa8eff53fd: iniciando
+[worker 2] [preverification 337/428] Data Center Huechuraba: completado
+[worker 2] [preverification 340/428] e7f08beb-f9d8-481e-817e-b02c77ae4a54: iniciando
+[worker 1] [preverification 339/428] Alianza BESS: con errores
+[worker 1] [preverification 341/428] 1f9da4c1-5cd7-4fe5-acd4-8cda43cd1604: iniciando
+[worker 1] [preverification 341/428] PV+SAE Zafiro: completado
+[worker 1] [preverification 342/428] 2ed5052b-59da-4be6-883c-3a408204d523: iniciando
+[worker 2] [preverification 340/428] Parque Eólico Viena (Ex-Parque Eólico San Pablo): completado
+[worker 2] [preverification 343/428] 9d85c2d1-388c-4e3d-b9b5-be5110978ea1: iniciando
+[worker 3] [preverification 338/428] SAE Miramar: con errores
+[worker 3] [preverification 344/428] 5f5507cd-451b-48ea-929c-20838459b413: iniciando
+[worker 1] [preverification 342/428] Rodolmo Sur: completado
+[worker 1] [preverification 345/428] b4f3dc9d-9d59-4668-b3aa-72178d178e40: iniciando
+[worker 1] [preverification 345/428] SP Saria: completado
+[worker 1] [preverification 346/428] 54e4ae8a-7bda-4b6d-b9bb-e9d818ed6667: iniciando
+[worker 3] [preverification 344/428] Parque Eólico Los Lagos del Sur: completado
+[worker 3] [preverification 347/428] 1ca68b06-1e89-46f0-a033-22244aeafdb9: iniciando
+[worker 2] [preverification 343/428] PV+BESS Cala: con errores
+[worker 2] [preverification 348/428] 00c65ef9-923c-4322-b9cf-bc227762c7dc: iniciando
+[worker 3] [preverification 347/428] BESS Malleco Sur (Ex Bess Semilla): completado
+[worker 3] [preverification 349/428] 521894de-fee6-4676-af50-95a41a0f88dd: iniciando
+[worker 1] [preverification 346/428] PFV BESS Inambú: completado
+[worker 1] [preverification 350/428] 36a50594-bf96-42ad-ad01-e181ba47458e: iniciando
+[worker 1] [preverification 350/428] BESS Gaia: completado
+[worker 1] [preverification 351/428] 6c9be540-bdff-4fdb-84ab-706b2aa49e2e: iniciando
+[worker 3] [preverification 349/428] BESS Arwen: completado
+[worker 3] [preverification 352/428] 944ea3ae-4ae4-4fcd-948c-b2e05b8970d7: iniciando
+[worker 2] [preverification 348/428] BESS Malleco Norte (Ex BESS AGUA): completado
+[worker 2] [preverification 353/428] fc51a52c-c3c6-42c9-8031-fd47dabd116b: iniciando
+[worker 1] [preverification 351/428] Lemur Solar: completado
+[worker 1] [preverification 354/428] b488d0fa-8397-44d7-a626-58ba55f5bff4: iniciando
+[worker 1] [preverification 354/428] BESS Rabenau: completado
+[worker 1] [preverification 355/428] d32a847f-0d76-49e5-9cc9-b36b7af1f155: iniciando
+[worker 1] [preverification 355/428] Parque Fotovoltaico Las Barrancas: con errores
+[worker 1] [preverification 356/428] 0d2233a7-db44-4b9c-8c72-1acd6a428cc4: iniciando
+[worker 3] [preverification 352/428] Parque Solar La Carrera: completado
+[worker 3] [preverification 357/428] f5da0952-30f1-462a-8bb8-20e843531bdf: iniciando
+[worker 2] [preverification 353/428] Ampliación BESS Coya: completado
+[worker 2] [preverification 358/428] 4e919193-230f-4e74-bd86-39c8f788cc24: iniciando
+[worker 1] [preverification 356/428] PFV Pinina: completado
+[worker 1] [preverification 359/428] 51d20fda-790f-4072-bf21-9d3e4ae78fad: iniciando
+[worker 2] [preverification 358/428] PFV DENEB: con errores
+[worker 2] [preverification 360/428] 6412741d-9905-4d62-bab5-690d6a423586: iniciando
+[worker 3] [preverification 357/428] PFV JAOS: con errores
+[worker 3] [preverification 361/428] 02bdfcb1-2380-44b1-b9e1-50262f17fd82: iniciando
+[worker 1] [preverification 359/428] PFV Encina: completado
+[worker 1] [preverification 362/428] 66670d0d-df2c-4c6a-a4c6-811ba2ff4649: iniciando
+[worker 2] [preverification 360/428] PFV Vanz: completado
+[worker 2] [preverification 363/428] d2bb8a91-86a8-4149-b293-117459c5a6d0: iniciando
+[worker 2] [preverification 363/428] BESS KSR II: con errores
+[worker 2] [preverification 364/428] 28c3f37c-5b5d-4cb4-8a39-36febee6aaf6: iniciando
+[worker 3] [preverification 361/428] PFV AMAYA: completado
+[worker 3] [preverification 365/428] e77ba42d-bc73-41af-b71f-1389dc426328: iniciando
+[worker 1] [preverification 362/428] PFV TITÁN: completado
+[worker 1] [preverification 366/428] 27fcfdc6-a24d-41bc-8244-f4f641cd63b5: iniciando
+[worker 1] [preverification 366/428] BESS Barbastro (ex-BESS El Olivo): completado
+[worker 1] [preverification 367/428] 9c4e6647-cafd-4053-bb3c-4cbdcaee0c2b: iniciando
+[worker 2] [preverification 364/428] Llanquihue Dos : completado
+[worker 2] [preverification 368/428] 39052652-e04f-4905-a209-df0fef1ad59e: iniciando
+[worker 2] [preverification 368/428] Proyecto Ursa: completado
+[worker 2] [preverification 369/428] aade6c00-e6f2-4377-8bc5-63d273af20e7: iniciando
+[worker 1] [preverification 367/428] SP LA ODISEA: completado
+[worker 1] [preverification 370/428] 82759ae5-b227-47c2-bc69-410446448fb4: iniciando
+[worker 1] [preverification 370/428] NorQuim: completado
+[worker 1] [preverification 371/428] c1b64055-a30e-4196-b79c-732d0278d0a3: iniciando
+[worker 1] [preverification 371/428] Abastecimiento Campamento Proyecto Refugio: con errores
+[worker 1] [preverification 372/428] 10af8318-017e-4688-8c58-5a778497ad11: iniciando
+[worker 1] [preverification 373/428] 52bd2f57-fc4d-4b82-bcc5-4ae2e4695851: iniciando
+[worker 1] [preverification 374/428] 32eb652f-aa79-4989-a54b-ae363c976c38: iniciando
+[worker 1] [preverification 374/428] Desaladora La Serena: completado
+[worker 1] [preverification 375/428] 9c7204ff-23ae-41fa-8587-ce82ffd72938: iniciando
+[worker 2] [preverification 369/428] Central Sol del Loa II: completado
+[worker 2] [preverification 376/428] f8d7714b-184f-4b70-a2bb-81a85f12c5d8: iniciando
+[worker 2] [preverification 376/428] Parque Amolanas: completado
+[worker 2] [preverification 377/428] d637b44b-12ac-4e76-8c17-b1b06d92e477: iniciando
+[worker 3] [preverification 365/428] PFV+BESS Terrazas: completado
+[worker 3] [preverification 378/428] 99f1fc74-e743-441b-9e3b-cb996ae87af7: iniciando
+[worker 1] [preverification 375/428] Parque Eólico El Almendro: con errores
+[worker 1] [preverification 379/428] 194c8679-53ad-4330-abfa-587f90b286b1: iniciando
+[worker 2] [preverification 377/428] BESS ALTILIUM: completado
+[worker 2] [preverification 380/428] 6c3d264f-c31f-4a15-861e-31f0f9ba26ae: iniciando
+[worker 1] [preverification 379/428] Rihue: completado
+[worker 1] [preverification 381/428] 0803ebd5-627d-4277-a985-3f131ee6cb41: iniciando
+[worker 3] [preverification 378/428] BESS Hyrule: con errores
+[worker 3] [preverification 382/428] 0d73dd5b-f022-4512-a6c8-04b8c738c2a2: iniciando
+[worker 2] [preverification 380/428] Proyecto Híbrido Licancabur: completado
+[worker 2] [preverification 383/428] d3595f85-e3c1-49b0-9583-7234120d8b14: iniciando
+[worker 1] [preverification 381/428] PE+BESS Monte León: con errores
+[worker 1] [preverification 384/428] 9a47ffc9-c63d-4e10-a152-ea55d76350d6: iniciando
+[worker 3] [preverification 382/428] PV Las Baronesas: con errores
+[worker 3] [preverification 385/428] b4be2ef7-691f-40a9-9892-7c8b89b334ab: iniciando
+[worker 3] [preverification 386/428] a54d983f-82a5-4ee8-9604-51b690215bbc: iniciando
+[worker 3] [preverification 387/428] 5bee2355-9670-4cd9-af8c-33d8c22e6491: iniciando
+[worker 3] [preverification 387/428] BESS PORTA: completado
+[worker 3] [preverification 388/428] 5a21d93e-efac-4cf7-bfe2-7c8f5df7fe64: iniciando
+[worker 1] [preverification 384/428] Parque Fotovoltaico Don Edgard: completado
+[worker 1] [preverification 389/428] 7c5c4061-63e9-4e26-9d6f-d0b5604352fd: iniciando
+[worker 3] [preverification 388/428] BESS Boreal: completado
+[worker 3] [preverification 390/428] 6418cb19-7bbe-4a93-9eb5-fca6adf8a680: iniciando
+[worker 3] [preverification 390/428] Proyecto Fotovoltaico Sol de Mafalda: con errores
+[worker 3] [preverification 391/428] f21e5187-7f21-4d06-bc14-9f86228963c6: iniciando
+[worker 2] [preverification 383/428] BESS Kallpa II: completado
+[worker 2] [preverification 392/428] eb55a110-5959-4642-bcf5-89817c6d2e45: iniciando
+[worker 1] [preverification 389/428] Parque Fotovoltaico Sol de Rufo 70 MW: completado
+[worker 1] [preverification 393/428] ed0ffffc-55df-4280-9357-32c7eca5946b: iniciando
+[worker 1] [preverification 393/428] Parque Fotovoltaico Max: con errores
+[worker 1] [preverification 394/428] 0ccaf3f5-5bc1-497a-b32d-036751a1a3b8: iniciando
+[worker 3] [preverification 391/428] Parque Fotovoltaico Sol de Rufo 70 MW: completado
+[worker 3] [preverification 395/428] 0055ea5b-b2d0-4b0b-a597-d5ed6b1fe590: iniciando
+[worker 1] [preverification 394/428] BESS Escorodita: con errores
+[worker 1] [preverification 396/428] 328582ab-f5d1-4ba1-a6a8-807634d2477f: iniciando
+[worker 2] [preverification 392/428] Parque Eólico Constanza: completado
+[worker 2] [preverification 397/428] 0979d304-de78-4d2c-ab6b-5bb719f81005: iniciando
+[worker 3] [preverification 395/428] La Esperanza de Verano: completado
+[worker 3] [preverification 398/428] 3c219029-c38b-4ae2-8441-4f736344b719: iniciando
+[worker 3] [preverification 398/428] Parque Fotovoltaico + BESS Posada: con errores
+[worker 3] [preverification 399/428] 8686d9b2-82b0-485a-98c9-b74a324b9de2: iniciando
+[worker 1] [preverification 396/428] BESS Atardecer: completado
+[worker 1] [preverification 400/428] aa1ca64e-5091-4cfb-ab7b-445d243729cb: iniciando
+[worker 1] [preverification 400/428] UHYB La Aurora: con errores
+[worker 1] [preverification 401/428] c87e498a-acf9-473d-bfd2-7ee20945f16f: iniciando
+[worker 2] [preverification 397/428] CRCA Tierruca del Verano: completado
+[worker 2] [preverification 402/428] fb4d2a9a-1323-4092-a437-b40c8a597f26: iniciando

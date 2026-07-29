@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { getProjectById } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { ProjectEditPageBody } from "../../components/ProjectEditPageBody";
@@ -18,7 +19,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function EditarProyectoPage({ params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return null;
   const { id } = await params;
-  const client = await createSupabaseServerClient();
+  // La sesión admin es propia de la app; service_role se usa solo después de
+  // isAdmin() para poder leer `person`, protegida por RLS en Supabase.
+  const client = createSupabaseServiceClient();
   const project = await getProjectById(client, id);
   if (!project) notFound();
 
@@ -35,7 +38,7 @@ export default async function EditarProyectoPage({ params }: { params: Promise<{
             : "Pendiente de verificación"}
         </p>
       </div>
-      <ProjectEditPageBody client={client} project={project} backHref="/admin/editar-data" />
+      <ProjectEditPageBody project={project} backHref="/admin/editar-data" />
     </div>
   );
 }

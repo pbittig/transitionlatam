@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { updateContactField, addProjectContact, removeProjectContact } from "../contactActions";
+import { useEffect, useState } from "react";
+import { updateContactField, addProjectContact, removeProjectContact, searchExistingContacts, linkExistingContact, type ContactSearchResult } from "../contactActions";
 import type { ProjectStakeholder } from "@/lib/data-access/projects";
 
 type FieldStatus = "idle" | "saving" | "saved" | "error";
@@ -43,6 +43,41 @@ export function ProjectContactsEditor({
   const [newPhone, setNewPhone] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<ContactSearchResult[]>([]);
+  const [linkedPersonId, setLinkedPersonId] = useState<string | null>(null);
+
+  const showSuggestions = !linkedPersonId && newName.trim().length >= 2 && suggestions.length > 0;
+
+  useEffect(() => {
+    if (linkedPersonId) return;
+    const trimmed = newName.trim();
+    if (trimmed.length < 2) return;
+    const timeout = setTimeout(() => {
+      searchExistingContacts(trimmed).then(setSuggestions);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [newName, linkedPersonId]);
+
+  function handleNewNameChange(value: string) {
+    setNewName(value);
+    setLinkedPersonId(null);
+  }
+
+  function pickSuggestion(s: ContactSearchResult) {
+    setNewName(s.name);
+    setNewEmail(s.email ?? "");
+    setNewPhone(s.phone ?? "");
+    setLinkedPersonId(s.personId);
+    setSuggestions([]);
+  }
+
+  function resetAddForm() {
+    setNewName("");
+    setNewEmail("");
+    setNewPhone("");
+    setLinkedPersonId(null);
+    setSuggestions([]);
+  }
 
   function updateLocal(personId: string, field: ContactField, value: string) {
     setContacts((prev) => prev.map((c) => (c.personId === personId ? { ...c, [field]: value } : c)));
@@ -72,6 +107,22 @@ export function ProjectContactsEditor({
     }
     setAdding(true);
     setAddError(null);
+
+    if (linkedPersonId) {
+      const result = await linkExistingContact(projectId, linkedPersonId);
+      setAdding(false);
+      if (result.success) {
+        setContacts((prev) => [
+          ...prev,
+          { personId: linkedPersonId, name: newName.trim(), email: newEmail.trim(), phone: newPhone.trim() },
+        ]);
+        resetAddForm();
+      } else {
+        setAddError(result.error ?? "No se pudo vincular el contacto.");
+      }
+      return;
+    }
+
     const result = await addProjectContact(projectId, newName, newEmail, newPhone);
     setAdding(false);
     if (result.success && result.personId) {
@@ -79,9 +130,7 @@ export function ProjectContactsEditor({
         ...prev,
         { personId: result.personId!, name: newName.trim(), email: newEmail.trim(), phone: newPhone.trim() },
       ]);
-      setNewName("");
-      setNewEmail("");
-      setNewPhone("");
+      resetAddForm();
     } else {
       setAddError(result.error ?? "No se pudo agregar el contacto.");
     }
@@ -146,13 +195,34 @@ export function ProjectContactsEditor({
       <div className="rounded-lg border border-dashed border-neutral-300 p-4 dark:border-neutral-700">
         <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Agregar contacto</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          <input
-            type="text"
-            placeholder="Nombre"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            className="rounded-lg border border-neutral-300 bg-transparent px-2 py-1.5 text-sm dark:border-neutral-700"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Nombre"
+              value={newName}
+              onChange={(e) => handleNewNameChange(e.target.value)}
+              autoComplete="off"
+              className="w-full rounded-lg border border-neutral-300 bg-transparent px-2 py-1.5 text-sm dark:border-neutral-700"
+            />
+            {showSuggestions && (
+              <ul className="absolute top-full left-0 z-10 mt-1 w-full max-w-xs overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+                {suggestions.map((s) => (
+                  <li key={s.personId}>
+                    <button
+                      type="button"
+                      onClick={() => pickSuggestion(s)}
+                      className="block w-full px-3 py-2 text-left text-xs hover:bg-brand-surface dark:hover:bg-brand-primary/10"
+                    >
+                      <span className="block font-medium text-neutral-900 dark:text-neutral-100">{s.name}</span>
+                      {(s.email || s.phone) && (
+                        <span className="block text-neutral-400">{[s.email, s.phone].filter(Boolean).join(" · ")}</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <input
             type="text"
             placeholder="Email"
@@ -168,13 +238,18 @@ export function ProjectContactsEditor({
             className="rounded-lg border border-neutral-300 bg-transparent px-2 py-1.5 text-sm dark:border-neutral-700"
           />
         </div>
+        {linkedPersonId && (
+          <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+            Vinculando contacto ya existente en la base — no se va a crear uno nuevo.
+          </p>
+        )}
         <button
           type="button"
           onClick={handleAdd}
           disabled={adding}
           className="mt-2 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200"
         >
-          {adding ? "Agregando…" : "Agregar"}
+          {adding ? "Agregando…" : linkedPersonId ? "Vincular contacto" : "Agregar"}
         </button>
         {addError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{addError}</p>}
       </div>

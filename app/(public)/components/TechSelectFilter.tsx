@@ -23,7 +23,7 @@ export function TechSelectFilter({
     else params.delete("tech");
     params.delete("page");
     const query = params.toString();
-    router.push(query ? `${basePath}?${query}` : basePath);
+    router.replace(query ? `${basePath}?${query}` : basePath, { scroll: false });
   }
 
   return (

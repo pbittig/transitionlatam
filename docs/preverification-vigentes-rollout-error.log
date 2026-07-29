@@ -1,0 +1,4 @@
+Error: TypeError: fetch failed
+    at getPendingProjectIds (C:\ClaudeOne\ONIX Consulting Group\Solutions\Transition Latam\lib\ai\preverification\runPreverification.ts:152:28)
+    at async runPreverificationBatch (C:\ClaudeOne\ONIX Consulting Group\Solutions\Transition Latam\lib\ai\preverification\runPreverification.ts:259:7)
+    at async main (C:\ClaudeOne\ONIX Consulting Group\Solutions\Transition Latam\scripts\preverify-projects.ts:52:18)

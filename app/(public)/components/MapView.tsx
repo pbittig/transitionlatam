@@ -11,6 +11,37 @@ import type { PowerPlantMapPoint } from "@/lib/data-access/powerPlants";
 // se necesite más definición visual.
 const MAP_STYLE = "https://demotiles.maplibre.org/style.json";
 
+function applyTransitionMapTheme(map: maplibregl.Map) {
+  map.setProjection({ type: "globe" });
+  const layers = map.getStyle().layers ?? [];
+
+  for (const layer of layers) {
+    const id = layer.id;
+    const normalizedId = id.toLowerCase();
+    try {
+      if (layer.type === "background") {
+        map.setPaintProperty(id, "background-color", "#123f3a");
+      } else if (layer.type === "fill") {
+        const isWater = /water|ocean|sea/.test(normalizedId);
+        const isPark = /park|forest|wood|grass|landcover/.test(normalizedId);
+        map.setPaintProperty(id, "fill-color", isWater ? "#123f3a" : isPark ? "#aebdb6" : "#d9ddda");
+        map.setPaintProperty(id, "fill-opacity", isWater ? 1 : 0.96);
+      } else if (layer.type === "line") {
+        const isBoundary = /boundary|admin|border/.test(normalizedId);
+        map.setPaintProperty(id, "line-color", isBoundary ? "#82948e" : "#b8c0bc");
+        map.setPaintProperty(id, "line-opacity", isBoundary ? 0.75 : 0.5);
+      } else if (layer.type === "symbol") {
+        map.setPaintProperty(id, "text-color", "#344740");
+        map.setPaintProperty(id, "text-halo-color", "#eef0ee");
+        map.setPaintProperty(id, "text-halo-width", 1);
+      }
+    } catch {
+      // Algunos estilos demo no admiten modificar todas sus capas; las demás
+      // siguen recibiendo el tema sin impedir que el mapa cargue.
+    }
+  }
+}
+
 function bubbleRadius(count: number, maxCount: number): number {
   const min = 8;
   const max = 34;
@@ -91,7 +122,13 @@ export function MapView({
         container: containerRef.current,
         style: MAP_STYLE,
         center: [-71.5, -35.6],
-        zoom: 3.6,
+        zoom: 3.35,
+        pitch: 18,
+        bearing: -7,
+        canvasContextAttributes: { antialias: true },
+      });
+      mapRef.current.on("style.load", () => {
+        if (mapRef.current) applyTransitionMapTheme(mapRef.current);
       });
       mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
     } catch (err) {
@@ -123,9 +160,9 @@ export function MapView({
       el.style.width = `${size}px`;
       el.style.height = `${size}px`;
       el.style.borderRadius = "9999px";
-      el.style.backgroundColor = "light-dark(#2a78d6, #3987e5)";
-      el.style.opacity = "0.75";
-      el.style.border = "2px solid light-dark(#fcfcfb, #1a1a19)";
+      el.style.backgroundColor = "rgba(32, 199, 165, 0.74)";
+      el.style.boxShadow = "0 0 0 5px rgba(32, 199, 165, 0.13), 0 5px 16px rgba(5, 63, 57, 0.28)";
+      el.style.border = "2px solid rgba(238, 255, 250, 0.95)";
       el.style.cursor = "pointer";
 
       const popup = new maplibregl.Popup({ offset: size / 2 + 6 }).setDOMContent(regionPopupContent(bubble));
@@ -142,8 +179,9 @@ export function MapView({
       el.style.width = "12px";
       el.style.height = "12px";
       el.style.borderRadius = "9999px";
-      el.style.backgroundColor = "light-dark(#eb6834, #d95926)";
-      el.style.border = "2px solid light-dark(#fcfcfb, #1a1a19)";
+      el.style.backgroundColor = "#0f766e";
+      el.style.boxShadow = "0 0 0 4px rgba(15, 118, 110, 0.16)";
+      el.style.border = "2px solid #eafff8";
       el.style.cursor = "pointer";
 
       const popup = new maplibregl.Popup({ offset: 10 }).setDOMContent(pointPopupContent(point));
@@ -159,8 +197,9 @@ export function MapView({
       const el = document.createElement("div");
       el.style.width = "9px";
       el.style.height = "9px";
-      el.style.backgroundColor = "light-dark(#4a8f5c, #5cb571)";
-      el.style.border = "1px solid light-dark(#fcfcfb, #1a1a19)";
+      el.style.backgroundColor = "#70877d";
+      el.style.border = "1px solid #eff5f1";
+      el.style.boxShadow = "0 2px 7px rgba(24, 54, 47, 0.3)";
       el.style.cursor = "pointer";
 
       const popup = new maplibregl.Popup({ offset: 8 }).setDOMContent(powerPlantPopupContent(plant));
@@ -187,5 +226,12 @@ export function MapView({
     );
   }
 
-  return <div ref={containerRef} className="h-[600px] w-full rounded-xl border border-neutral-200 dark:border-neutral-800" />;
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-brand-primary/25 bg-brand-ink shadow-inner">
+      <div className="pointer-events-none absolute top-4 left-4 z-10 rounded-full border border-white/15 bg-brand-ink/80 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-white/80 uppercase shadow-lg backdrop-blur">
+        Vista geoespacial · Chile
+      </div>
+      <div ref={containerRef} className="h-[600px] w-full" />
+    </div>
+  );
 }

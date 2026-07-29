@@ -1,13 +1,14 @@
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
-import { getLastSyncTimestamp } from "@/lib/data-access/powerPlants";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
-import { getAppSetting, getWatchlistEvents } from "@/lib/data-access/watchlist";
+import { getAppSetting, getWatchlistEvents, NEW_PROJECT_ALERT_CATEGORIES } from "@/lib/data-access/watchlist";
 import { isAdmin } from "@/lib/auth/session";
 import { Sidebar } from "./components/Sidebar";
 import { PremiumAiBar } from "./components/PremiumAiBar";
 import { FollowNotifications } from "./components/FollowNotifications";
 import { getAppLocale } from "@/lib/i18n";
+import { getAiChatMemory } from "@/lib/data-access/aiChat";
+import { MobileNavigation } from "./components/MobileNavigation";
 
 function getRemainingTrialDays(trialEndsAt: string | null | undefined): number | null {
   if (!trialEndsAt) return null;
@@ -18,8 +19,7 @@ function getRemainingTrialDays(trialEndsAt: string | null | undefined): number |
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const client = await createSupabaseServerClient();
-  const [lastSync, admin, userProfile, locale] = await Promise.all([
-    getLastSyncTimestamp(client),
+  const [admin, userProfile, locale] = await Promise.all([
     isAdmin(),
     getCurrentUserProfile(client),
     getAppLocale(),
@@ -29,19 +29,28 @@ export default async function PublicLayout({ children }: { children: React.React
   const followEvents = followEnabled
       ? await (async () => {
         const serviceClient = createSupabaseServiceClient();
-        const [includeNewProjects, notificationsEnabled] = await Promise.all([
-          getAppSetting(serviceClient, "notify_new_projects"),
+        const [notificationsEnabled, ...categorySettings] = await Promise.all([
           getAppSetting(serviceClient, "follow_notifications_enabled", true),
+          ...NEW_PROJECT_ALERT_CATEGORIES.map((category) => getAppSetting(serviceClient, `notify_new_${category}`, true)),
         ]);
-        return notificationsEnabled ? getWatchlistEvents(serviceClient, 12, includeNewProjects) : [];
+        const categories = NEW_PROJECT_ALERT_CATEGORIES.filter((_, index) => categorySettings[index]);
+        return notificationsEnabled ? getWatchlistEvents(serviceClient, 12, categories.length > 0, categories) : [];
       })()
+    : [];
+  const aiEnabled = admin || userProfile?.planCode === "premium";
+  const aiMemory = aiEnabled
+    ? await getAiChatMemory(
+        createSupabaseServiceClient(),
+        userProfile ? { profileId: userProfile.id } : { admin: true },
+      )
     : [];
 
   return (
     <div className="min-h-full bg-[linear-gradient(180deg,var(--brand-surface)_0px,#fff_260px)] dark:bg-[linear-gradient(180deg,#102624_0px,#171717_260px)]">
-      <Sidebar lastSync={lastSync} isAdmin={admin} userProfile={userProfile} remainingTrialDays={remainingTrialDays} locale={locale} />
-      <div className="flex min-h-full flex-col pl-16 md:pl-64 print:pl-0">
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 pt-6 pb-10 print:px-0 print:py-0">{children}</main>
+      <Sidebar isAdmin={admin} userProfile={userProfile} remainingTrialDays={remainingTrialDays} locale={locale} />
+      <MobileNavigation isAdmin={admin} userProfile={userProfile} locale={locale} />
+      <div className="flex min-h-full flex-col md:pl-64 print:pl-0">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6 md:pb-10 print:px-0 print:py-0">{children}</main>
         <footer className="border-t border-neutral-100 py-8 text-center text-sm text-neutral-500 print:hidden dark:border-neutral-800 dark:text-neutral-400">
           Transition LATAM — una plataforma de{" "}
           <a
@@ -54,8 +63,10 @@ export default async function PublicLayout({ children }: { children: React.React
           </a>
         </footer>
       </div>
-      <FollowNotifications events={followEvents} />
-      <PremiumAiBar enabled={admin || userProfile?.planCode === "premium"} />
+      <div className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 print:hidden md:right-6 md:bottom-6 md:gap-3">
+        <FollowNotifications events={followEvents} />
+        <PremiumAiBar enabled={aiEnabled} initialMessages={aiMemory} />
+      </div>
     </div>
   );
 }

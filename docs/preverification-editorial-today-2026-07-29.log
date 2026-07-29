@@ -1,0 +1,21 @@
+◇ injected env (22) from .env.local // tip: ⌘ override existing { override: true }
+[worker 1] [preverification 1/5] 13ba0117-4496-45e2-97df-5267d85ae766: iniciando
+[worker 2] [preverification 2/5] a8a34c90-8b66-4fb4-a7af-9825e8452eac: iniciando
+[worker 3] [preverification 3/5] 06c62911-e2ec-46cf-a933-231692074a1c: iniciando
+[worker 3] [preverification 3/5] Odata San Bernardo Expansión: completado
+[worker 3] [preverification 4/5] 75595630-8d71-4874-874d-2cb4c8221ec2: iniciando
+[worker 1] [preverification 1/5] ACS DC SANTIAGO I Alimentador No. 2: completado
+[worker 1] [preverification 5/5] 0979d304-de78-4d2c-ab6b-5bb719f81005: iniciando
+[worker 2] [preverification 2/5] ACS DC SANTIAGO I: completado
+[worker 3] [preverification 4/5] ACS DC SANTIAGO II: completado
+[worker 1] [preverification 5/5] CRCA Tierruca del Verano: completado
+{
+  "runId": "496f1c87-a39f-4817-a8e9-1d8db8803789",
+  "mode": "apply",
+  "projects": 5,
+  "concurrency": 3,
+  "provider": "nemotron",
+  "appliedFields": 1,
+  "errors": 0,
+  "output": "C:\\ClaudeOne\\ONIX Consulting Group\\Solutions\\Transition Latam\\docs\\preverification-editorial-today-2026-07-29.md"
+}

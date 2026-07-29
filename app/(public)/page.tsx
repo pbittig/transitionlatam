@@ -4,7 +4,7 @@ import { Activity, ArrowUpRight, BatteryCharging, Building2, Map, Network, Radar
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getConstructionStats } from "@/lib/data-access/construction";
 import { getTopCompaniesByProjectCount } from "@/lib/data-access/companies";
-import { getConnectionCalendar, getPipelineScopeTotals, getUpcomingScheduleInputs } from "@/lib/data-access/pipeline";
+import { getConnectionCalendar, getPipelineLastSyncedAt, getPipelineScopeTotals, getUpcomingScheduleInputs } from "@/lib/data-access/pipeline";
 import { getLastSyncTimestamp, getPowerPlantStats } from "@/lib/data-access/powerPlants";
 import { computePipelineByTechnology } from "@/lib/shared/marketSnapshot";
 import { LastSyncIndicator } from "./components/LastSyncIndicator";
@@ -12,6 +12,7 @@ import { Panel } from "./components/Panel";
 import { PlanGate } from "./components/PlanGate";
 import { isAdmin } from "@/lib/auth/session";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
+import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 
 export const metadata: Metadata = { title: "Inicio — Transition LATAM" };
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ function formatGw(mw: number) {
 
 export default async function HomePage() {
   const client = await createSupabaseServerClient();
-  const [scope, scheduleInputs, construction, operating, calendar, companies, lastSync, admin, profile] = await Promise.all([
+  const [scope, scheduleInputs, construction, operating, calendar, companies, lastSync, pipelineLastSync, admin, profile] = await Promise.all([
     getPipelineScopeTotals(client),
     getUpcomingScheduleInputs(client),
     getConstructionStats(client),
@@ -30,6 +31,7 @@ export default async function HomePage() {
     getConnectionCalendar(client, 6),
     getTopCompaniesByProjectCount(client, 5),
     getLastSyncTimestamp(client),
+    getPipelineLastSyncedAt(createSupabaseServiceClient()),
     isAdmin(),
     getCurrentUserProfile(client),
   ]);
@@ -55,7 +57,10 @@ export default async function HomePage() {
             Inteligencia de mercado para la transición energética en Chile — generación, almacenamiento y data centers — para priorizar proyectos, entender quién participa y abrir conversaciones comerciales con mejor contexto.
           </p>
         </div>
-        <LastSyncIndicator isoTimestamp={lastSync} />
+        <div className="flex flex-col items-start gap-1">
+          <LastSyncIndicator isoTimestamp={lastSync} label="Centrales (CNE) actualizadas" />
+          <LastSyncIndicator isoTimestamp={pipelineLastSync} label="Proyectos futuros actualizados" />
+        </div>
         </div>
       </section>
 

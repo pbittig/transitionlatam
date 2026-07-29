@@ -30,8 +30,8 @@ export function ProjectTable({
         <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
           <tr>
             <th className="px-4 py-3 font-medium">Proyecto</th>
-            <th className="px-4 py-3 font-medium">Generación</th>
-            <th className="px-4 py-3 font-medium">Baterías</th>
+            <th className="px-4 py-3 font-medium">Generación (MW)</th>
+            <th className="px-4 py-3 font-medium">Batería (MW/MWh)</th>
             {seiaByProjectId && <th className="px-4 py-3 font-medium">Estado ambiental (SEIA)</th>}
             <th className="px-4 py-3 font-medium">Avance de conexión</th>
             <th className="px-4 py-3 font-medium">Conexión estimada</th>
@@ -44,7 +44,11 @@ export function ProjectTable({
         <tbody>
           {items.map((p) => {
             const seia = seiaByProjectId?.get(p.id);
-            const health = computeHealthScore(p.status, seia?.status ?? null, p.estimatedConnectionDate);
+            const health = computeHealthScore(p.status, seia?.status ?? null, p.estimatedConnectionDate, new Date(), {
+              projectKind: p.projectKind,
+              includesStorage: p.includesStorage,
+              seiaSubmissionType: seia?.submissionType,
+            });
             return (
               <tr
                 key={p.id}
@@ -66,7 +70,7 @@ export function ProjectTable({
                     const generationMw = p.projectKind === "storage" ? null : (p.generationCapacityMw ?? p.capacityMw);
                     return generationMw !== null ? (
                       <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium tabular-nums text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                        {Math.round(generationMw).toLocaleString("es-CL")} MW
+                        {Math.round(generationMw).toLocaleString("es-CL")}
                       </span>
                     ) : (
                       <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
@@ -80,12 +84,11 @@ export function ProjectTable({
                     // es la potencia de almacenamiento (ver computeHeadlineCapacity) —
                     // se usa como respaldo si storage_capacity_mw todavía no está poblado.
                     const storageMw = p.storageCapacityMw ?? (p.projectKind === "storage" ? p.capacityMw : null);
-                    const mwLabel = storageMw !== null ? `${Math.round(storageMw).toLocaleString("es-CL")} MW` : null;
-                    const mwhLabel = p.capacityMwh !== null ? `${Math.round(p.capacityMwh).toLocaleString("es-CL")} MWh` : null;
+                    const mwLabel = storageMw !== null ? Math.round(storageMw).toLocaleString("es-CL") : null;
+                    const mwhLabel = p.capacityMwh !== null ? Math.round(p.capacityMwh).toLocaleString("es-CL") : null;
                     return mwLabel || mwhLabel ? (
-                      <span className="bg-brand-primary/15 dark:bg-brand-primary/25 inline-flex flex-col items-center rounded-lg px-2 py-1 text-xs leading-tight font-medium tabular-nums text-blue-900 dark:text-blue-200">
-                        <span>{mwLabel ?? "—"}</span>
-                        <span>{mwhLabel ?? "—"}</span>
+                      <span className="bg-brand-primary/15 dark:bg-brand-primary/25 inline-flex items-center whitespace-nowrap rounded-lg px-2 py-1 text-xs font-medium tabular-nums text-blue-900 dark:text-blue-200">
+                        <span>{mwLabel ?? "—"}/{mwhLabel ?? "—"}</span>
                       </span>
                     ) : (
                       <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
@@ -96,17 +99,7 @@ export function ProjectTable({
                   <td className="px-4 py-3">
                     <PlanGate locked={isFree}>
                       {seia ? (
-                        <div>
-                          <SeiaStatusBar status={seia.status} submissionType={seia.submissionType} />
-                          {seia.titular && (
-                            <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{seia.titular}</div>
-                          )}
-                          {seia.matchConfidence && seia.matchConfidence !== "alta" && (
-                            <div className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
-                              match {seia.matchConfidence}
-                            </div>
-                          )}
-                        </div>
+                        <SeiaStatusBar status={seia.status} submissionType={seia.submissionType} compact />
                       ) : (
                         <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
                       )}
@@ -115,7 +108,7 @@ export function ProjectTable({
                 )}
                 <td className="px-4 py-3">
                   <PlanGate locked={isFree}>
-                    <ThermalStatusBar status={p.status} compact />
+                    <ThermalStatusBar status={p.status} compact showPercentage />
                   </PlanGate>
                 </td>
                 <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">

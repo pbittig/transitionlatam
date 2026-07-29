@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { FormEvent } from "react";
 
 /** Buscador de texto — preserva el resto de filtros activos (chips, estado, tab) vía inputs ocultos. */
 export function SearchBar({
@@ -15,8 +19,23 @@ export function SearchBar({
   /** Controles extra (ej. un <select> de estado) que se envían junto con la búsqueda, en el mismo form. */
   children?: React.ReactNode;
 }) {
+  const router = useRouter();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const params = new URLSearchParams();
+    for (const [key, rawValue] of formData.entries()) {
+      const value = String(rawValue).trim();
+      if (value) params.set(key, value);
+    }
+    params.delete("page");
+    const query = params.toString();
+    router.replace(query ? `${basePath}?${query}` : basePath, { scroll: false });
+  }
+
   return (
-    <form className="flex flex-wrap items-center gap-2" action={basePath}>
+    <form className="grid grid-cols-[1fr_auto] items-center gap-2 sm:flex sm:flex-wrap" action={basePath} onSubmit={handleSubmit}>
       {Object.entries(otherParams).map(
         ([key, val]) => val && <input key={key} type="hidden" name={key} value={val} />,
       )}
@@ -25,12 +44,12 @@ export function SearchBar({
         name="q"
         defaultValue={value ?? ""}
         placeholder={placeholder}
-        className="min-w-[240px] flex-1 rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
+        className="min-w-0 flex-1 rounded-xl border border-neutral-300 bg-transparent px-3 py-2.5 text-base sm:min-w-[240px] sm:py-2 sm:text-sm dark:border-neutral-700"
       />
       {children}
       <button
         type="submit"
-        className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200"
+        className="min-h-11 rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 sm:min-h-0 sm:rounded-lg dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200"
       >
         Buscar
       </button>
@@ -42,7 +61,8 @@ export function SearchBar({
             const query = qs.toString();
             return query ? `${basePath}?${query}` : basePath;
           })()}
-          className="text-sm text-neutral-500 hover:underline dark:text-neutral-400"
+          scroll={false}
+          className="col-span-2 text-sm text-neutral-500 hover:underline sm:col-span-1 dark:text-neutral-400"
         >
           Limpiar búsqueda
         </Link>

@@ -16,7 +16,7 @@ function relativeTime(iso: string, now: number): string {
 // Marca de tiempo real (última sincronización guardada en la base de datos) —
 // el ticker de "hace X" se recalcula solo, para que se sienta en vivo sin
 // inventar un dato que no tenemos.
-export function LastSyncIndicator({ isoTimestamp }: { isoTimestamp: string | null }) {
+export function LastSyncIndicator({ isoTimestamp, label = "Datos actualizados" }: { isoTimestamp: string | null; label?: string }) {
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export function LastSyncIndicator({ isoTimestamp }: { isoTimestamp: string | nul
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
         <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
       </span>
-      <span>Datos actualizados {now ? relativeTime(isoTimestamp, now) : "…"}</span>
+      <span>{label} {now ? relativeTime(isoTimestamp, now) : "…"}</span>
     </div>
   );
 }

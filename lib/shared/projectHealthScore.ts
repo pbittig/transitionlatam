@@ -19,6 +19,14 @@ export interface HealthScoreResult {
   statusScore: number | null;
   seiaScore: number | null;
   overdue: boolean;
+  environmentalTreatment: "seia" | "pertinencia" | "bess_no_automatico" | "sin_antecedente";
+  environmentalNote: string;
+}
+
+export interface HealthScoreContext {
+  projectKind?: string | null;
+  includesStorage?: boolean;
+  seiaSubmissionType?: string | null;
 }
 
 export const HEALTH_BAND_LABEL: Record<HealthBand, string> = {
@@ -38,21 +46,65 @@ function bandFromScore(score: number): HealthBand {
   return "bajo";
 }
 
+function normalize(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function pertinenceScore(status: string | null): number | null {
+  const normalized = normalize(status);
+  if (!normalized) return 30;
+  if (/no\s+(requiere|debe)\s+(ingresar|ingreso)|no\s+ingreso|no\s+corresponde\s+ingreso/.test(normalized)) return 100;
+  if (/requiere\s+(ingresar|ingreso)|debe\s+ingresar|corresponde\s+ingreso/.test(normalized)) return 15;
+  if (/resuelta|resuelto|respondida|respondido|finalizada|finalizado/.test(normalized)) return 80;
+  if (/en\s+tramite|ingresada|ingresado|presentada|presentado/.test(normalized)) return 30;
+  return null;
+}
+
 export function computeHealthScore(
   status: string | null,
   seiaStatus: string | null,
   estimatedConnectionDate: string | null,
   today: Date = new Date(),
+  context: HealthScoreContext = {},
 ): HealthScoreResult {
   if (isRejectedStatus(status)) {
-    return { score: null, band: "no_aplica", statusScore: null, seiaScore: null, overdue: false };
+    return {
+      score: null,
+      band: "no_aplica",
+      statusScore: null,
+      seiaScore: null,
+      overdue: false,
+      environmentalTreatment: "sin_antecedente",
+      environmentalNote: "Proyecto rechazado o desistido.",
+    };
   }
 
   const statusMaturity = getStatusMaturity(status);
   const statusScore = statusMaturity?.order ?? null;
 
-  const seiaMaturity = seiaStatus && !isSeiaNegativeTerminal(seiaStatus) ? getSeiaMaturity(seiaStatus) : null;
-  const seiaScore = seiaMaturity?.order ?? null;
+  const isStorageProject = context.projectKind === "storage" || context.projectKind === "hybrid" || !!context.includesStorage;
+  const isPertinence = normalize(context.seiaSubmissionType).includes("pertinen");
+  const seiaMaturity = !isPertinence && seiaStatus && !isSeiaNegativeTerminal(seiaStatus) ? getSeiaMaturity(seiaStatus) : null;
+  const seiaScore = isPertinence ? pertinenceScore(seiaStatus) : (seiaMaturity?.order ?? null);
+  const environmentalTreatment = isPertinence
+    ? "pertinencia"
+    : context.seiaSubmissionType
+      ? "seia"
+      : isStorageProject
+        ? "bess_no_automatico"
+        : "sin_antecedente";
+  const environmentalNote =
+    environmentalTreatment === "pertinencia"
+      ? "Se considera la consulta de pertinencia como antecedente ambiental del BESS."
+      : environmentalTreatment === "bess_no_automatico"
+        ? "La falta de DIA/EIA no penaliza: un BESS no tiene ingreso automático al SEIA; deben revisarse sus obras asociadas."
+        : environmentalTreatment === "seia"
+          ? "Se considera el avance del expediente DIA/EIA asociado."
+          : "No se encontró un antecedente ambiental asociado.";
 
   let score: number;
   if (statusScore !== null && seiaScore !== null) {
@@ -77,6 +129,8 @@ export function computeHealthScore(
     statusScore,
     seiaScore,
     overdue,
+    environmentalTreatment,
+    environmentalNote,
   };
 }
 

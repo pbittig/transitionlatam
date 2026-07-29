@@ -78,25 +78,23 @@ function mapWatchlistEvent(r: Record<string, unknown>): WatchlistEvent {
   };
 }
 
-const NEW_PROJECT_TECHNOLOGIES = new Set([
-  "solar_pv",
-  "wind",
-  "bess",
-  "hybrid",
-  "hydro",
-  "pumped_hydro",
-  "biomass",
-  "geothermal",
-]);
+export const NEW_PROJECT_ALERT_CATEGORIES = ["solar", "wind", "hydro", "other_renewable", "bess", "data_center"] as const;
+export type NewProjectAlertCategory = (typeof NEW_PROJECT_ALERT_CATEGORIES)[number];
 
-function isRelevantNewProject(row: Record<string, unknown>): boolean {
+function newProjectCategory(row: Record<string, unknown>): NewProjectAlertCategory | null {
   const project = row.project as {
     name?: string;
     technology?: { code?: string } | null;
   } | null;
+  const name = project?.name ?? "";
   const technologyCode = project?.technology?.code;
-  if (technologyCode && NEW_PROJECT_TECHNOLOGIES.has(technologyCode)) return true;
-  return /data\s*center|datacenter|centro\s+de\s+datos/i.test(project?.name ?? "");
+  if (/data\s*center|datacenter|centro\s+de\s+datos/i.test(name)) return "data_center";
+  if (technologyCode === "bess" || /\bbess\b|bater[ií]a|almacenamiento|\bsae\b/i.test(name)) return "bess";
+  if (technologyCode === "solar_pv") return "solar";
+  if (technologyCode === "wind") return "wind";
+  if (technologyCode === "hydro" || technologyCode === "pumped_hydro") return "hydro";
+  if (["hybrid", "biomass", "geothermal"].includes(technologyCode ?? "")) return "other_renewable";
+  return null;
 }
 
 /**
@@ -107,7 +105,8 @@ function isRelevantNewProject(row: Record<string, unknown>): boolean {
 export async function getWatchlistEvents(
   client: SupabaseClient,
   limit = 30,
-  includeNewProjects = false
+  includeNewProjects = false,
+  newProjectCategories: readonly NewProjectAlertCategory[] = NEW_PROJECT_ALERT_CATEGORIES,
 ): Promise<WatchlistEvent[]> {
   const { data: followed } = await client.from("followed_project").select("project_id");
   const projectIds = (followed ?? []).map((r) => r.project_id as string);
@@ -132,7 +131,8 @@ export async function getWatchlistEvents(
   const relevantFollowedEvents = (followedResult.data ?? []).filter((row) => hasActiveProject(row as Record<string, unknown>));
   const relevantNewProjects = (newProjectsResult.data ?? []).filter((row) => {
     const record = row as Record<string, unknown>;
-    return hasActiveProject(record) && isRelevantNewProject(record);
+    const category = newProjectCategory(record);
+    return hasActiveProject(record) && category !== null && newProjectCategories.includes(category);
   });
   for (const row of [...relevantFollowedEvents, ...relevantNewProjects]) {
     const event = mapWatchlistEvent(row as Record<string, unknown>);

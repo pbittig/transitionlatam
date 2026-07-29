@@ -1,6 +1,8 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchSolicitudesFromApi, normalizeApiRow } from "./fetchFromApi";
 import { loadNormalizedProjects, type LoadSummary } from "./load";
+import { recordPipelineSync } from "@/lib/data-access/pipeline";
+import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 
 /**
  * Punto único de la sincronización del listado — usado por scripts/sync-listado.ts
@@ -8,8 +10,10 @@ import { loadNormalizedProjects, type LoadSummary } from "./load";
  * plataforma de hosting). Nunca dupliques el fetch+load acá, solo invócalo.
  */
 export async function runListadoSync(client?: SupabaseClient): Promise<LoadSummary> {
-  const supabase = client ?? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const supabase = client ?? createSupabaseServiceClient();
   const rawRows = await fetchSolicitudesFromApi();
   const normalized = rawRows.map(normalizeApiRow);
-  return loadNormalizedProjects(supabase, normalized);
+  const summary = await loadNormalizedProjects(supabase, normalized);
+  await recordPipelineSync(supabase);
+  return summary;
 }

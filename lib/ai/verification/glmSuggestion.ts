@@ -28,7 +28,7 @@ Se te entregan los datos ya extraídos de un proyecto (Formulario de solicitud d
 
 Para dataSanity: marca "sospechoso" solo si algo es realmente inconsistente (ej. un RUT con formato inválido, una capacidad de almacenamiento mayor a la de generación sin que el proyecto sea BESS puro, un nombre que no calza con la tecnología, campos claramente vacíos que deberían tener dato). No marques "sospechoso" por simple falta de un dato opcional.
 
-Para seiaPick: elige el expediente cuyo nombre, titular, comuna/región y tipo correspondan mejor al proyecto de conexión. Si dos candidatos parecen igual de válidos o ninguno calza razonablemente, responde null — no adivines.`;
+Para seiaPick: elige el expediente cuyo nombre, titular, comuna/región y tipo correspondan mejor al proyecto de conexión. Cuando existan varios candidatos igualmente plausibles, prefiere el de fecha de ingreso más reciente. Si ninguno calza razonablemente, responde null — no adivines.`;
 
 function formatProjectForPrompt(project: ProjectDetail): string {
   return JSON.stringify(

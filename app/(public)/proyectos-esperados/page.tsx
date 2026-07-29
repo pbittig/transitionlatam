@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
-import { getProjectsForMap, getRecentlyAnnouncedProjects, getRecentProjectEvents, getVigenteVerificationProgress, listProjects } from "@/lib/data-access/projects";
+import { getProjectsForMap, getVigenteVerificationProgress, listProjects } from "@/lib/data-access/projects";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
 import { isAdmin } from "@/lib/auth/session";
 import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
@@ -18,7 +18,6 @@ import {
 import { computeScheduleForecast, FORECAST_PHASE_LABELS } from "@/lib/shared/scheduleForecast";
 import { PHASE_COLORS, PHASE_GROUP_LABELS, PHASE_TO_GROUP, type PhaseGroup } from "@/lib/shared/projectPhaseDurations";
 import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
-import { computeMaturityFunnel } from "@/lib/shared/maturityFunnel";
 import {
   computeMarketCalendarHighlights,
   computeMarketNarrative,
@@ -41,27 +40,31 @@ import { Panel } from "../components/Panel";
 import { MapView } from "../components/MapView";
 import { PipelineFunnelChart } from "../components/PipelineFunnelChart";
 import { ConnectionCalendarChart } from "../components/ConnectionCalendarChart";
-import { PipelineGanttChart } from "../components/PipelineGanttChart";
 import { MilestoneCalendarChart } from "../components/MilestoneCalendarChart";
 import { EquipmentDemandPanel } from "../components/EquipmentDemandPanel";
-import { MaturityFunnelChart } from "../components/MaturityFunnelChart";
 import { AnalysisDrawer } from "../components/AnalysisDrawer";
 import { MarketSnapshotList } from "../components/MarketSnapshotList";
-import { BarList } from "../components/BarList";
 import { PipelineHealthBar } from "../components/PipelineHealthBar";
-import { MarketPulseCard } from "../components/MarketPulseCard";
-import { ActivityTimeline } from "../components/ActivityTimeline";
 import { MarketCalendarNarrative } from "../components/MarketCalendarNarrative";
-import { AgeBenchmarksPanel } from "../components/AgeBenchmarksPanel";
 import { VerificationProgressBar } from "../components/VerificationProgressBar";
 import { PlanGate } from "../components/PlanGate";
 import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
-import { Activity, ArrowUpRight, BatteryCharging, CalendarClock, FolderKanban, Gauge, MapPin, Radar, Zap } from "lucide-react";
+import { Activity, ArrowUpRight, BatteryCharging, FolderKanban } from "lucide-react";
 
 export const metadata: Metadata = { title: "Proyectos Esperados" };
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
+const RENEWABLE_AND_STORAGE_CODES = [
+  "solar_pv",
+  "wind",
+  "hydro",
+  "pumped_hydro",
+  "bess",
+  "hybrid",
+  "biomass",
+  "geothermal",
+];
 
 const TABS: Array<{ key: "esperados" | "historico"; label: string }> = [
   { key: "esperados", label: "Esperados" },
@@ -91,8 +94,9 @@ export default async function ProyectosEsperadosPage({
   // deshabilitado más abajo, en vez de ocultarlo, para que quede claro que viene después.
   const HISTORICO_HABILITADO = false;
   const tab = HISTORICO_HABILITADO && params.tab === "historico" ? "historico" : "esperados";
-  const selectedKeys = parseChipKeys(params.tech);
-  const technologyCodes = chipsToTechnologyCodes(selectedKeys);
+  const selectedKeys = parseChipKeys(params.tech).filter((key) => key !== "termica" && key !== "transmision");
+  const selectedTechnologyCodes = chipsToTechnologyCodes(selectedKeys);
+  const technologyCodes = selectedTechnologyCodes.length > 0 ? selectedTechnologyCodes : RENEWABLE_AND_STORAGE_CODES;
   const namePatterns = chipsToNamePatterns(selectedKeys);
   const search = params.q;
   const etapaGroup = params.etapa as PhaseGroup | undefined;
@@ -135,9 +139,6 @@ export default async function ProyectosEsperadosPage({
     seiaStatusByProjectId,
     ageBenchmarks,
     solicitudes7d,
-    solicitudes30d,
-    recentEvents,
-    newProjects,
     admin,
     verificationProgress,
   ] = await Promise.all([
@@ -149,9 +150,6 @@ export default async function ProyectosEsperadosPage({
     getSeiaStatusesForUpcomingProjects(client),
     getRequestAgeBenchmarks(client),
     getRecentSolicitudesCount(client, 7),
-    getRecentSolicitudesCount(client, 30),
-    getRecentProjectEvents(client, 10),
-    getRecentlyAnnouncedProjects(client, 24),
     isAdmin(),
     getVigenteVerificationProgress(client),
   ]);
@@ -171,16 +169,25 @@ export default async function ProyectosEsperadosPage({
   // de equipos — así el usuario puede seleccionar "Solar" o "BESS" y ver
   // cuántos MW se esperan solo para esa tecnología, sin un control aparte.
   const hasTechFilter = technologyCodes.length > 0 || namePatterns.length > 0;
-  const filteredScheduleInputs = hasTechFilter
-    ? scheduleInputs.filter(
-        (i) =>
-          (i.technologyCode && technologyCodes.includes(i.technologyCode)) ||
-          namePatterns.some((p) => i.name.toLowerCase().includes(p.toLowerCase())),
-      )
-    : scheduleInputs;
+  const etapaIdSet = etapaProjectIds ? new Set(etapaProjectIds) : null;
+  const normalizedSearch = search?.trim().toLowerCase();
+  const analysisDateFrom = filters.connectionDateFrom;
+  const analysisDateTo = filters.connectionDateTo;
+  const filteredScheduleInputs = scheduleInputs.filter((item) => {
+    const matchesTechnology =
+      !hasTechFilter ||
+      (!!item.technologyCode && technologyCodes.includes(item.technologyCode)) ||
+      namePatterns.some((pattern) => item.name.toLowerCase().includes(pattern.toLowerCase()));
+    const matchesSearch = !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
+    const matchesStage = !etapaIdSet || etapaIdSet.has(item.id);
+    const matchesDateFrom =
+      !analysisDateFrom || (!!item.estimatedConnectionDate && item.estimatedConnectionDate >= analysisDateFrom);
+    const matchesDateTo =
+      !analysisDateTo || (!!item.estimatedConnectionDate && item.estimatedConnectionDate <= analysisDateTo);
+    return matchesTechnology && matchesSearch && matchesStage && matchesDateFrom && matchesDateTo;
+  });
 
   const forecast = computeScheduleForecast(filteredScheduleInputs);
-  const maturityFunnel = computeMaturityFunnel(filteredScheduleInputs);
 
   const pipelineTotals = computePipelineTotals(filteredScheduleInputs);
   const pipelineByTechnology = computePipelineByTechnology(filteredScheduleInputs);
@@ -212,41 +219,6 @@ export default async function ProyectosEsperadosPage({
     etapaGroup ? PHASE_GROUP_LABELS[etapaGroup] : undefined,
     hasDateRangeFilter ? "rango de fecha de conexión" : undefined,
   ].filter(Boolean);
-  const topTechnology = pipelineByTechnology[0];
-  const topRegion = pipelineByRegion[0];
-  const topTechnologyShare = topTechnology && pipelineTotals.totalCapacityMw > 0
-    ? (topTechnology.capacityMw / pipelineTotals.totalCapacityMw) * 100
-    : 0;
-  const topRegionShare = topRegion && pipelineTotals.totalCapacityMw > 0
-    ? (topRegion.capacityMw / pipelineTotals.totalCapacityMw) * 100
-    : 0;
-  const executiveSignals = [
-    {
-      icon: Zap,
-      label: "Tecnología dominante",
-      title: topTechnology?.category ?? "Sin tecnología dominante",
-      value: topTechnology ? `${topTechnologyShare.toLocaleString("es-CL", { maximumFractionDigits: 0 })}% de los MW del pipeline` : "Sin datos suficientes",
-      guidance: "Ayuda a dimensionar dónde se concentra la competencia y qué tipo de soluciones tendrá mayor demanda.",
-      color: "text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/10",
-    },
-    {
-      icon: MapPin,
-      label: "Concentración regional",
-      title: topRegion?.region ?? "Sin región dominante",
-      value: topRegion ? `${topRegionShare.toLocaleString("es-CL", { maximumFractionDigits: 0 })}% de la capacidad futura` : "Sin datos suficientes",
-      guidance: "Úsalo para priorizar estudios territoriales, puntos de conexión y actividad comercial por región.",
-      color: "text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-500/10",
-    },
-    {
-      icon: Gauge,
-      label: "Salud de la cartera",
-      title: `${pipelineHealth.bajaPct}% con riesgo alto`,
-      value: `${pipelineHealth.altaPct}% en desarrollo normal`,
-      guidance: "Permite separar volumen anunciado de proyectos con mejores señales de avance y cumplimiento de fecha.",
-      color: "text-brand-deep bg-brand-surface dark:text-brand-primary dark:bg-brand-primary/10",
-    },
-  ];
-
   return (
     <div className="flex flex-col gap-10">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-8 text-white shadow-xl shadow-brand-deep/10 md:px-8 md:py-10">
@@ -254,10 +226,7 @@ export default async function ProyectosEsperadosPage({
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.14em] text-brand-primary uppercase">
-              <Radar size={14} /> Proyectos futuros · Chile
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Pipeline de conexión</h1>
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Proyectos futuros</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
               Proyectos en desarrollo, sus señales regulatorias y la ruta hacia su conexión. Fuente: Acceso Abierto. Distinto de{" "}
               <Link href="/mercado" className="font-medium text-white underline underline-offset-2">Infraestructura</Link> (centrales ya operativas).
@@ -271,18 +240,14 @@ export default async function ProyectosEsperadosPage({
 
       <section aria-labelledby="pipeline-summary-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Foto de la cartera</p>
-            <h2 id="pipeline-summary-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Magnitud, composición y actividad reciente</h2>
-          </div>
+          <h2 id="pipeline-summary-title" className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Magnitud y composición</h2>
           <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">Los indicadores respetan el filtro tecnológico cuando corresponde.</p>
         </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[
             { icon: FolderKanban, label: "Proyectos monitoreados", value: pipelineTotals.count.toLocaleString("es-CL"), detail: "solicitudes vigentes con cronograma", accent: "border-t-brand-primary", iconClass: "bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary" },
-            { icon: Activity, label: "Capacidad futura", value: `${(filteredCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: "con el filtro tecnológico activo", accent: "border-t-data-blue", iconClass: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300" },
+            { icon: Activity, label: "Proyectos con solicitud de conexión", value: `${(filteredCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: "con el filtro tecnológico activo", accent: "border-t-data-blue", iconClass: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300" },
             { icon: BatteryCharging, label: "Proyectos con BESS", value: bessCount.toLocaleString("es-CL"), detail: "incluyen almacenamiento en baterías", accent: "border-t-data-bess", iconClass: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300" },
-            { icon: CalendarClock, label: "Actividad reciente", value: `+${solicitudes30d.toLocaleString("es-CL")}`, detail: "solicitudes ingresadas en 30 días", accent: "border-t-data-solar", iconClass: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300" },
           ].map(({ icon: Icon, label, value, detail, accent, iconClass }) => (
             <article key={label} className={`rounded-2xl border border-neutral-200 border-t-2 ${accent} bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950`}>
               <div className="flex items-center justify-between gap-3">
@@ -291,29 +256,6 @@ export default async function ProyectosEsperadosPage({
               </div>
               <p className="mt-4 text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">{value}</p>
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{detail}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-surface via-white to-white p-6 dark:via-neutral-950 dark:to-neutral-950" aria-labelledby="pipeline-reading-title">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Lectura ejecutiva</p>
-            <h2 id="pipeline-reading-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Dónde se concentra la oportunidad y qué vigilar</h2>
-          </div>
-          <span className="text-xs text-neutral-500 dark:text-neutral-400">Estimaciones propias basadas en señales regulatorias y fechas disponibles</span>
-        </div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-3">
-          {executiveSignals.map(({ icon: Icon, label, title, value, guidance, color }) => (
-            <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-              <div className="flex items-center gap-3">
-                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${color}`}><Icon size={17} /></span>
-                <p className="text-[10px] font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">{label}</p>
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-neutral-950 dark:text-white">{title}</h3>
-              <p className="mt-1 text-sm font-medium text-brand-deep dark:text-brand-primary">{value}</p>
-              <p className="mt-3 border-t border-neutral-100 pt-3 text-xs leading-5 text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"><span className="font-semibold text-neutral-700 dark:text-neutral-300">Cómo usarlo:</span> {guidance}</p>
             </article>
           ))}
         </div>
@@ -360,8 +302,8 @@ export default async function ProyectosEsperadosPage({
       )}
 
       <section id="lista-proyectos" className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div><p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Explorador de proyectos</p><h2 className="mt-1 text-xl font-semibold text-neutral-900 dark:text-neutral-50">Cartera de conexión</h2></div>
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+          <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Cartera de conexión</h2>
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} solicitudes en la vista</span>
         </div>
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
@@ -372,7 +314,7 @@ export default async function ProyectosEsperadosPage({
           otherParams={{ tab: tab === "esperados" ? undefined : tab, tech: params.tech }}
           placeholder="Buscar por nombre de proyecto..."
         />
-        <TechSelectFilter basePath="/proyectos-esperados" selectedKeys={selectedKeys} excludeKeys={["transmision"]} />
+        <TechSelectFilter basePath="/proyectos-esperados" selectedKeys={selectedKeys} excludeKeys={["termica", "transmision"]} />
         {tab === "esperados" && <EtapaFilter basePath="/proyectos-esperados" />}
         {tab === "esperados" && <ConnectionDateRangeFilter basePath="/proyectos-esperados" />}
         {activeFilterLabels.length > 0 ? <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">Vista actual:</span> {activeFilterLabels.join(" · ")}</p> : <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">Los filtros también acotan el análisis de madurez, hitos y demanda futura.</p>}
@@ -402,7 +344,54 @@ export default async function ProyectosEsperadosPage({
         <div className="px-5 pb-5"><Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} /></div>
       </Panel>
 
-      <AnalysisDrawer title="Análisis detallado de proyectos futuros" description="Profundiza en madurez, fechas de conexión, demanda de equipos y salud de la cartera.">
+      {false && (
+      <section className="flex flex-col gap-5" aria-labelledby="dynamic-analysis-title">
+        <div>
+          <p className="text-xs font-medium tracking-wide text-brand-deep uppercase dark:text-brand-primary">Inteligencia de cartera</p>
+          <h2 id="dynamic-analysis-title" className="mt-1 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+            Análisis dinámico
+          </h2>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            Filtra los proyectos futuros y abre el análisis con los indicadores recalculados para esa selección.
+          </p>
+        </div>
+        <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtros del análisis</h3>
+              <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Tecnología, proyecto, etapa y horizonte de conexión.</p>
+            </div>
+            {(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && (
+              <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">
+                Restablecer filtros
+              </Link>
+            )}
+          </div>
+          <SearchBar
+            basePath="/proyectos-esperados"
+            value={search}
+            otherParams={{ tab: tab === "esperados" ? undefined : tab, tech: params.tech }}
+            placeholder="Buscar proyecto para analizar..."
+          />
+          <div className="flex flex-wrap gap-4">
+            <TechSelectFilter basePath="/proyectos-esperados" selectedKeys={selectedKeys} excludeKeys={["termica", "transmision"]} />
+            {tab === "esperados" && <EtapaFilter basePath="/proyectos-esperados" />}
+          </div>
+          {tab === "esperados" && <ConnectionDateRangeFilter basePath="/proyectos-esperados" />}
+          {activeFilterLabels.length > 0 ? (
+            <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
+              <span className="font-medium">Análisis actual:</span> {activeFilterLabels.join(" · ")}
+            </p>
+          ) : (
+            <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+              Mostrando todos los proyectos futuros.
+            </p>
+          )}
+          <AnalysisDrawer
+            triggerVariant="inline"
+            title="Análisis detallado de proyectos futuros"
+            description="Indicadores recalculados para los filtros seleccionados."
+          >
         <div className="rounded-2xl border border-brand-primary/25 bg-brand-surface p-5 dark:bg-brand-primary/10">
           <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Cómo leer este análisis</p>
           <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Comienza por el panorama actual y la salud de la cartera; después revisa regiones y antigüedad; finalmente usa los calendarios y la demanda de equipos para identificar ventanas comerciales.</p>
@@ -425,53 +414,11 @@ export default async function ProyectosEsperadosPage({
         <Panel className="flex flex-col gap-4">
           <div>
             <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
-              ¿Dónde está creciendo?
-            </h2>
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              Pipeline vigente por región (MW), top 8. Respeta el filtro de tecnología de arriba.
-            </p>
-          </div>
-          <BarList
-            items={pipelineByRegion
-              .slice(0, 8)
-              .map((r) => ({ label: r.region, value: Math.round(r.capacityMw), secondaryValue: `${r.count} proyectos` }))}
-          />
-        </Panel>
-
-        <Panel className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
               Pipeline Health
             </h2>
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">Respeta el filtro de tecnología de arriba.</p>
           </div>
           <PipelineHealthBar health={pipelineHealth} />
-        </Panel>
-
-        <Panel className="flex flex-col gap-4">
-          <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
-            Market Pulse
-          </h2>
-          <MarketPulseCard solicitudes7d={solicitudes7d} solicitudes30d={solicitudes30d} />
-        </Panel>
-
-        <Panel className="flex flex-col gap-4">
-          <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
-            Actividad reciente
-          </h2>
-          <ActivityTimeline events={recentEvents} />
-        </Panel>
-
-        <Panel className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
-              Proyectos nuevos (últimas 24h)
-            </h2>
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              Solicitudes que entraron a Acceso Abierto en las últimas 24 horas.
-            </p>
-          </div>
-          <ActivityTimeline events={newProjects} />
         </Panel>
 
         <Panel className="flex flex-col gap-4">
@@ -489,42 +436,6 @@ export default async function ProyectosEsperadosPage({
         <Panel className="flex flex-col gap-4">
           <div>
             <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
-              Antigüedad de la cartera
-            </h2>
-            <p className="mt-1 max-w-2xl text-xs text-neutral-500 dark:text-neutral-400">
-              Tiempo transcurrido desde el ingreso real de la solicitud ante el Coordinador hasta hoy, para
-              solicitudes vigentes. <strong>No es tiempo de tramitación completo</strong> — todavía no registramos la
-              fecha de cada cambio de estado, solo el estado actual y la fecha de ingreso. Categorías con menos de 5
-              solicitudes se omiten.
-            </p>
-          </div>
-          <AgeBenchmarksPanel benchmarks={ageBenchmarks} />
-        </Panel>
-
-        <Panel className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">Alertas</h2>
-          {admin ? (
-            <>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Sigue proyectos desde su ficha y revisa sus novedades en un solo lugar.
-              </p>
-              <Link
-                href="/alertas"
-                className="w-fit rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-50 dark:text-neutral-900"
-              >
-                Ir a Alertas
-              </Link>
-            </>
-          ) : (
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              Inicia sesión como administrador para seguir proyectos y ver sus novedades.
-            </p>
-          )}
-        </Panel>
-
-        <Panel className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
               Embudo del pipeline
             </h2>
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
@@ -533,25 +444,6 @@ export default async function ProyectosEsperadosPage({
             </p>
           </div>
           <PipelineFunnelChart funnel={funnel} />
-        </Panel>
-
-        <Panel className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
-              Embudo de madurez (inferido)
-            </h2>
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              Distinto del embudo de arriba: ese mide avance <strong>administrativo</strong> (SAC/SEIA); este mide en
-              qué macro-etapa real de desarrollo estimamos que está cada solicitud vigente (el mismo modelo llamado{" "}
-              <strong>Estado del proyecto</strong> en cada ficha). Respeta el filtro de tecnología de arriba.
-              {maturityFunnel.skipped > 0
-                ? ` ${maturityFunnel.skipped} solicitudes vigentes quedaron fuera por no tener tecnología clasificada.`
-                : ""}
-            </p>
-          </div>
-          <PlanGate locked={isFree}>
-            <MaturityFunnelChart funnel={maturityFunnel} />
-          </PlanGate>
         </Panel>
 
         <Panel className="flex flex-col gap-4">
@@ -606,19 +498,6 @@ export default async function ProyectosEsperadosPage({
         </Panel>
 
         <Panel className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-sm font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
-              Gantt agregado
-            </h2>
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              Cronograma probabilístico de los {result.items.length} proyectos de esta página (mismo filtro y página
-              que la tabla de arriba), en un eje de fechas compartido.
-            </p>
-          </div>
-          <PipelineGanttChart items={result.items} />
-        </Panel>
-
-        <Panel className="flex flex-col gap-4">
           <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-50">Mapa del pipeline</h2>
           <p className="text-xs text-neutral-500 dark:text-neutral-400">
             {mapData.precisePoints.length.toLocaleString("es-CL")} con ubicación exacta, resto agregado por región
@@ -634,6 +513,9 @@ export default async function ProyectosEsperadosPage({
           estimar mejor el riesgo de atraso.
         </p>
       </AnalysisDrawer>
+        </Panel>
+      </section>
+      )}
     </div>
   );
 }

@@ -301,6 +301,7 @@ export async function loadFormularioResult(
   client: SupabaseClient,
   projectId: string,
   result: FormularioResult,
+  options: { enrichProject?: boolean } = {},
 ): Promise<FormularioLoadResult> {
   const dataSourceId = await getDataSourceId(client);
 
@@ -322,7 +323,9 @@ export async function loadFormularioResult(
   }
 
   const data = result.data;
-  await enrichProjectPowerFields(client, projectId, data);
+  if (options.enrichProject !== false) {
+    await enrichProjectPowerFields(client, projectId, data);
+  }
   const cleanCompanyName = data.companyName && isPlausibleContactField(data.companyName) ? data.companyName : null;
   const companyId = await getOrCreateCompany(client, cleanCompanyName, data.companyRut, data.companyLegalAddress);
   const personIds: string[] = [];

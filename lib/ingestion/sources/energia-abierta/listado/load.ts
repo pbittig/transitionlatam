@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeForMatch } from "./normalize";
 import type { NormalizedProject } from "./types";
-import { REJECTED_STATUSES } from "@/lib/data-access/projects";
+import { REJECTED_STATUSES, startOfCurrentMonthIso } from "@/lib/data-access/projects";
+import { prefilterProject } from "./prefilter";
 
 const DATA_SOURCE_NAME = "Acceso Abierto - Coordinador Eléctrico Nacional (listado)";
 const CONFIDENCE_PUBLIC = "PUBLICO";
@@ -19,12 +20,40 @@ const CONFIDENCE_PUBLIC = "PUBLICO";
  */
 const FEHACIENTE_AWAITING_SUCTD_MARKER = "debe presentar suctd";
 
+// La API siempre devuelve las solicitudes en el mismo orden. Si la corrida se
+// corta antes de terminar (ej. timeout de función serverless en el cron), un
+// orden fijo dejaría siempre la misma cola de proyectos sin sincronizar nunca
+// — se mezcla para que, en unos días, todos terminen cubiertos en vez de que
+// el mismo tramo inicial se reprocese cada vez mientras el final queda huérfano.
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 function statusRank(status: string | null): 0 | 1 | 2 {
   if (!status) return 1;
   const normalized = normalizeForMatch(status);
   if (REJECTED_STATUSES.some((s) => normalizeForMatch(s) === normalized)) return 0;
   if (normalized.includes(normalizeForMatch(FEHACIENTE_AWAITING_SUCTD_MARKER))) return 1;
   return 2;
+}
+
+/**
+ * Etapa actual (2026-07-28, pedido explícito): el sync solo actualiza proyectos
+ * "vigentes" — mismo criterio que ya usa el Verificador/proyectos-esperados
+ * (applyPeriodFilter en lib/data-access/projects.ts): no rechazado/desistido y
+ * con fecha de conexión estimada desde el inicio de mes. El resto (histórico:
+ * rechazados, desistidos, vencidos o sin fecha) queda pendiente para una etapa
+ * posterior — no se toca todavía.
+ */
+function isVigenteRow(row: NormalizedProject): boolean {
+  if (statusRank(row.statusLabel) === 0) return false;
+  if (!row.estimatedConnectionDate) return false;
+  return row.estimatedConnectionDate >= startOfCurrentMonthIso();
 }
 
 export interface LoadSummary {
@@ -37,6 +66,7 @@ export interface LoadSummary {
   locationsCreated: number;
   connectionStatusesCreated: number;
   eventsFailed: number;
+  skippedNotVigente: number;
   unmatchedRegions: Set<string>;
   unmatchedTechnologies: Set<string>;
 }
@@ -55,6 +85,7 @@ export async function loadNormalizedProjects(
     locationsCreated: 0,
     connectionStatusesCreated: 0,
     eventsFailed: 0,
+    skippedNotVigente: 0,
     unmatchedRegions: new Set(),
     unmatchedTechnologies: new Set(),
   };
@@ -411,9 +442,17 @@ export async function loadNormalizedProjects(
       return;
     }
 
+    const prefilter = prefilterProject(row);
     const { data: project, error: projectError } = await client
       .from("project")
-      .insert(projectFields)
+      .insert({
+        ...projectFields,
+        editorial_status: "pending",
+        detected_at: new Date().toISOString(),
+        prefilter_status: prefilter.status,
+        prefilter_category: prefilter.category,
+        prefilter_reason: prefilter.reason,
+      })
       .select("id")
       .single();
     if (projectError || !project) {
@@ -465,7 +504,13 @@ export async function loadNormalizedProjects(
     });
   }
 
-  for (const row of rows) {
+  const vigenteRows = rows.filter((row) => {
+    if (isVigenteRow(row)) return true;
+    summary.skippedNotVigente += 1;
+    return false;
+  });
+
+  for (const row of shuffle(vigenteRows)) {
     await withRetry(() => processRow(row), `proyecto ${row.externalId} (${row.projectName})`);
   }
 

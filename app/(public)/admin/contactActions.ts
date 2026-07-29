@@ -77,6 +77,69 @@ export async function addProjectContact(
   }
 }
 
+export interface ContactSearchResult {
+  personId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+/** Busca personas ya existentes por nombre/apellido — usado para el autocompletado al agregar contacto (evita crear duplicados de alguien que ya está en otro proyecto). */
+export async function searchExistingContacts(query: string): Promise<ContactSearchResult[]> {
+  if (!(await isAdmin())) return [];
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+  const client = createSupabaseServiceClient();
+  const { data, error } = await client
+    .from("person")
+    .select("id, full_name, email, phone")
+    .ilike("full_name", `%${trimmed}%`)
+    .order("full_name", { ascending: true })
+    .limit(8);
+  if (error || !data) return [];
+  return data.map((p) => ({
+    personId: p.id as string,
+    name: p.full_name as string,
+    email: p.email as string | null,
+    phone: p.phone as string | null,
+  }));
+}
+
+/** Vincula una persona YA existente a este proyecto (sin crear un person nuevo) — contraparte de addProjectContact para cuando el admin elige una sugerencia del autocompletado. */
+export async function linkExistingContact(projectId: string, personId: string): Promise<{ success: boolean; error?: string }> {
+  if (!(await isAdmin())) {
+    return { success: false, error: "Debes iniciar sesión como administrador." };
+  }
+  try {
+    const client = createSupabaseServiceClient();
+    const { data: existing } = await client
+      .from("entity_relationship")
+      .select("id")
+      .eq("source_type", "person")
+      .eq("source_id", personId)
+      .eq("target_type", "project")
+      .eq("target_id", projectId)
+      .eq("relationship_type", "contacto")
+      .maybeSingle();
+    if (existing) {
+      return { success: false, error: "Este contacto ya está vinculado a este proyecto." };
+    }
+    const { error } = await client.from("entity_relationship").insert({
+      source_type: "person",
+      source_id: personId,
+      relationship_type: "contacto",
+      target_type: "project",
+      target_id: projectId,
+      confidence_level: "VERIFICADO",
+    });
+    if (error) throw new Error(error.message);
+    revalidateProjectPages(projectId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
 /** Desvincula un contacto de este proyecto (no borra la persona — solo el vínculo person->project). */
 export async function removeProjectContact(
   projectId: string,

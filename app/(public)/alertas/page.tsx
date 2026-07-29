@@ -6,12 +6,13 @@ import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
-import { getAppSetting, getFollowedProjects, getWatchlistEvents } from "@/lib/data-access/watchlist";
+import { getAppSetting, getFollowedProjects, getWatchlistEvents, NEW_PROJECT_ALERT_CATEGORIES } from "@/lib/data-access/watchlist";
 import { ThermalStatusBar } from "../components/ThermalStatusBar";
 import { Panel } from "../components/Panel";
 import { AppSettingToggle } from "../components/AppSettingToggle";
 import { FollowButton } from "../proyectos/[id]/FollowButton";
 import { PlanGate } from "../components/PlanGate";
+import { NewProjectAlertSelector } from "../components/NewProjectAlertSelector";
 
 export const metadata: Metadata = { title: "Seguimiento" };
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ export default async function AlertasPage() {
   if (!admin && !profile) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Alertas</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Seguimiento</h1>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
           Inicia sesión para seguir proyectos y ver sus novedades.
         </p>
@@ -54,13 +55,14 @@ export default async function AlertasPage() {
 
   const isFree = !admin && (await getIsFreeTier(serverClient));
   const client = createSupabaseServiceClient();
-  const [notifyNewProjects, followNotificationsEnabled] = await Promise.all([
-    getAppSetting(client, "notify_new_projects"),
+  const [followNotificationsEnabled, ...categorySettings] = await Promise.all([
     getAppSetting(client, "follow_notifications_enabled", true),
+    ...NEW_PROJECT_ALERT_CATEGORIES.map((category) => getAppSetting(client, `notify_new_${category}`, true)),
   ]);
+  const selectedCategories = NEW_PROJECT_ALERT_CATEGORIES.filter((_, index) => categorySettings[index]);
   const [followed, events] = await Promise.all([
     getFollowedProjects(client),
-    getWatchlistEvents(client, 50, notifyNewProjects),
+    getWatchlistEvents(client, 50, selectedCategories.length > 0, selectedCategories),
   ]);
   const recentEvents = events.length;
   const projectsWithMovement = new Set(events.map((event) => event.projectId)).size;
@@ -97,7 +99,7 @@ export default async function AlertasPage() {
           </div>
           <div className="flex flex-col items-start gap-2">
             <AppSettingToggle settingKey="follow_notifications_enabled" initiallyOn={followNotificationsEnabled} label="Mostrar campanita y avisos emergentes" />
-            <AppSettingToggle settingKey="notify_new_projects" initiallyOn={notifyNewProjects} label="Avisarme también de nuevos proyectos renovables, BESS y data centers" />
+            <NewProjectAlertSelector initialSelection={[...selectedCategories]} />
           </div>
         </div>
         <PlanGate

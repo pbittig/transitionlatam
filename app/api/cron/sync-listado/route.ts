@@ -1,6 +1,7 @@
 import { runListadoSync } from "@/lib/ingestion/sources/energia-abierta/listado/runSync";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Cron real (Vercel Cron, ver vercel.json) — reemplaza al scheduling manual del
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
       projectsUpdated: summary.projectsUpdated,
       projectsPromotedFromSibling: summary.projectsPromotedFromSibling,
       solicitudesDiscardedAsInferior: summary.solicitudesDiscardedAsInferior,
+      skippedNotVigente: summary.skippedNotVigente,
       eventsFailed: summary.eventsFailed,
     });
     return Response.json({
@@ -32,6 +34,7 @@ export async function GET(request: Request) {
       projectsUpdated: summary.projectsUpdated,
       projectsPromotedFromSibling: summary.projectsPromotedFromSibling,
       solicitudesDiscardedAsInferior: summary.solicitudesDiscardedAsInferior,
+      skippedNotVigente: summary.skippedNotVigente,
       companiesCreated: summary.companiesCreated,
       locationsCreated: summary.locationsCreated,
       connectionStatusesCreated: summary.connectionStatusesCreated,
