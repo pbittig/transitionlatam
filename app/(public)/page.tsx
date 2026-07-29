@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Activity, ArrowUpRight, BatteryCharging, Building2, Map, Network, Radar, UsersRound } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getConstructionStats } from "@/lib/data-access/construction";
@@ -23,7 +24,12 @@ function formatGw(mw: number) {
 
 export default async function HomePage() {
   const client = await createSupabaseServerClient();
-  const [scope, scheduleInputs, construction, operating, calendar, companies, lastSync, pipelineLastSync, admin, profile] = await Promise.all([
+  const [admin, profile] = await Promise.all([isAdmin(), getCurrentUserProfile(client)]);
+  // "/ingresar" es la landing para quien no tiene sesión — el dashboard queda
+  // reservado para quien ya inició sesión (admin o cuenta de plataforma).
+  if (!admin && !profile) redirect("/ingresar");
+
+  const [scope, scheduleInputs, construction, operating, calendar, companies, lastSync, pipelineLastSync] = await Promise.all([
     getPipelineScopeTotals(client),
     getUpcomingScheduleInputs(client),
     getConstructionStats(client),
@@ -32,8 +38,6 @@ export default async function HomePage() {
     getTopCompaniesByProjectCount(client, 5),
     getLastSyncTimestamp(client),
     getPipelineLastSyncedAt(createSupabaseServiceClient()),
-    isAdmin(),
-    getCurrentUserProfile(client),
   ]);
   const premiumLocked = !admin && profile?.planCode !== "premium";
 
@@ -91,7 +95,7 @@ export default async function HomePage() {
         </Panel>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[.85fr_1.15fr]">
+      <section className="hidden">
         <Panel className="flex flex-col gap-4">
           <div>
             <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Próxima ventana</p>
@@ -110,7 +114,7 @@ export default async function HomePage() {
         </Panel>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="hidden">
         <Panel className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-4">
             <div><p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Relaciones</p><h2 className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50">Desarrolladores con mayor cartera</h2></div>

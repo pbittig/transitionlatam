@@ -790,3 +790,43 @@
 [worker 1] [preverification 401/428] c87e498a-acf9-473d-bfd2-7ee20945f16f: iniciando
 [worker 2] [preverification 397/428] CRCA Tierruca del Verano: completado
 [worker 2] [preverification 402/428] fb4d2a9a-1323-4092-a437-b40c8a597f26: iniciando
+[worker 1] [preverification 401/428] Solar Delva: con errores
+[worker 1] [preverification 403/428] 34e8237c-188b-48bc-ac15-80f46fe91cc1: iniciando
+[worker 2] [preverification 402/428] Guanaco Solar: completado
+[worker 2] [preverification 404/428] e2b4957d-7222-4713-8d42-a89a30966539: iniciando
+[worker 3] [preverification 399/428] Parque Eólico Ramal + BESS: completado
+[worker 3] [preverification 405/428] 4834d93d-9213-4e90-b8b7-935eb7c76be3: iniciando
+[worker 3] [preverification 405/428] PE Vendaval: con errores
+[worker 3] [preverification 406/428] 0f5b143e-be86-4262-bb62-ebb264aa2a01: iniciando
+[worker 2] [preverification 404/428] Proyecto Parque Eólico Amadeus: completado
+[worker 2] [preverification 407/428] 228e7f82-817d-4810-9765-2a89da9ce077: iniciando
+[worker 1] [preverification 403/428] PH Pedregal: con errores
+[worker 1] [preverification 408/428] 15c44032-df41-4fc9-b4c0-59f621758979: iniciando
+[worker 2] [preverification 407/428] SP Paradis: completado
+[worker 2] [preverification 409/428] 97e8f77c-a3a0-4f39-96cf-d827e24671e2: iniciando
+[worker 1] [preverification 408/428] Altos de la Luna: con errores
+[worker 1] [preverification 410/428] 2fe29c8e-f02f-4a8f-abb4-90bd416c32f8: iniciando
+[worker 1] [preverification 410/428] PE Vaiu: completado
+[worker 1] [preverification 411/428] fc68fffc-15da-4143-b356-27ec493394a1: iniciando
+[worker 1] [preverification 411/428] Parque Solar Los Altos: con errores
+[worker 1] [preverification 412/428] ad890b9e-4e5c-4d7b-add3-2cb512d4d05e: iniciando
+[worker 2] [preverification 409/428] SP Saria: completado
+[worker 2] [preverification 413/428] 593ffdd0-349e-4da7-8f22-77f0aa6c7431: iniciando
+[worker 2] [preverification 413/428] Extensión operacional Faena Minera Cerro Colorado : completado
+[worker 2] [preverification 414/428] 0ea18a4b-9bc1-4408-bb28-a85bd7ab18ba: iniciando
+[worker 3] [preverification 406/428] Horus: con errores
+[worker 3] [preverification 415/428] 1cbbed9c-c92d-4f9b-b934-8a1d374f15b7: iniciando
+[worker 2] [preverification 414/428] CRCA Tilomonte: completado
+[worker 2] [preverification 416/428] f5f17abe-68b0-4d85-aaac-50ae38bf8d10: iniciando
+[worker 1] [preverification 412/428] NUEVO HORIZONTE: completado
+[worker 1] [preverification 417/428] 5e4185ee-d8d9-48e6-9cbb-27d2d827b8b4: iniciando
+[worker 2] [preverification 416/428] PE Piedra Amarilla: completado
+[worker 2] [preverification 418/428] 3dcfa1a2-6e49-42ad-b942-7c47ec964adb: iniciando
+[worker 3] [preverification 415/428] PV+BESS El Huaicazo Solar : con errores
+[worker 3] [preverification 419/428] 3fcb5cbd-3875-4cbd-9100-b34f5b67a1dd: iniciando
+[worker 2] [preverification 418/428] PV Tita Hybrid: completado
+[worker 2] [preverification 420/428] 0384d543-847e-4706-aaf1-370a9389f083: iniciando
+[worker 3] [preverification 419/428] Vientos de Atacama 2: completado
+[worker 3] [preverification 421/428] 9ca77122-b842-477e-9819-56dabb24e70a: iniciando
+[worker 1] [preverification 417/428] PFV Costanera Solar: con errores
+[worker 1] [preverification 422/428] 59d8ee47-d4ba-4012-9132-244fd6056b43: iniciando
