@@ -110,6 +110,15 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
     preferred_language: preferredLanguage,
   };
   let { error: profileError } = await serviceClient.from("user_profile").insert(profilePayload);
+  // Carrera transitoria real (2026-08-03, caso Ricardo Bittig): el auth.users
+  // recién creado por signUp() a veces todavía no es visible para el chequeo
+  // de foreign key del insert siguiente — un reintento corto alcanza, no es
+  // un error real de datos.
+  for (let attempt = 0; profileError?.code === "23503" && attempt < 2; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const retry = await serviceClient.from("user_profile").insert(profilePayload);
+    profileError = retry.error;
+  }
   if (profileError?.code === "42703" || profileError?.code === "PGRST204") {
     const { preferred_language: _preferredLanguage, mobile_phone: _mobilePhone, ...legacyPayload } = profilePayload;
     void _preferredLanguage;
