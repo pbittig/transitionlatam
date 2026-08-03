@@ -46,12 +46,13 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
     .trim()
     .toLowerCase();
   const companyName = String(formData.get("companyName") ?? "").trim();
+  const jobTitle = String(formData.get("jobTitle") ?? "").trim();
   const mobilePhone = String(formData.get("mobilePhone") ?? "").trim();
   const userType = String(formData.get("userType") ?? "other");
   const country = String(formData.get("country") ?? "").trim() || null;
   const password = String(formData.get("password") ?? "");
 
-  if (!fullName || !email || !companyName || !mobilePhone || !password) {
+  if (!fullName || !email || !companyName || !jobTitle || !mobilePhone || !password) {
     return { error: "Completa todos los campos." };
   }
   const mobileDigits = mobilePhone.replace(/\D/g, "");
@@ -100,6 +101,7 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
     email,
     full_name: fullName,
     company_name: companyName,
+    role: jobTitle,
     mobile_phone: mobilePhone,
     user_type: userType,
     country,
@@ -132,6 +134,7 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
             <tr><td style="padding-right: 12px; color: #888;">Nombre</td><td>${escapeHtml(fullName)}</td></tr>
             <tr><td style="padding-right: 12px; color: #888;">Correo</td><td>${escapeHtml(email)}</td></tr>
             <tr><td style="padding-right: 12px; color: #888;">Empresa</td><td>${escapeHtml(companyName)}</td></tr>
+            <tr><td style="padding-right: 12px; color: #888;">Cargo</td><td>${escapeHtml(jobTitle)}</td></tr>
             <tr><td style="padding-right: 12px; color: #888;">Teléfono</td><td>${escapeHtml(mobilePhone)}</td></tr>
             <tr><td style="padding-right: 12px; color: #888;">Tipo</td><td>${escapeHtml(userType)}</td></tr>
             <tr><td style="padding-right: 12px; color: #888;">País</td><td>${escapeHtml(country ?? "—")}</td></tr>

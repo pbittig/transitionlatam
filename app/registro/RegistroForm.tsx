@@ -86,6 +86,19 @@ export function RegistroForm({ locale = "es" }: { locale?: AppLocale }) {
         />
       </div>
       <div>
+        <label htmlFor="jobTitle" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          {locale === "en" ? "Job title" : "Cargo"}
+        </label>
+        <input
+          id="jobTitle"
+          name="jobTitle"
+          type="text"
+          required
+          placeholder={locale === "en" ? "e.g. Business Development Director" : "Ej. Director de Desarrollo de Negocios"}
+          className="w-full rounded-xl border border-neutral-300 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 dark:border-neutral-700"
+        />
+      </div>
+      <div>
         <label htmlFor="mobilePhone" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
           {locale === "en" ? "Mobile phone" : "Teléfono de contacto (móvil)"}
         </label>
