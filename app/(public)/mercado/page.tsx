@@ -20,6 +20,7 @@ import { Panel } from "../components/Panel";
 import { OwnerCapacityDonut } from "../components/OwnerCapacityDonut";
 import { TechnologyCapacityDonut } from "../components/TechnologyCapacityDonut";
 import { TechStageHeatmap, type HeatmapColumn } from "../components/TechStageHeatmap";
+import { ModuleGuide } from "../components/ModuleGuide";
 
 export const metadata: Metadata = { title: "Mercado — Transition LATAM" };
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ function buildHref(params: Record<string, string | undefined>, overrides: Record
     if (value) qs.set(key, value);
   }
   const query = qs.toString();
-  return query ? `/mercado?${query}` : "/mercado";
+  return query ? `/matriz?${query}` : "/matriz";
 }
 
 export default async function MercadoPage({
@@ -108,7 +109,7 @@ export default async function MercadoPage({
   ].filter(Boolean);
   return (
     <div className="flex flex-col gap-10">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-8 text-white shadow-xl shadow-brand-deep/10 md:px-8 md:py-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-8 text-white shadow-xl shadow-black/10 md:px-8 md:py-10">
         <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative">
@@ -119,6 +120,14 @@ export default async function MercadoPage({
         </div>
       </section>
 
+      <ModuleGuide
+        purpose="Entender cómo está compuesta hoy la matriz eléctrica chilena y cómo cambia al incorporar centrales en construcción y proyectos futuros."
+        deliverables={["Capacidad y centrales por tecnología y región", "Principales propietarios y concentración", "Comparación entre operación, construcción y pipeline"]}
+        howToUse={["Filtra por tecnología o estado", "Compara capacidad instalada y futura", "Identifica brechas, concentración y crecimiento"]}
+        plan="Free"
+        upgradeMessage="Free entrega el panorama de mercado; Lite agrega profundidad por proyecto, análisis y monitoreo."
+      />
+
       <section aria-labelledby="system-summary-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -128,11 +137,11 @@ export default async function MercadoPage({
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[
-            { icon: Activity, label: "En operación", value: `${(stats.operatingCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${stats.totalPlants.toLocaleString("es-CL")} centrales registradas`, accent: "border-t-brand-primary", iconClass: "bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary" },
-            { icon: Building2, label: "En construcción", value: `${(constructionStats.totalPotenciaMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${constructionStats.count.toLocaleString("es-CL")} proyectos declarados`, accent: "border-t-data-solar", iconClass: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300" },
-            { icon: BatteryCharging, label: "BESS en construcción", value: `${(bessTotalMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${bessProjects.length.toLocaleString("es-CL")} proyectos con baterías`, accent: "border-t-data-bess", iconClass: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300" },
-          ].map(({ icon: Icon, label, value, detail, accent, iconClass }) => (
-            <article key={label} className={`rounded-2xl border border-neutral-200 border-t-2 ${accent} bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950`}>
+            { icon: Activity, label: "En operación", value: `${(stats.operatingCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${stats.totalPlants.toLocaleString("es-CL")} centrales registradas`, iconClass: "bg-brand-surface text-brand-deep" },
+            { icon: Building2, label: "En construcción", value: `${(constructionStats.totalPotenciaMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${constructionStats.count.toLocaleString("es-CL")} proyectos declarados`, iconClass: "bg-brand-surface text-brand-deep" },
+            { icon: BatteryCharging, label: "BESS en construcción", value: `${(bessTotalMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${bessProjects.length.toLocaleString("es-CL")} proyectos con baterías`, iconClass: "bg-brand-surface text-brand-deep" },
+          ].map(({ icon: Icon, label, value, detail, iconClass }) => (
+            <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">{label}</p>
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClass}`}><Icon size={15} /></span>
@@ -191,8 +200,8 @@ export default async function MercadoPage({
         </div>
 
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la infraestructura</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnología, condición operativa y búsqueda por central o propietario.</p></div>{hasFilter && <Link href="/mercado" className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
-          <SearchBar basePath="/mercado" value={search} otherParams={{ tech: params.tech }} placeholder="Buscar por nombre de central o propietario...">
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la infraestructura</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnología, condición operativa y búsqueda por central o propietario.</p></div>{hasFilter && <Link href="/matriz" className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
+          <SearchBar basePath="/matriz" value={search} otherParams={{ tech: params.tech }} placeholder="Buscar por nombre de central o propietario...">
             <select
               name="estado"
               defaultValue={params.estado ?? ""}
@@ -207,7 +216,7 @@ export default async function MercadoPage({
             </select>
           </SearchBar>
           <TechChipFilter
-            basePath="/mercado"
+            basePath="/matriz"
             selectedKeys={selectedKeys}
             otherParams={{ estado: params.estado, q: search }}
             excludeKeys={["data-center", "transmision", "bess", "hibridos"]}

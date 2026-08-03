@@ -1,4 +1,6 @@
-import { runListadoSync } from "@/lib/ingestion/sources/energia-abierta/listado/runSync";
+import { runListadoSyncBatch } from "@/lib/ingestion/sources/energia-abierta/listado/runSync";
+import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
+import { finishCronRun, startCronRun } from "@/lib/data-access/cronRunLog";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,8 +18,26 @@ export async function GET(request: Request) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  const client = createSupabaseServiceClient();
+  const run = await startCronRun(client, "sync-listado");
   try {
-    const summary = await runListadoSync();
+    const summary = await runListadoSyncBatch(client, 15);
+    await finishCronRun(client, run, {
+      status: "success",
+      batch_size: summary.batchSize,
+      eligible_rows: summary.eligibleRows,
+      processed_in_cycle: summary.processedInCycle,
+      remaining_rows: summary.remainingRows,
+      priority_new_rows: summary.priorityNewRows,
+      projects_created: summary.projectsCreated,
+      projects_updated: summary.projectsUpdated,
+      projects_promoted: summary.projectsPromotedFromSibling,
+      requests_discarded: summary.solicitudesDiscardedAsInferior,
+      events_failed: summary.eventsFailed,
+      cycle_complete: summary.cycleComplete,
+      next_cursor: summary.nextCursor,
+      metadata: { waitingForNextCycle: summary.waitingForNextCycle },
+    });
     console.log("[cron/sync-listado] resumen:", {
       totalRows: summary.totalRows,
       projectsCreated: summary.projectsCreated,
@@ -26,6 +46,13 @@ export async function GET(request: Request) {
       solicitudesDiscardedAsInferior: summary.solicitudesDiscardedAsInferior,
       skippedNotVigente: summary.skippedNotVigente,
       eventsFailed: summary.eventsFailed,
+      batchSize: summary.batchSize,
+      eligibleRows: summary.eligibleRows,
+      processedInCycle: summary.processedInCycle,
+      remainingRows: summary.remainingRows,
+      cycleComplete: summary.cycleComplete,
+      waitingForNextCycle: summary.waitingForNextCycle,
+      priorityNewRows: summary.priorityNewRows,
     });
     return Response.json({
       success: true,
@@ -39,10 +66,23 @@ export async function GET(request: Request) {
       locationsCreated: summary.locationsCreated,
       connectionStatusesCreated: summary.connectionStatusesCreated,
       eventsFailed: summary.eventsFailed,
+      batchSize: summary.batchSize,
+      eligibleRows: summary.eligibleRows,
+      processedInCycle: summary.processedInCycle,
+      remainingRows: summary.remainingRows,
+      cycleComplete: summary.cycleComplete,
+      cycleStartedAt: summary.cycleStartedAt,
+      nextCursor: summary.nextCursor,
+      waitingForNextCycle: summary.waitingForNextCycle,
+      priorityNewRows: summary.priorityNewRows,
       unmatchedRegions: [...summary.unmatchedRegions],
       unmatchedTechnologies: [...summary.unmatchedTechnologies],
     });
   } catch (err) {
+    await finishCronRun(client, run, {
+      status: "error",
+      error_message: (err as Error).message || "Error sin mensaje",
+    });
     console.error("[cron/sync-listado] error:", err);
     return Response.json({ success: false, error: (err as Error).message }, { status: 500 });
   }

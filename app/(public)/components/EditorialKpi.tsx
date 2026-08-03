@@ -5,7 +5,7 @@ export function EditorialKpi({ value, suffix, label }: { value: string; suffix?:
         {value}
         {suffix ? <span className="ml-1.5 text-2xl text-neutral-400 md:text-3xl dark:text-neutral-500">{suffix}</span> : null}
       </div>
-      <div className="mt-2 text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">{label}</div>
+      <div className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">{label}</div>
     </div>
   );
 }

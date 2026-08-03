@@ -42,7 +42,7 @@ export function IngresarForm({ locale = "es" }: { locale?: AppLocale }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-ink disabled:opacity-50"
+        className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-[#333333] shadow-sm transition hover:brightness-95 disabled:opacity-50"
       >
         {pending ? (locale === "en" ? "Signing in..." : "Ingresando...") : (locale === "en" ? "Sign in" : "Ingresar")}
       </button>

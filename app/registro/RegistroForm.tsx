@@ -35,6 +35,14 @@ const COUNTRY_OPTIONS = [
 export function RegistroForm({ locale = "es" }: { locale?: AppLocale }) {
   const [state, formAction, pending] = useActionState(registrarse, initialState);
 
+  if (state?.message) {
+    return (
+      <div className="flex flex-col gap-3 rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-4 text-sm text-neutral-800 dark:text-neutral-200">
+        <p>{state.message}</p>
+      </div>
+    );
+  }
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div>
@@ -75,6 +83,21 @@ export function RegistroForm({ locale = "es" }: { locale?: AppLocale }) {
           required
           placeholder="Nombre de tu empresa"
           className="w-full rounded-xl border border-neutral-300 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 dark:border-neutral-700"
+        />
+      </div>
+      <div>
+        <label htmlFor="mobilePhone" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          {locale === "en" ? "Mobile phone" : "Teléfono de contacto (móvil)"}
+        </label>
+        <input
+          id="mobilePhone"
+          name="mobilePhone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          required
+          placeholder={locale === "en" ? "+56 9 1234 5678" : "+56 9 1234 5678"}
+          className="w-full rounded-xl border border-neutral-300 bg-transparent px-3 py-2.5 text-base outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 sm:text-sm dark:border-neutral-700"
         />
       </div>
       <div>
@@ -130,7 +153,7 @@ export function RegistroForm({ locale = "es" }: { locale?: AppLocale }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-ink disabled:opacity-50"
+        className="rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-[#333333] shadow-sm transition hover:brightness-95 disabled:opacity-50"
       >
         {pending ? (locale === "en" ? "Creating account..." : "Creando cuenta...") : (locale === "en" ? "Create free account (14 days)" : "Crear cuenta gratis (14 días)")}
       </button>

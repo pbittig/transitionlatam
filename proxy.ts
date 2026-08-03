@@ -1,5 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
+import { jwtVerify } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
+
+const PUBLIC_PAGE_PATHS = new Set(["/ingresar", "/registro", "/planes", "/admin/acceso"]);
+
+async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get("session")?.value;
+  const secret = process.env.SESSION_SECRET;
+  if (!token || !secret) return false;
+
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), { algorithms: ["HS256"] });
+    return payload.role === "admin";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Refresca el token de sesión de Supabase Auth en cada request (usado por
@@ -16,6 +32,19 @@ import { NextResponse, type NextRequest } from "next/server";
  * .../16-proxy.md).
  */
 export default async function proxy(request: NextRequest) {
+  const legacyRoutes: Record<string, string> = {
+    "/proyectos-esperados": "/proyectos",
+    "/mercado": "/matriz",
+    "/mapa-stakeholder": "/empresas",
+    "/alertas": "/monitoreo",
+  };
+  const canonicalPath = legacyRoutes[request.nextUrl.pathname];
+  if (canonicalPath) {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.pathname = canonicalPath;
+    return NextResponse.redirect(canonicalUrl);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -37,7 +66,26 @@ export default async function proxy(request: NextRequest) {
 
   // No agregar lógica entre createServerClient y getUser() — un error acá
   // puede hacer muy difícil de depurar sesiones que se cierran solas.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+  const isPublicPage = PUBLIC_PAGE_PATHS.has(pathname);
+  const isApiRoute = pathname.startsWith("/api/");
+
+  if (!isPublicPage && !isApiRoute && !user && !(await hasValidAdminSession(request))) {
+    const loginUrl = new URL("/ingresar", request.url);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+
+    // Conserva cualquier cookie de Supabase que se haya refrescado antes de
+    // detectar que no existe una sesión válida.
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie);
+    }
+
+    return redirectResponse;
+  }
 
   return supabaseResponse;
 }

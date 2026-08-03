@@ -37,7 +37,6 @@ export function SeiaMatchModal({
     if (!open) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.trim().length < 3) {
-      setCandidates([]);
       return;
     }
     debounceRef.current = setTimeout(() => {
@@ -49,7 +48,6 @@ export function SeiaMatchModal({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, open]);
 
   function handlePick(candidate: SeiaCandidate) {
@@ -72,6 +70,13 @@ export function SeiaMatchModal({
       }
     });
   }
+
+  // Defensa adicional: el padre ya evita enviar este componente a usuarios,
+  // pero el control administrativo tampoco debe renderizarse si se reutiliza
+  // accidentalmente desde otra vista.
+  if (!isAdmin) return null;
+
+  const visibleCandidates = query.trim().length >= 3 ? candidates : [];
 
   return (
     <>
@@ -126,7 +131,7 @@ export function SeiaMatchModal({
                 <p className="p-3 text-sm text-neutral-500 dark:text-neutral-400">Sin resultados en SEIA.</p>
               )}
               {!searching &&
-                candidates.map((c) => (
+                visibleCandidates.map((c) => (
                   <button
                     key={c.expedienteId}
                     type="button"

@@ -5,6 +5,7 @@ import type {
   NextMilestone,
   ProjectSynthesis,
 } from "@/lib/shared/projectIntelligence";
+import type { AppLocale } from "@/lib/i18n";
 
 const MACRO_STAGE_COLOR: Record<MacroStage, string> = {
   desarrollo: "light-dark(#2a78d6, #4a90e2)",
@@ -24,8 +25,8 @@ const OUTLOOK_COLOR: Record<Exclude<CodOutlook["band"], "no_aplica">, string> = 
 
 const CONFIDENCE_LABEL: Record<string, string> = { alta: "Alta", media: "Media", baja: "Baja" };
 
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-CL", { month: "long", year: "numeric" });
+function fmt(iso: string, locale: AppLocale): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "es-CL", { month: "long", year: "numeric" });
 }
 
 export function ProjectStatusSynthesis({
@@ -33,11 +34,13 @@ export function ProjectStatusSynthesis({
   nextMilestone,
   commercialWindow,
   codOutlook,
+  locale = "es",
 }: {
   synthesis: ProjectSynthesis;
   nextMilestone: NextMilestone | null;
   commercialWindow: CommercialWindow | null;
   codOutlook: CodOutlook;
+  locale?: AppLocale;
 }) {
   const stageColor = MACRO_STAGE_COLOR[synthesis.macroStage];
 
@@ -51,7 +54,7 @@ export function ProjectStatusSynthesis({
           </span>
           {synthesis.confidence && (
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-              Confianza {CONFIDENCE_LABEL[synthesis.confidence]}
+              {locale === "en" ? "Confidence" : "Confianza"} {locale === "en" ? synthesis.confidence : CONFIDENCE_LABEL[synthesis.confidence]}
             </span>
           )}
         </div>
@@ -67,36 +70,36 @@ export function ProjectStatusSynthesis({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {nextMilestone && (
           <div className="rounded-lg border border-neutral-100 p-4 dark:border-neutral-900">
-            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Próximo hito esperado</p>
+            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Next expected milestone" : "Próximo hito esperado"}</p>
             <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-50">{nextMilestone.label}</p>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {fmt(nextMilestone.expectedDate)} · confianza {CONFIDENCE_LABEL[nextMilestone.confidence]}
+              {fmt(nextMilestone.expectedDate, locale)} · {locale === "en" ? "confidence" : "confianza"} {locale === "en" ? nextMilestone.confidence : CONFIDENCE_LABEL[nextMilestone.confidence]}
             </p>
           </div>
         )}
 
         {commercialWindow && (
           <div className="rounded-lg border border-neutral-100 p-4 dark:border-neutral-900">
-            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Ventana comercial</p>
+            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Commercial window" : "Ventana comercial"}</p>
             <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-              {commercialWindow.status === "abierta" && "Abierta"}
-              {commercialWindow.status === "cerrada" && "Cerrada"}
-              {commercialWindow.status === "aun_no_abre" && "Aún no abre"}
+              {commercialWindow.status === "abierta" && (locale === "en" ? "Open" : "Abierta")}
+              {commercialWindow.status === "cerrada" && (locale === "en" ? "Closed" : "Cerrada")}
+              {commercialWindow.status === "aun_no_abre" && (locale === "en" ? "Not open yet" : "Aún no abre")}
             </p>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
               {commercialWindow.status === "cerrada"
-                ? `Se cerró al iniciar construcción (${fmt(commercialWindow.closesAt)})`
-                : `${fmt(commercialWindow.opensAt)} → ${fmt(commercialWindow.closesAt)}`}
+                ? locale === "en" ? `Closed when construction began (${fmt(commercialWindow.closesAt, locale)})` : `Se cerró al iniciar construcción (${fmt(commercialWindow.closesAt, locale)})`
+                : `${fmt(commercialWindow.opensAt, locale)} → ${fmt(commercialWindow.closesAt, locale)}`}
             </p>
             <p className="mt-1 text-[11px] text-neutral-400 dark:text-neutral-500">
-              Tramo estimado entre Compras y Construcción — probable ventana para adjudicar EPC/equipos.
+              {locale === "en" ? "Estimated period between Procurement and Construction; a likely window for EPC and equipment awards." : "Tramo estimado entre Compras y Construcción — probable ventana para adjudicar EPC/equipos."}
             </p>
           </div>
         )}
 
         {codOutlook.score !== null && (
           <div className="rounded-lg border border-neutral-100 p-4 dark:border-neutral-900">
-            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Probabilidad de cumplir COD</p>
+            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Probability of meeting COD" : "Probabilidad de cumplir COD"}</p>
             <div className="mt-1 flex items-center gap-2">
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
@@ -129,8 +132,7 @@ export function ProjectStatusSynthesis({
         )}
       </div>
       <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
-        Estatus, próximo hito, ventana comercial y probabilidad de COD son estimaciones propias derivadas del modelo
-        probabilístico de cronograma y del estado de trámite — no son datos oficiales verificados.
+        {locale === "en" ? "Status, next milestone, commercial window and COD probability are Transition LATAM estimates derived from the probabilistic schedule model and permitting status; they are not verified official data." : "Estatus, próximo hito, ventana comercial y probabilidad de COD son estimaciones propias derivadas del modelo probabilístico de cronograma y del estado de trámite — no son datos oficiales verificados."}
       </p>
     </div>
   );

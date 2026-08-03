@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { REJECTED_STATUSES } from "@/lib/data-access/projects";
+import { REJECTED_STATUSES, startOfCurrentMonthIso } from "@/lib/data-access/projects";
 
 // Códigos válidos de project.technology.code (ver app/(public)/components/techChips.ts).
-const TECHNOLOGY_CODES = ["solar_pv", "wind", "hydro", "pumped_hydro", "thermal", "bess", "hybrid", "transmission"] as const;
+const TECHNOLOGY_CODES = ["solar_pv", "wind", "hydro", "pumped_hydro", "bess", "hybrid", "biomass", "geothermal"] as const;
 type TechnologyCode = (typeof TECHNOLOGY_CODES)[number];
 
 const METRICS = ["count", "avg_storage_hours", "sum_capacity_mw", "avg_capacity_mw"] as const;
@@ -23,7 +23,7 @@ export const PROJECT_STATS_TOOL = {
   function: {
     name: PROJECT_STATS_TOOL_NAME,
     description:
-      "Consulta estadísticas agregadas de los proyectos del pipeline (Acceso Abierto / Coordinador Eléctrico Nacional): conteo, capacidad (MW) u horas de almacenamiento (BESS), opcionalmente filtrado por tecnología y agrupado por región o tecnología.",
+      "Consulta estadísticas de la misma cartera editorial visible en Proyectos futuros de Transition LATAM: proyectos verificados, vigentes, con conexión desde el mes actual y tecnologías renovables o almacenamiento.",
     parameters: {
       type: "object",
       properties: {
@@ -88,16 +88,22 @@ interface ProjectRow {
 
 async function fetchRows(client: SupabaseClient, args: ProjectStatsArgs): Promise<ProjectRow[]> {
   const filterByTechnology = Boolean(args.technologyCode && args.technologyCode !== "all");
-  const select = filterByTechnology
-    ? "capacity_mw, storage_hours, technology:technology_id!inner(code), location:location_id(region:region_id(name))"
-    : "capacity_mw, storage_hours, technology:technology_id(code), location:location_id(region:region_id(name))";
+  const select =
+    "capacity_mw, storage_hours, technology:technology_id!inner(code), location:location_id(region:region_id(name))";
 
   const rows: ProjectRow[] = [];
   for (let from = 0; ; from += 1000) {
-    let query = client.from("project").select(select);
-    if (filterByTechnology) query = query.eq("technology.code", args.technologyCode as string);
-    if (args.onlyActive) query = query.not("status", "in", `(${REJECTED_STATUSES.join(",")})`);
-    const { data, error } = await query.range(from, from + 999);
+    // Consulta exclusivamente de lectura sobre `project`; todos los campos,
+    // métricas y agrupaciones provienen de listas cerradas definidas arriba.
+    const query = client
+      .from("project")
+      .select(select)
+      .not("verified_at", "is", null)
+      .gte("estimated_connection_date", startOfCurrentMonthIso())
+      .not("status", "in", `(${REJECTED_STATUSES.join(",")})`);
+    const { data, error } = filterByTechnology
+      ? await query.eq("technology.code", args.technologyCode as string).range(from, from + 999)
+      : await query.in("technology.code", [...TECHNOLOGY_CODES]).range(from, from + 999);
     if (error) throw new Error(error.message);
     rows.push(...((data ?? []) as unknown as ProjectRow[]));
     if (!data || data.length < 1000) break;
@@ -128,6 +134,7 @@ export async function runProjectStatsQuery(client: SupabaseClient, rawArgs: unkn
       onlyActive: args.onlyActive,
       sampleSize: rows.length,
       value: computeMetric(rows, args.metric),
+      scope: "Cartera visible en Proyectos futuros",
     };
   }
 
@@ -146,5 +153,6 @@ export async function runProjectStatsQuery(client: SupabaseClient, rawArgs: unkn
     results: [...groups.entries()]
       .map(([key, groupRows]) => ({ group: key, sampleSize: groupRows.length, value: computeMetric(groupRows, args.metric) }))
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)),
+    scope: "Cartera visible en Proyectos futuros",
   };
 }

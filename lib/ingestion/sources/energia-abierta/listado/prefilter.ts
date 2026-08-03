@@ -29,6 +29,13 @@ const TRANSMISSION_DISTRIBUTION_PATTERN =
 export function prefilterProject(row: NormalizedProject): ProjectPrefilterResult {
   const searchable = `${row.projectName} ${row.companyName} ${row.technologyCode ?? ""}`;
 
+  if (/\bcrca\b/i.test(searchable)) {
+    return {
+      status: "candidate",
+      category: "renewable",
+      reason: "CRCA: central renovable con almacenamiento.",
+    };
+  }
   if (TRANSMISSION_DISTRIBUTION_PATTERN.test(searchable)) {
     return {
       status: "out_of_scope",
@@ -60,4 +67,10 @@ export function prefilterProject(row: NormalizedProject): ProjectPrefilterResult
     category: "out_of_scope",
     reason: "No corresponde a renovables, BESS ni data center según los datos disponibles.",
   };
+}
+
+/** Alcance editorial actual de Transition LATAM: renovables y almacenamiento/BESS. */
+export function isRenewableOrBessProject(row: NormalizedProject): boolean {
+  const result = prefilterProject(row);
+  return result.status === "candidate" && (result.category === "renewable" || result.category === "bess");
 }

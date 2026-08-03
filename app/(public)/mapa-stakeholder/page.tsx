@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, Building2, ContactRound, Fingerprint, FolderKanban, GitBranch, Network, Search, ShieldCheck, UserRoundCog } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Building2, ContactRound, Fingerprint, FolderKanban, GitBranch, Search, ShieldCheck, UserRoundCog } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getCompanyById, getCompanyShareholders, getTopCompaniesByProjectCount } from "@/lib/data-access/companies";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
@@ -9,6 +9,7 @@ import { StakeholderMap } from "../components/StakeholderMap";
 import { PlanGate } from "../components/PlanGate";
 import { isAdmin } from "@/lib/auth/session";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
+import { ModuleGuide } from "../components/ModuleGuide";
 
 export const metadata: Metadata = { title: "Empresas y relaciones" };
 export const dynamic = "force-dynamic";
@@ -28,25 +29,29 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-9 text-white shadow-xl shadow-brand-deep/10 md:px-8 md:py-11">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-9 text-white shadow-xl shadow-black/10 md:px-8 md:py-11">
         <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative max-w-3xl">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-medium tracking-wide text-brand-primary uppercase">
-            <Network size={14} /> Inteligencia societaria y comercial
-            <span className="rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[9px] font-semibold text-white/75">MÓDULO EN PREPARACIÓN</span>
-          </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Empresas y relaciones</h1>
+          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Empresas y relaciones</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
             Descubre qué grupo está detrás de cada proyecto, qué otras empresas y proyectos están relacionados y con quién conviene iniciar una conversación.
           </p>
         </div>
       </section>
 
+      <ModuleGuide
+        purpose="Pasar del nombre formal de una SPV a una visión comercial de la empresa, el grupo y la cartera que existe detrás de cada proyecto."
+        deliverables={["Empresas, SPV y proyectos relacionados", "Identidad legal y relaciones societarias disponibles", "Contexto para preparar una conversación comercial"]}
+        howToUse={["Selecciona una empresa o desarrollador", "Revisa su grupo y cartera vinculada", "Lleva la cuenta prioritaria al CRM"]}
+        plan="Premium"
+        upgradeMessage="Premium conecta la inteligencia societaria con el CRM, las oportunidades y Nexo."
+      />
+
       <section aria-labelledby="relationship-value-title">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Del proyecto a la cuenta comercial</p>
-          <h2 id="relationship-value-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Tres preguntas que el módulo permitirá responder</h2>
+          <h2 id="relationship-value-title" className="text-xl font-semibold text-neutral-950 dark:text-white">Tres preguntas que el módulo permitirá responder</h2>
+          <p className="mt-2 text-sm text-neutral-500">Conecta la identidad legal de cada proyecto con la estructura empresarial y comercial que existe detrás.</p>
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {[
@@ -60,13 +65,13 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
               icon: FolderKanban,
               question: "¿Qué cartera comparte?",
               answer: "Consolida los proyectos, MW, tecnologías, regiones y etapas de las empresas vinculadas al mismo grupo.",
-              color: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
+              color: "bg-brand-surface text-brand-deep",
             },
             {
               icon: ContactRound,
               question: "¿Con quién conviene hablar?",
               answer: "Organiza contactos por función: desarrollo, ingeniería, conexión, permisos, compras, construcción y finanzas.",
-              color: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300",
+              color: "bg-brand-primary/15 text-brand-deep",
             },
           ].map(({ icon: Icon, question, answer, color }) => (
             <article key={question} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
@@ -80,8 +85,7 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
 
       <section className="grid gap-6 rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-surface via-white to-white p-6 lg:grid-cols-[1fr_1.15fr] dark:via-neutral-950 dark:to-neutral-950">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Vista prevista</p>
-          <h2 className="mt-2 text-xl font-semibold text-neutral-950 dark:text-white">Una relación simple, útil y trazable</h2>
+          <h2 className="text-xl font-semibold text-neutral-950 dark:text-white">Una relación simple, útil y trazable</h2>
           <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
             La experiencia priorizará la relación comercial y mostrará sólo los niveles necesarios para entender la cuenta, sin convertirla en una due diligence legal.
           </p>
@@ -112,17 +116,16 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
       <section className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Explorador actual</p>
-            <h2 className="mt-1 text-lg font-semibold text-neutral-950 dark:text-white">Consulta las relaciones disponibles</h2>
+            <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Consulta las relaciones disponibles</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-500 dark:text-neutral-400">
               Hoy puedes revisar empresas y relaciones construidas desde los registros ya integrados. La consolidación societaria ampliada dependerá de la prueba y contratación de un proveedor especializado.
             </p>
           </div>
-          <span className="rounded-full bg-amber-50 px-3 py-1.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">Cobertura en expansión</span>
+          <span className="rounded-full bg-brand-surface px-3 py-1.5 text-[10px] font-semibold text-brand-deep">Cobertura en expansión</span>
         </div>
       </section>
 
-      <form className="flex flex-wrap items-end gap-3" action="/mapa-stakeholder">
+      <form className="flex flex-wrap items-end gap-3" action="/empresas">
         <label className="flex min-w-[280px] flex-1 flex-col gap-1.5 text-sm font-medium text-neutral-700 dark:text-neutral-300">Empresa / desarrollador
           <select name="empresa" defaultValue={selectedId ?? ""} className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm font-normal dark:border-neutral-700">
             {companies.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.projectCount} proyectos</option>)}
@@ -147,12 +150,12 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr]">
           <Panel className="flex flex-col gap-4">
-            <div><p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Grupo y SPV</p><h2 className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50">Empresas vinculadas a {company.name}</h2></div>
+            <div><h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Empresas vinculadas a {company.name}</h2><p className="mt-1 text-sm text-neutral-500">Relaciones identificadas entre el grupo, sus sociedades y proyectos.</p></div>
             {related ? <StakeholderMap centerLabel={company.name} relatedLabels={related.relatedNames} /> : <p className="text-sm text-neutral-500 dark:text-neutral-400">Aún no encontramos SPV o empresas hermanas con coincidencia verificable en el registro del Coordinador.</p>}
             <p className="text-xs text-neutral-500 dark:text-neutral-400">Fuente de esta capa: agrupación oficial del Coordinador Eléctrico Nacional por nombre normalizado. No se presenta como propiedad accionaria.</p>
           </Panel>
           <Panel className="flex flex-col gap-4">
-            <div><p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Propiedad e inversión</p><h2 className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50">Accionistas e inversionistas</h2></div>
+            <div><h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Accionistas e inversionistas</h2><p className="mt-1 text-sm text-neutral-500">Participaciones registradas con su fuente y nivel de confianza.</p></div>
             {shareholders.length ? <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">{shareholders.map((holder, index) => <li key={`${holder.company?.id ?? holder.person?.id}-${index}`} className="py-3 first:pt-0"><p className="font-medium text-neutral-900 dark:text-neutral-50">{holder.company?.name ?? holder.person?.name}</p><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{holder.role}{holder.ownershipPct !== null ? ` · ${holder.ownershipPct}%` : ""}</p><p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{holder.company?.rut ? `RUT ${holder.company.rut} · ` : ""}{holder.confidenceLevel.replaceAll("_", " ")}</p></li>)}</ul> : <div className="rounded-lg border border-dashed border-neutral-200 p-4 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"><ShieldCheck size={18} className="mb-2 text-brand-primary" />Sin participaciones cargadas todavía. La estructura está preparada para consolidarlas por RUT desde fuentes oficiales y conservar porcentaje, vigencia y confianza; no inferiremos propiedad por nombres parecidos.</div>}
             <Link href="/crm" className="inline-flex items-center gap-1 self-start text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-200">Llevar al CRM <span aria-hidden>→</span></Link>
           </Panel>

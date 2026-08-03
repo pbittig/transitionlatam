@@ -8,11 +8,8 @@ import {
   FolderKanban,
   Gauge,
   Layers3,
-  LockKeyhole,
   Radar,
   Search,
-  SlidersHorizontal,
-  Sparkles,
 } from "lucide-react";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
@@ -101,53 +98,45 @@ export default async function AnalisisDinamicoPage({
       label: "Proyectos",
       value: totals.count.toLocaleString("es-CL"),
       detail: "en la selección",
-      accent: "border-t-brand-primary",
-      iconStyle: "bg-brand-primary/10 text-brand-deep dark:text-brand-primary",
+      iconStyle: "bg-brand-primary/10 text-brand-deep",
     },
     {
       icon: Activity,
       label: "Capacidad",
       value: `${(capacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`,
       detail: "capacidad futura",
-      accent: "border-t-data-blue",
-      iconStyle: "bg-data-blue/10 text-data-blue",
+      iconStyle: "bg-brand-primary/10 text-brand-deep",
     },
     {
       icon: BatteryCharging,
       label: "Con BESS",
       value: bessCount.toLocaleString("es-CL"),
       detail: "incluyen almacenamiento",
-      accent: "border-t-data-bess",
-      iconStyle: "bg-data-bess/10 text-data-bess",
+      iconStyle: "bg-brand-primary/10 text-brand-deep",
     },
     {
       icon: Gauge,
       label: "Riesgo alto",
       value: `${health.bajaPct}%`,
       detail: "de la selección",
-      accent: "border-t-data-solar",
-      iconStyle: "bg-data-solar/10 text-data-solar",
+      iconStyle: "bg-brand-primary/10 text-brand-deep",
     },
   ];
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-8 text-white shadow-[0_24px_70px_-35px_rgba(6,72,65,0.8)] sm:px-8 sm:py-10">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-8 text-white shadow-[0_24px_70px_-35px_rgba(0,0,0,0.35)] sm:px-8 sm:py-10">
         <div className="pointer-events-none absolute -top-20 -right-16 size-64 rounded-full border border-white/10 bg-white/5" />
         <div className="pointer-events-none absolute -right-8 -bottom-28 size-72 rounded-full border border-brand-primary/25 bg-brand-primary/10" />
         <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-brand-primary uppercase">
-              <Radar size={16} />
-              Inteligencia de cartera · Chile
-            </div>
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Análisis dinámico</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
               Explora la cartera futura con filtros combinables y recalcula al instante su escala, perfil de riesgo y calendario de hitos.
             </p>
           </div>
           <Link
-            href="/proyectos-esperados"
+            href="/proyectos"
             className="group inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/20"
           >
             Abrir proyectos futuros
@@ -159,8 +148,8 @@ export default async function AnalisisDinamicoPage({
       <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <Panel className="flex flex-col gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Cómo utilizarla</p>
-            <h2 className="mt-1 text-lg font-semibold text-neutral-950 dark:text-white">Construye el análisis en tres pasos</h2>
+            <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Construye el análisis en tres pasos</h2>
+            <p className="mt-1 text-sm text-neutral-500">Combina filtros para obtener una lectura enfocada de la cartera.</p>
           </div>
           <ol className="grid gap-3 sm:grid-cols-3">
             {[
@@ -185,8 +174,8 @@ export default async function AnalisisDinamicoPage({
         </Panel>
 
         <Panel className="border-brand-primary/25">
-          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Qué resultados entrega</p>
-          <h2 className="mt-1 text-lg font-semibold text-neutral-950 dark:text-white">Una lectura enfocada de la cartera</h2>
+          <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Una lectura enfocada de la cartera</h2>
+          <p className="mt-1 text-sm text-neutral-500">Revisa escala, composición, riesgo y calendario probable para la selección actual.</p>
           <ul className="mt-4 grid gap-2 text-sm text-neutral-600 dark:text-neutral-300">
             {[
               "Cantidad de proyectos y capacidad total en MW/GW.",
@@ -207,12 +196,6 @@ export default async function AnalisisDinamicoPage({
         <div className="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-brand-primary/10" />
         <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-brand-deep uppercase dark:text-brand-primary">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-brand-primary/15">
-                <SlidersHorizontal size={16} />
-              </span>
-              Construye tu vista
-            </p>
             <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Filtros de análisis</h2>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">Selecciona tecnología y etapa para construir tu vista.</p>
           </div>
@@ -235,12 +218,12 @@ export default async function AnalisisDinamicoPage({
 
       <section>
         <div className="mb-4">
-          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Resultado de la selección</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-950 dark:text-white">Magnitud y perfil de riesgo</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-neutral-950 dark:text-white">Magnitud y perfil de riesgo</h2>
+          <p className="mt-1 text-sm text-neutral-500">Indicadores calculados para los filtros seleccionados.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {metrics.map(({ icon: Icon, label, value, detail, accent, iconStyle }) => (
-            <Panel key={label} className={`border-t-2 ${accent}`}>
+          {metrics.map(({ icon: Icon, label, value, detail, iconStyle }) => (
+            <Panel key={label} className="border-neutral-200">
               <div className="flex items-center justify-between text-xs font-medium text-neutral-500">
                 <span>{label}</span>
                 <span className={`rounded-lg p-2 ${iconStyle}`}>
@@ -256,8 +239,7 @@ export default async function AnalisisDinamicoPage({
 
       <Panel className="flex flex-col gap-4">
         <div>
-          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Perfil de avance</p>
-          <h2 className="mt-1 text-lg font-semibold">Pipeline Health</h2>
+          <h2 className="text-lg font-semibold">Pipeline Health</h2>
           <p className="text-sm text-neutral-500">Salud estimada de los proyectos filtrados.</p>
         </div>
         <PipelineHealthBar health={health} />
@@ -265,8 +247,7 @@ export default async function AnalisisDinamicoPage({
 
       <Panel className="flex flex-col gap-6">
         <div>
-          <p className="text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">Proyección temporal</p>
-          <h2 className="mt-1 text-lg font-semibold">Calendario de hitos</h2>
+          <h2 className="text-lg font-semibold">Calendario de hitos</h2>
           <p className="text-sm text-neutral-500">Fechas probabilísticas recalculadas para la selección.</p>
         </div>
         {forecast.milestoneCalendars.map(({ phase, entries }) => (
@@ -290,15 +271,10 @@ function LockedAnalysisPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-9 text-white shadow-xl shadow-brand-deep/10 sm:px-8 sm:py-11">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-9 text-white shadow-xl shadow-black/10 sm:px-8 sm:py-11">
         <div className="pointer-events-none absolute -top-24 right-0 size-72 rounded-full border border-white/10 bg-white/5" />
         <div className="relative max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-primary">
-            <LockKeyhole size={13} />
-            Beneficio incluido desde el plan Lite
-          </span>
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">Análisis dinámico</h1>
-          <h2 className="mt-3 text-xl font-medium text-white/90">Convierte la cartera futura en una lectura para decidir</h2>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Análisis dinámico</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
             Análisis dinámico cruza tecnologías y etapas para entregar una visión enfocada del tamaño, riesgo y calendario probable de los proyectos renovables y BESS.
           </p>
@@ -311,18 +287,14 @@ function LockedAnalysisPage() {
 
       <section>
         <div className="mb-4">
-          <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.12em] text-brand-deep uppercase dark:text-brand-primary">
-            <Sparkles size={14} />
-            El entregable
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Qué obtienes con esta sección</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Qué obtienes con esta sección</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-neutral-300">
             Una vista recalculada según los criterios que selecciones, lista para entender dónde se concentra la oportunidad y qué hitos vienen.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {deliverables.map(({ icon: Icon, title, description }) => (
-            <Panel key={title} className="border-t-2 border-t-brand-primary">
+            <Panel key={title} className="border-neutral-200">
               <span className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-deep dark:text-brand-primary">
                 <Icon size={19} />
               </span>

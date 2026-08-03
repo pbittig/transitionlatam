@@ -17,7 +17,7 @@ export async function addProjectToOpportunity(
   try {
     await createProjectOpportunity(createSupabaseServiceClient(), { projectId, projectName, developerCompanyId });
     revalidatePath(`/proyectos/${projectId}`);
-    revalidatePath("/proyectos-esperados");
+    revalidatePath("/proyectos");
     revalidatePath("/crm");
     return { success: true };
   } catch (err) {
@@ -40,7 +40,7 @@ export async function deactivateProjectFromCrm(
       .not("stage", "in", "(cierre_ganado,cierre_perdido)");
     if (error) throw new Error(error.message);
     revalidatePath(`/proyectos/${projectId}`);
-    revalidatePath("/proyectos-esperados");
+    revalidatePath("/proyectos");
     revalidatePath("/crm");
     return { success: true };
   } catch (err) {

@@ -138,7 +138,7 @@ export function ProjectContactsEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xs font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">Contactos</h2>
+      <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Contactos</h2>
 
       {contacts.length === 0 && <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin contactos registrados todavía.</p>}
 
@@ -193,7 +193,7 @@ export function ProjectContactsEditor({
       </div>
 
       <div className="rounded-lg border border-dashed border-neutral-300 p-4 dark:border-neutral-700">
-        <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Agregar contacto</p>
+        <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">Agregar contacto</h3>
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           <div className="relative">
             <input

@@ -830,3 +830,28 @@
 [worker 3] [preverification 421/428] 9ca77122-b842-477e-9819-56dabb24e70a: iniciando
 [worker 1] [preverification 417/428] PFV Costanera Solar: con errores
 [worker 1] [preverification 422/428] 59d8ee47-d4ba-4012-9132-244fd6056b43: iniciando
+[worker 1] [preverification 422/428] AMPLIACION MEGA DATA CENTER LAMPA ETAPA 2: completado
+[worker 1] [preverification 423/428] 0b65ea8d-623e-449a-b4d8-38a75d89b530: iniciando
+[worker 3] [preverification 421/428] Parque Eólico Espejo de Agua: completado
+[worker 3] [preverification 424/428] e19c108d-28e5-427a-9947-2a4a6e0f9366: iniciando
+[worker 2] [preverification 420/428] PFV San Antonio Solar: con errores
+[worker 2] [preverification 425/428] e5c600c4-df25-47f8-80cd-3e35d62423c6: iniciando
+[worker 2] [preverification 425/428] Coihueco III: con errores
+[worker 2] [preverification 426/428] 84fedd39-05b3-4d6c-89b4-98637bbf38c4: iniciando
+[worker 1] [preverification 423/428] Parque Híbrido Pupuya (ex-Parque Eólico Litueche): completado
+[worker 1] [preverification 427/428] d770040a-9cf6-4528-96bc-8b100f3470d5: iniciando
+[worker 2] [preverification 426/428] Baquedano (ex Mejillones): completado
+[worker 2] [preverification 428/428] 563b300d-e05f-48c8-822a-fd8072b77d33: iniciando
+[worker 1] [preverification 427/428] INNA: completado
+[worker 2] [preverification 428/428] PFV Sol de Humboldt: completado
+[worker 3] [preverification 424/428] PH Penitente Sur: completado
+{
+  "runId": "ff25b1f1-4f9a-4bb5-ad3f-3b554e5dbecf",
+  "mode": "apply",
+  "projects": 418,
+  "concurrency": 3,
+  "provider": "nemotron",
+  "appliedFields": 475,
+  "errors": 73,
+  "output": "C:\\ClaudeOne\\ONIX Consulting Group\\Solutions\\Transition Latam\\docs\\preverification-vigentes-resume-2026-07-29.md"
+}

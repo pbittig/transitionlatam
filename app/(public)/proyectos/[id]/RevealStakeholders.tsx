@@ -1,20 +1,29 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
+import { useState, useTransition } from "react";
 import { revealStakeholders } from "./seiaActions";
 import type { ProjectStakeholder } from "@/lib/data-access/projects";
+import type { AppLocale } from "@/lib/i18n";
+
+interface MaskedContact {
+  name: string;
+  email: string | null;
+}
 
 export function RevealStakeholders({
   projectId,
   developerCompanyId,
-  isAdmin = false,
+  canReveal = false,
+  maskedPreview = [],
+  locale = "es",
 }: {
   projectId: string;
   developerCompanyId: string | null;
-  isAdmin?: boolean;
+  canReveal?: boolean;
+  maskedPreview?: MaskedContact[];
+  locale?: AppLocale;
 }) {
-  const [open, setOpen] = useState(false);
-  const [adminSecret, setAdminSecret] = useState("");
   const [stakeholders, setStakeholders] = useState<ProjectStakeholder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,7 +32,7 @@ export function RevealStakeholders({
     e?.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await revealStakeholders(projectId, developerCompanyId, adminSecret);
+      const result = await revealStakeholders(projectId, developerCompanyId);
       if (result.success) {
         setStakeholders(result.stakeholders ?? []);
       } else {
@@ -32,14 +41,9 @@ export function RevealStakeholders({
     });
   }
 
-  useEffect(() => {
-    if (isAdmin) handleReveal();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
-
   if (stakeholders !== null) {
     if (stakeholders.length === 0) {
-      return <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin contactos registrados todavía.</p>;
+      return <p className="text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "No contacts are registered yet." : "Sin contactos registrados todavía."}</p>;
     }
     return (
       <ul className="grid gap-3 sm:grid-cols-2">
@@ -54,7 +58,7 @@ export function RevealStakeholders({
     );
   }
 
-  if (isAdmin) {
+  if (canReveal) {
     if (error) {
       return (
         <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
@@ -65,46 +69,45 @@ export function RevealStakeholders({
             disabled={pending}
             className="mt-2 text-xs font-medium text-neutral-500 underline underline-offset-2 hover:text-neutral-700 disabled:opacity-50 dark:text-neutral-400 dark:hover:text-neutral-200"
           >
-            Reintentar
+            {locale === "en" ? "Try again" : "Reintentar"}
           </button>
         </div>
       );
     }
-    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Cargando contactos...</p>;
+    return (
+      <button
+        type="button"
+        onClick={() => handleReveal()}
+        disabled={pending}
+        className="rounded-lg bg-[#333333] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+      >
+        {pending ? (locale === "en" ? "Loading..." : "Cargando...") : (locale === "en" ? "View contact" : "Ver contacto")}
+      </button>
+    );
   }
 
   return (
-    <div className="print:hidden rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        Los contactos son datos personales — solo visibles para administradores.
-      </p>
-      {!open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="mt-2 text-xs font-medium text-neutral-500 underline underline-offset-2 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
-        >
-          Revelar contactos
-        </button>
+    <div className="print:hidden flex flex-col gap-3">
+      {maskedPreview.length > 0 ? (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {maskedPreview.map((c, i) => (
+            <li key={i} className="rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+              <div className="font-medium text-neutral-900 dark:text-neutral-50">{c.name}</div>
+              {c.email && <div className="mt-1 text-neutral-600 dark:text-neutral-400">{c.email}</div>}
+            </li>
+          ))}
+        </ul>
       ) : (
-        <form onSubmit={handleReveal} className="mt-2 flex flex-wrap items-center gap-2">
-          <input
-            type="password"
-            autoFocus
-            placeholder="Clave de administrador"
-            value={adminSecret}
-            onChange={(e) => setAdminSecret(e.target.value)}
-            className="rounded-lg border border-neutral-300 bg-transparent px-3 py-1.5 text-sm dark:border-neutral-700"
-          />
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200"
-          >
-            {pending ? "Revelando..." : "Ver"}
-          </button>
-        </form>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          {locale === "en" ? "No contacts are registered yet." : "Sin contactos registrados todavía."}
+        </p>
       )}
+      <Link
+        href="/planes"
+        className="w-fit text-xs font-medium text-brand-deep underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300"
+      >
+        {locale === "en" ? "Contact details available on Premium — see plans" : "El contacto completo está disponible en Premium — ver planes"}
+      </Link>
       {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );

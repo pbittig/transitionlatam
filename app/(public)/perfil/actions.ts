@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { cookies } from "next/headers";
-import { isAppLocale, LANGUAGE_COOKIE } from "@/lib/i18n";
+import { getAppLocale, isAppLocale, LANGUAGE_COOKIE } from "@/lib/i18n";
 
 export interface UpdateProfileState {
   error?: string;
@@ -17,27 +17,28 @@ export async function updateProfile(
   _prevState: UpdateProfileState | undefined,
   formData: FormData,
 ): Promise<UpdateProfileState> {
+  const locale = await getAppLocale();
   const client = await createSupabaseServerClient();
   const {
     data: { user },
   } = await client.auth.getUser();
-  if (!user) return { error: "Tu sesión expiró — vuelve a ingresar." };
+  if (!user) return { error: locale === "en" ? "Your session expired. Please sign in again." : "Tu sesión expiró — vuelve a ingresar." };
 
   const profile = await getCurrentUserProfile(client);
-  if (!profile) return { error: "No encontramos tu perfil." };
+  if (!profile) return { error: locale === "en" ? "We could not find your profile." : "No encontramos tu perfil." };
 
   const fullName = String(formData.get("fullName") ?? "").trim();
   const companyName = String(formData.get("companyName") ?? "").trim();
   const preferredLanguage = String(formData.get("preferredLanguage") ?? "es");
-  if (!fullName) return { error: "El nombre no puede quedar vacío." };
-  if (!isAppLocale(preferredLanguage)) return { error: "Selecciona un idioma válido." };
+  if (!fullName) return { error: locale === "en" ? "Full name cannot be empty." : "El nombre no puede quedar vacío." };
+  if (!isAppLocale(preferredLanguage)) return { error: locale === "en" ? "Select a valid language." : "Selecciona un idioma válido." };
 
   const patch: Record<string, string> = { full_name: fullName, company_name: companyName, preferred_language: preferredLanguage };
 
   const avatarFile = formData.get("avatar");
   if (avatarFile instanceof File && avatarFile.size > 0) {
     if (avatarFile.size > MAX_AVATAR_BYTES) {
-      return { error: "La foto no puede pesar más de 3 MB." };
+      return { error: locale === "en" ? "The photo cannot exceed 3 MB." : "La foto no puede pesar más de 3 MB." };
     }
     const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${user.id}/avatar-${Date.now()}.${ext}`;
@@ -47,7 +48,7 @@ export async function updateProfile(
       upsert: true,
     });
     if (uploadError) {
-      return { error: `No pudimos subir la foto: ${uploadError.message}` };
+      return { error: `${locale === "en" ? "We could not upload the photo" : "No pudimos subir la foto"}: ${uploadError.message}` };
     }
 
     const { data: publicUrl } = client.storage.from("avatars").getPublicUrl(path);
@@ -61,7 +62,7 @@ export async function updateProfile(
     updateError = retry.error;
   }
   if (updateError) {
-    return { error: `No pudimos guardar los cambios: ${updateError.message}` };
+    return { error: `${locale === "en" ? "We could not save the changes" : "No pudimos guardar los cambios"}: ${updateError.message}` };
   }
 
   (await cookies()).set(LANGUAGE_COOKIE, preferredLanguage, {

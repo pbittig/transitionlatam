@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { deleteSession } from "@/lib/auth/session";
 
 export interface IngresarState {
   error?: string;
@@ -23,12 +24,17 @@ export async function ingresar(_prevState: IngresarState | undefined, formData: 
     return { error: "Correo o clave incorrectos." };
   }
 
-  redirect("/");
+  redirect("/proyectos");
 }
 
 export async function cerrarSesionCliente(): Promise<void> {
   "use server";
+  await deleteSession();
   const client = await createSupabaseServerClient();
   await client.auth.signOut();
   redirect("/ingresar");
+}
+
+export async function logout(): Promise<void> {
+  await cerrarSesionCliente();
 }

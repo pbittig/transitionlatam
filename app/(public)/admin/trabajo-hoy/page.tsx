@@ -28,8 +28,7 @@ export default async function TrabajoHoyPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">Flujo editorial</p>
-        <h1 className="mt-1 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Trabajo de hoy</h1>
+        <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Trabajo de hoy</h1>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
           Revisa lo nuevo primero. Solo los proyectos verificados y publicados aparecerán en la plataforma.
         </p>
@@ -51,7 +50,7 @@ export default async function TrabajoHoyPage({
       ) : (
         <Panel className="overflow-x-auto p-0">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="border-b border-neutral-200 text-left text-xs uppercase text-neutral-500 dark:border-neutral-800">
+            <thead className="border-b border-neutral-200 text-left text-xs text-neutral-500 dark:border-neutral-800">
               <tr><th className="px-4 py-3">Proyecto</th><th className="px-4 py-3">Prefiltro</th><th className="px-4 py-3">Pre-verificación</th><th className="px-4 py-3">Detectado</th><th className="px-4 py-3" /></tr>
             </thead>
             <tbody>

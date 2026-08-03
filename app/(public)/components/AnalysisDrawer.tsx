@@ -31,7 +31,7 @@ export function AnalysisDrawer({
         className={`${triggerVariant === "fixed"
           ? "fixed top-1/2 right-0 z-30 -translate-y-1/2 rounded-l-xl border-r-0 px-3 py-3 text-xs hover:pr-4"
           : "relative z-0 rounded-xl px-4 py-2.5 text-sm"
-        } flex items-center gap-2 border border-brand-primary/40 bg-brand-deep font-semibold text-white shadow-lg shadow-brand-deep/20 transition-all hover:bg-brand-ink print:hidden dark:bg-brand-primary dark:text-neutral-950 ${
+        } flex items-center gap-2 border border-brand-primary bg-brand-primary font-semibold text-[#333333] shadow-lg shadow-black/10 transition-all hover:brightness-95 print:hidden ${
           open ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
       >
@@ -48,7 +48,7 @@ export function AnalysisDrawer({
       >
         <div className="flex items-start justify-between border-b border-brand-primary/20 bg-gradient-to-r from-brand-ink to-brand-deep px-6 py-4 text-white">
           <div>
-            <h2 className="text-sm font-semibold tracking-widest uppercase">{title}</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
             {description && <p className="mt-1 text-sm text-white/65">{description}</p>}
           </div>
           <button

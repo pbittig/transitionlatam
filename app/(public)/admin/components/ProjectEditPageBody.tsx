@@ -37,7 +37,7 @@ export async function ProjectEditPageBody({
       <ProjectEditForm project={project} connectionStatusOptions={connectionStatuses.map((s) => s.label)} />
       <div>
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold tracking-widest text-neutral-500 uppercase dark:text-neutral-400">
+          <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
             Estado ambiental
           </h2>
           <div className="flex items-center gap-3">

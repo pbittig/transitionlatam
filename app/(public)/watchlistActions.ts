@@ -18,7 +18,7 @@ export async function toggleFollow(projectId: string, follow: boolean): Promise<
       await unfollowProject(client, projectId);
     }
     revalidatePath(`/proyectos/${projectId}`);
-    revalidatePath("/alertas");
+    revalidatePath("/monitoreo");
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
@@ -32,7 +32,7 @@ export async function toggleAppSetting(key: string, value: boolean): Promise<{ s
   }
   try {
     await setAppSetting(createSupabaseServiceClient(), key, value);
-    revalidatePath("/alertas");
+    revalidatePath("/monitoreo");
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };

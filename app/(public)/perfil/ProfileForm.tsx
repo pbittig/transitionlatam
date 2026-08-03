@@ -3,10 +3,11 @@
 import { useActionState, useState } from "react";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import { updateProfile, type UpdateProfileState } from "./actions";
+import type { AppLocale } from "@/lib/i18n";
 
 const initialState: UpdateProfileState = {};
 
-export function ProfileForm({ profile }: { profile: CurrentUserProfile }) {
+export function ProfileForm({ profile, locale = "es" }: { profile: CurrentUserProfile; locale?: AppLocale }) {
   const [state, formAction, pending] = useActionState(updateProfile, initialState);
   const [preview, setPreview] = useState<string | null>(profile.avatarUrl);
 
@@ -23,7 +24,7 @@ export function ProfileForm({ profile }: { profile: CurrentUserProfile }) {
         )}
         <div>
           <label htmlFor="avatar" className="cursor-pointer text-sm font-medium text-neutral-900 hover:underline dark:text-neutral-50">
-            Cambiar foto
+            {locale === "en" ? "Change photo" : "Cambiar foto"}
           </label>
           <input
             id="avatar"
@@ -36,13 +37,13 @@ export function ProfileForm({ profile }: { profile: CurrentUserProfile }) {
               if (file) setPreview(URL.createObjectURL(file));
             }}
           />
-          <p className="text-xs text-neutral-400 dark:text-neutral-500">JPG o PNG, máximo 3 MB.</p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">{locale === "en" ? "JPG or PNG, up to 3 MB." : "JPG o PNG, máximo 3 MB."}</p>
         </div>
       </div>
 
       <div>
         <label htmlFor="fullName" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-          Nombre completo
+          {locale === "en" ? "Full name" : "Nombre completo"}
         </label>
         <input
           id="fullName"
@@ -56,7 +57,7 @@ export function ProfileForm({ profile }: { profile: CurrentUserProfile }) {
 
       <div>
         <label htmlFor="companyName" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-          Empresa
+          {locale === "en" ? "Company" : "Empresa"}
         </label>
         <input
           id="companyName"
@@ -68,13 +69,13 @@ export function ProfileForm({ profile }: { profile: CurrentUserProfile }) {
       </div>
 
       <div>
-        <p className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">Correo</p>
+        <p className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">{locale === "en" ? "Email" : "Correo"}</p>
         <p className="text-sm text-neutral-500 dark:text-neutral-400">{profile.email}</p>
       </div>
 
       <div>
         <label htmlFor="preferredLanguage" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-          Idioma del portal / Portal language
+          {locale === "en" ? "Portal language" : "Idioma del portal"}
         </label>
         <select
           id="preferredLanguage"
@@ -82,21 +83,21 @@ export function ProfileForm({ profile }: { profile: CurrentUserProfile }) {
           defaultValue={profile.preferredLanguage}
           className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         >
-          <option value="es">Español (Chile)</option>
+          <option value="es">{locale === "en" ? "Spanish (Chile)" : "Español (Chile)"}</option>
           <option value="en">English</option>
         </select>
-        <p className="mt-1 text-xs text-neutral-400">El cambio se aplicará al guardar el perfil.</p>
+        <p className="mt-1 text-xs text-neutral-400">{locale === "en" ? "The change will apply when you save your profile." : "El cambio se aplicará al guardar el perfil."}</p>
       </div>
 
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
-      {state?.success && <p className="text-sm text-emerald-600 dark:text-emerald-400">Cambios guardados.</p>}
+      {state?.success && <p className="text-sm text-emerald-600 dark:text-emerald-400">{locale === "en" ? "Changes saved." : "Cambios guardados."}</p>}
 
       <button
         type="submit"
         disabled={pending}
         className="w-fit rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200"
       >
-        {pending ? "Guardando..." : "Guardar cambios"}
+        {pending ? (locale === "en" ? "Saving..." : "Guardando...") : (locale === "en" ? "Save changes" : "Guardar cambios")}
       </button>
     </form>
   );

@@ -11,7 +11,6 @@ import {
   ListChecks,
   LockKeyhole,
   Network,
-  Sparkles,
   UsersRound,
 } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
@@ -33,6 +32,9 @@ const plans = [
     seats: 1,
     users: "1 usuario",
     description: "Para conocer la plataforma y comprobar si la información responde a las necesidades de tu equipo.",
+    bestFor: "Personas evaluando la plataforma o equipos que necesitan validar rápidamente la cobertura disponible.",
+    receives: ["Panorama de la matriz eléctrica", "Exploración inicial de proyectos futuros", "Vista de muestra de módulos avanzados"],
+    outcome: "Confirmar si Transition LATAM cubre tu mercado y definir qué proyectos vale la pena analizar con mayor profundidad.",
     features: [
       "14 días de acceso gratuito",
       "Panorama general de infraestructura energética",
@@ -45,12 +47,15 @@ const plans = [
   {
     code: "lite",
     name: "Lite",
-    eyebrow: "Análisis y seguimiento",
+    eyebrow: "Análisis y monitoreo",
     usd: 1200,
     clp: Math.round(1200 * USD_CLP / 1000) * 1000,
     seats: 2,
     users: "2 usuarios",
     description: "Para equipos que necesitan revisar proyectos en detalle y recibir señales cuando cambian.",
+    bestFor: "Equipos de desarrollo, ingeniería, proveedores y asesores que monitorean una cartera activa de proyectos.",
+    receives: ["Fichas completas y cronología estimada", "Análisis dinámico por tecnología y etapa", "Monitoreo, alertas e historial de cambios"],
+    outcome: "Priorizar proyectos, anticipar hitos y volver al equipo cuando aparece una señal relevante sin revisar manualmente toda la cartera.",
     features: [
       "Todo lo disponible en Free",
       "Acceso completo a las fichas de proyectos",
@@ -70,11 +75,14 @@ const plans = [
     seats: 3,
     users: "3 usuarios",
     description: "Para equipos que además necesitan entender empresas, organizar oportunidades y preparar análisis.",
+    bestFor: "Equipos comerciales, inversionistas, EPC y proveedores que convierten inteligencia de mercado en pipeline y ventas.",
+    receives: ["Todo el análisis y monitoreo de Lite", "Empresas, grupos, SPV y contexto relacional", "CRM, Nexo y reportes asistidos"],
+    outcome: "Pasar del proyecto detectado a una oportunidad gestionada, con contexto empresarial, responsable y próximo paso compartido.",
     features: [
       "Todo lo incluido en Lite",
       "Mapa de empresas, propietarios y sociedades de proyecto (SPV)",
       "Gestión comercial (CRM), oportunidades y próximos pasos",
-      "Transition AI para hacer preguntas sobre la plataforma",
+      "Nexo para hacer preguntas sobre la plataforma",
       "Creación asistida de análisis y reportes",
       "3 cuentas para integrantes de la misma empresa",
     ],
@@ -98,14 +106,11 @@ export default async function PlansPage() {
 
   return (
     <div className="flex flex-col gap-10 pb-16">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-ink via-brand-deep to-[#1b8d83] px-6 py-10 text-white shadow-xl shadow-brand-deep/15 md:px-10 md:py-12">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-10 text-white shadow-xl shadow-black/15 md:px-10 md:py-12">
         <span className="absolute -top-24 right-10 h-64 w-64 rounded-full border border-white/10" aria-hidden />
         <span className="absolute -right-16 -bottom-32 h-80 w-80 rounded-full bg-brand-primary/20 blur-3xl" aria-hidden />
         <div className="relative max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-brand-primary">
-            <Sparkles size={13} /> Planes anuales
-          </span>
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight md:text-5xl">Elige el nivel de inteligencia que necesita tu equipo.</h1>
+          <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Elige el nivel de inteligencia que necesita tu equipo.</h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-white/75 md:text-base">
             Un contrato anual por empresa, con cuentas de usuario incluidas y precios finales con IVA.
           </p>
@@ -129,13 +134,7 @@ export default async function PlansPage() {
                   : "border-neutral-200 dark:border-neutral-800"
               }`}
             >
-              {plan.featured && (
-                <span className="absolute top-0 right-0 rounded-bl-xl bg-brand-primary px-3 py-1.5 text-[10px] font-bold tracking-wide text-neutral-950 uppercase">
-                  Acceso completo
-                </span>
-              )}
-              <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">{plan.eyebrow}</p>
-              <div className="mt-3 flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-semibold text-neutral-950 dark:text-white">{plan.name}</h2>
                 {isCurrent && (
                   <span className="rounded-full bg-brand-surface px-2.5 py-1 text-[10px] font-semibold text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary">
@@ -159,7 +158,7 @@ export default async function PlansPage() {
                   </p>
                   <p className="mt-1 text-xs text-neutral-500">IVA incluido</p>
                   <div className="mt-4 rounded-xl border border-brand-primary/30 bg-gradient-to-r from-brand-surface to-brand-primary/10 px-4 py-3 dark:from-brand-primary/10 dark:to-brand-primary/5">
-                    <p className="text-[10px] font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">
+                    <p className="text-xs font-medium text-neutral-600">
                       Costo mensual equivalente por usuario
                     </p>
                     <p className="mt-1 flex flex-wrap items-baseline gap-x-1 text-brand-ink dark:text-white">
@@ -182,6 +181,27 @@ export default async function PlansPage() {
                 {plan.users} incluidos en la suscripción
               </div>
               <p className="mt-5 min-h-16 text-sm leading-6 text-neutral-600 dark:text-neutral-400">{plan.description}</p>
+              <div className="mt-5 space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/70">
+                <div>
+                  <p className="text-xs font-semibold text-neutral-800">Ideal para</p>
+                  <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-neutral-300">{plan.bestFor}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-neutral-800">Qué recibes</p>
+                  <ul className="mt-2 space-y-1.5">
+                    {plan.receives.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-xs leading-5 text-neutral-600 dark:text-neutral-300">
+                        <Check size={12} className="mt-1 shrink-0 text-brand-primary" strokeWidth={2.5} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-neutral-800">Resultado esperado</p>
+                  <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-neutral-300">{plan.outcome}</p>
+                </div>
+              </div>
               <ul className="mt-5 flex flex-1 flex-col gap-3 border-t border-neutral-100 pt-5 dark:border-neutral-800">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2.5 text-sm text-neutral-700 dark:text-neutral-300">
@@ -203,7 +223,7 @@ export default async function PlansPage() {
                   rel="noreferrer"
                   className={`mt-7 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
                     plan.featured
-                      ? "bg-brand-deep text-white hover:bg-brand-ink dark:bg-brand-primary dark:text-neutral-950"
+                      ? "bg-brand-primary text-[#333333] hover:brightness-95"
                       : "border border-brand-deep text-brand-deep hover:bg-brand-surface dark:border-brand-primary dark:text-brand-primary"
                   }`}
                 >
@@ -221,8 +241,7 @@ export default async function PlansPage() {
 
       <section>
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Qué significa cada función</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Módulos explicados en términos simples</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Módulos explicados en términos simples</h2>
           <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
             Cada módulo responde una pregunta distinta: qué proyecto mirar, qué cambió, quién participa y cuál es el siguiente paso comercial.
           </p>
@@ -237,7 +256,7 @@ export default async function PlansPage() {
             },
             {
               icon: Activity,
-              name: "Seguimiento y alertas",
+              name: "Monitoreo y alertas",
               plan: "Lite",
               text: "Avisos cuando cambia el estado, la capacidad, una fecha relevante, la conexión o un hito ambiental.",
             },
@@ -255,7 +274,7 @@ export default async function PlansPage() {
             },
             {
               icon: Bot,
-              name: "Transition AI",
+              name: "Nexo",
               plan: "Premium",
               text: "Permite hacer preguntas en lenguaje natural y comparar información disponible en la plataforma.",
             },
@@ -287,8 +306,7 @@ export default async function PlansPage() {
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-deep text-white dark:bg-brand-primary dark:text-neutral-950">
             <Bot size={22} />
           </span>
-          <p className="mt-5 text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Incluido en Premium</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Transition AI convierte preguntas en análisis estructurados.</h2>
+          <h2 className="mt-5 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Nexo convierte preguntas en análisis estructurados.</h2>
           <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
             La barra flotante permitirá consultar la información de la plataforma, comparar proyectos y preparar reportes. Tendrá un límite mensual de uso, que se informará antes del lanzamiento.
           </p>
@@ -303,9 +321,8 @@ export default async function PlansPage() {
           <div className="flex items-center justify-between bg-gradient-to-r from-brand-ink to-brand-deep px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary text-neutral-950"><Bot size={17} /></span>
-              <div><p className="text-sm font-semibold">Transition AI</p><p className="text-[10px] text-white/60">Preview de interfaz</p></div>
+              <div><p className="text-sm font-semibold">Nexo</p><p className="text-[10px] text-white/60">Preview de interfaz</p></div>
             </div>
-            <span className="rounded-full border border-white/15 px-2 py-1 text-[9px] text-brand-primary">PREMIUM</span>
           </div>
           <div className="space-y-3 p-4">
             <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-brand-deep px-4 py-3 text-sm text-white">
@@ -316,7 +333,7 @@ export default async function PlansPage() {
             </div>
             <div className="flex gap-2">
               <span className="rounded-full bg-brand-surface px-3 py-1.5 text-[10px] font-medium text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary">Comparar proyectos</span>
-              <span className="rounded-full bg-violet-50 px-3 py-1.5 text-[10px] font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">Generar reporte</span>
+              <span className="rounded-full bg-brand-surface px-3 py-1.5 text-[10px] font-medium text-brand-deep">Generar reporte</span>
             </div>
           </div>
         </div>

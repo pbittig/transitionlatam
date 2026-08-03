@@ -3,6 +3,7 @@ import { CHILE_REGION_CENTROIDS } from "@/lib/shared/chileRegionCentroids";
 import { contactRoleLabelEs } from "@/lib/shared/contactRoleLabels";
 import { PMGD_CAPACITY_THRESHOLD_MW } from "@/lib/shared/projectPhaseDurations";
 import type { VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
+import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 
 const MAX_PAGE_SIZE = 100;
 
@@ -481,6 +482,7 @@ export async function getVerificationQueue(
       .from("project")
       .select(VERIFICATION_QUEUE_SELECT)
       .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+      .eq("editorial_status", "published")
       .is("verified_at", null);
     if (period) query = applyPeriodFilter(query, period);
 
@@ -504,6 +506,7 @@ export async function getVerificationQueue(
       .from("project")
       .select(VERIFICATION_QUEUE_SELECT)
       .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+      .eq("editorial_status", "published")
       .is("verified_at", null)
       .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
       .gte("estimated_connection_date", startOfMonth)
@@ -513,6 +516,7 @@ export async function getVerificationQueue(
       .from("project")
       .select(VERIFICATION_QUEUE_SELECT)
       .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+      .eq("editorial_status", "published")
       .is("verified_at", null)
       .or(
         `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
@@ -536,12 +540,71 @@ export async function getVerificationQueue(
   return merged.slice(0, limit).map(mapVerificationQueueRow);
 }
 
+export interface ReverificationQueueItem {
+  id: string;
+  name: string;
+  internalCode: string;
+  comuna: string | null;
+  region: string | null;
+  status: string | null;
+  verifiedAt: string | null;
+  reverificationReason: string | null;
+}
+
+const REVERIFICATION_QUEUE_SELECT =
+  "id, name, internal_code, status, verified_at, reverification_reason, location:location_id(comuna, region:region_id(name))";
+
+type ReverificationQueueRow = {
+  id: string;
+  name: string;
+  internal_code: string;
+  status: string | null;
+  verified_at: string | null;
+  reverification_reason: string | null;
+  location: { comuna: string | null; region: { name: string } | null } | null;
+};
+
+function mapReverificationQueueRow(row: ReverificationQueueRow): ReverificationQueueItem {
+  return {
+    id: row.id,
+    name: row.name,
+    internalCode: row.internal_code,
+    comuna: row.location?.comuna ?? null,
+    region: row.location?.region?.name ?? null,
+    status: row.status,
+    verifiedAt: row.verified_at,
+    reverificationReason: row.reverification_reason,
+  };
+}
+
+/** Proyectos ya verificados cuyo estado cambió de forma sospechosa desde entonces (ver load.ts). */
+export async function getReverificationQueue(client: SupabaseClient, limit = 200): Promise<ReverificationQueueItem[]> {
+  const { data, error } = await client
+    .from("project")
+    .select(REVERIFICATION_QUEUE_SELECT)
+    .eq("needs_reverification", true)
+    .order("verified_at", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(`Error obteniendo cola de re-verificación: ${error.message}`);
+  return ((data ?? []) as unknown as ReverificationQueueRow[]).map(mapReverificationQueueRow);
+}
+
+export async function countNeedsReverification(client: SupabaseClient): Promise<number> {
+  const { count, error } = await client
+    .from("project")
+    .select("id", { count: "exact", head: true })
+    .eq("needs_reverification", true);
+  if (error) throw new Error(`Error contando proyectos por re-verificar: ${error.message}`);
+  return count ?? 0;
+}
+
 /** Conteo total de proyectos sin verificar — para la tarjeta de /admin. */
 export async function countUnverifiedProjects(client: SupabaseClient): Promise<number> {
   const { count, error } = await client
     .from("project")
     .select("id", { count: "exact", head: true })
     .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+    .eq("editorial_status", "published")
     .is("verified_at", null);
   if (error) throw new Error(`Error contando proyectos sin verificar: ${error.message}`);
   return count ?? 0;
@@ -590,6 +653,7 @@ export async function getDoubtfulProjects(
     .from("project")
     .select(VERIFICATION_QUEUE_SELECT)
     .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+    .eq("editorial_status", "published")
     .is("verified_at", null)
     .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null");
   if (period) query = applyPeriodFilter(query, period);
@@ -620,12 +684,13 @@ export interface VerificationScreeningStats {
 export async function getVerificationScreeningStats(client: SupabaseClient): Promise<VerificationScreeningStats> {
   const [{ count: totalPending, error: e1 }, { count: screened, error: e2 }, { count: doubtful, error: e3 }] =
     await Promise.all([
-      client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").is("verified_at", null),
+      client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").eq("editorial_status", "published").is("verified_at", null),
       client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").not("ai_screened_at", "is", null),
       client
         .from("project")
         .select("id", { count: "exact", head: true })
         .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+        .eq("editorial_status", "published")
         .is("verified_at", null)
         .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null"),
     ]);
@@ -643,8 +708,8 @@ export interface VerificationPeriodStats {
 /** Cuántos quedan pendientes en cada cola — vigente (verificar hoy) vs histórico (después, con más gente). */
 export async function getVerificationPeriodStats(client: SupabaseClient): Promise<VerificationPeriodStats> {
   const [{ count: vigentePending, error: e1 }, { count: historicoPending, error: e2 }] = await Promise.all([
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").is("verified_at", null), "vigente"),
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").is("verified_at", null), "historico"),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").eq("editorial_status", "published").is("verified_at", null), "vigente"),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").eq("editorial_status", "published").is("verified_at", null), "historico"),
   ]);
   if (e1) throw new Error(`Error contando cola vigente: ${e1.message}`);
   if (e2) throw new Error(`Error contando cola histórica: ${e2.message}`);
@@ -1046,6 +1111,130 @@ export async function getProjectsForMap(client: SupabaseClient, filters: Project
     }));
 
   return { regionBubbles, precisePoints };
+}
+
+export type RelatedProjectReason = "same_spv" | "same_owner" | "same_group";
+
+export interface RelatedPortfolioProject {
+  id: string;
+  name: string;
+  capacityMw: number | null;
+  estimatedConnectionDate: string | null;
+  technologyCode: string | null;
+  includesStorage: boolean;
+  status: string | null;
+  reason: RelatedProjectReason;
+}
+
+/**
+ * Cartera vinculada por estructura corporativa, no por parecido. Solo devuelve
+ * fichas verificadas del pipeline vigente.
+ */
+export async function getRelatedPortfolioProjects(
+  client: SupabaseClient,
+  target: {
+    id: string;
+    developerCompanyId: string | null;
+    developerCompanyName: string | null;
+    relatedCompanyNames?: string[];
+  },
+  limit = 8,
+): Promise<RelatedPortfolioProject[]> {
+  const { data: currentProject, error: currentError } = await client
+    .from("project")
+    .select("spv_id")
+    .eq("id", target.id)
+    .maybeSingle();
+  if (currentError) throw new Error(`Error obteniendo SPV del proyecto: ${currentError.message}`);
+
+  const currentSpvId = (currentProject?.spv_id as string | null | undefined) ?? null;
+  let siblingSpvIds: string[] = [];
+
+  if (currentSpvId) {
+    const { data: currentSpv } = await client
+      .from("spv")
+      .select("parent_company_id")
+      .eq("id", currentSpvId)
+      .maybeSingle();
+    const parentCompanyId = (currentSpv?.parent_company_id as string | null | undefined) ?? null;
+    if (parentCompanyId) {
+      const { data: siblingSpvs, error: siblingError } = await client
+        .from("spv")
+        .select("id")
+        .eq("parent_company_id", parentCompanyId);
+      if (siblingError) throw new Error(`Error obteniendo SPV relacionados: ${siblingError.message}`);
+      siblingSpvIds = (siblingSpvs ?? []).map((row) => row.id as string);
+    }
+  }
+
+  const officialGroupNames = new Set(
+    [target.developerCompanyName, ...(target.relatedCompanyNames ?? [])]
+      .filter((name): name is string => Boolean(name))
+      .map(normalizeForMatch),
+  );
+  let groupCompanyIds: string[] = [];
+  if (officialGroupNames.size > 0) {
+    const { data: companies, error: companiesError } = await client.from("company").select("id, name").limit(5000);
+    if (companiesError) throw new Error(`Error resolviendo empresas relacionadas: ${companiesError.message}`);
+    groupCompanyIds = (companies ?? [])
+      .filter((company) => officialGroupNames.has(normalizeForMatch(company.name as string)))
+      .map((company) => company.id as string);
+  }
+
+  const ownerIds = Array.from(
+    new Set([target.developerCompanyId, ...groupCompanyIds].filter((id): id is string => Boolean(id))),
+  );
+  const spvIds = Array.from(new Set([currentSpvId, ...siblingSpvIds].filter((id): id is string => Boolean(id))));
+  const relationshipFilters = [
+    ownerIds.length > 0 ? `developer_company_id.in.(${ownerIds.join(",")})` : null,
+    spvIds.length > 0 ? `spv_id.in.(${spvIds.join(",")})` : null,
+  ].filter((filter): filter is string => Boolean(filter));
+  if (relationshipFilters.length === 0) return [];
+
+  const { data, error } = await client
+    .from("project")
+    .select(
+      "id, name, developer_company_id, spv_id, capacity_mw, estimated_connection_date, includes_storage, status, technology:technology_id(code)",
+    )
+    .neq("id", target.id)
+    .not("verified_at", "is", null)
+    .gte("estimated_connection_date", startOfCurrentMonthIso())
+    .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
+    .or(relationshipFilters.join(","))
+    .order("estimated_connection_date", { ascending: true })
+    .limit(Math.max(limit * 3, 24));
+  if (error) throw new Error(`Error buscando proyectos relacionados: ${error.message}`);
+
+  return ((data ?? []) as unknown as Array<{
+    id: string;
+    name: string;
+    developer_company_id: string | null;
+    spv_id: string | null;
+    capacity_mw: number | null;
+    estimated_connection_date: string | null;
+    includes_storage: boolean;
+    status: string | null;
+    technology: { code: string } | null;
+  }>)
+    .map((row) => {
+      const reason: RelatedProjectReason =
+        currentSpvId && row.spv_id === currentSpvId
+          ? "same_spv"
+          : target.developerCompanyId && row.developer_company_id === target.developerCompanyId
+            ? "same_owner"
+            : "same_group";
+      return {
+        id: row.id,
+        name: row.name,
+        capacityMw: row.capacity_mw,
+        estimatedConnectionDate: row.estimated_connection_date,
+        technologyCode: row.technology?.code ?? null,
+        includesStorage: row.includes_storage,
+        status: row.status,
+        reason,
+      };
+    })
+    .slice(0, limit);
 }
 
 export interface SimilarProject {

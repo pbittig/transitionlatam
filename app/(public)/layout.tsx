@@ -46,13 +46,13 @@ export default async function PublicLayout({ children }: { children: React.React
     : [];
 
   return (
-    <div className="min-h-full bg-[linear-gradient(180deg,var(--brand-surface)_0px,#fff_260px)] dark:bg-[linear-gradient(180deg,#102624_0px,#171717_260px)]">
+    <div className="min-h-full bg-white">
       <Sidebar isAdmin={admin} userProfile={userProfile} remainingTrialDays={remainingTrialDays} locale={locale} />
       <MobileNavigation isAdmin={admin} userProfile={userProfile} locale={locale} />
-      <div className="flex min-h-full flex-col md:pl-64 print:pl-0">
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6 md:pb-10 print:px-0 print:py-0">{children}</main>
+      <div className="flex min-h-full flex-col md:pl-60 print:pl-0">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-5 pb-28 sm:px-7 sm:pt-8 md:pb-12 print:px-0 print:py-0">{children}</main>
         <footer className="border-t border-neutral-100 py-8 text-center text-sm text-neutral-500 print:hidden dark:border-neutral-800 dark:text-neutral-400">
-          Transition LATAM — una plataforma de{" "}
+          Transition LATAM — {locale === "en" ? "a platform by" : "una plataforma de"}{" "}
           <a
             href="https://www.onixcg.com"
             target="_blank"
@@ -65,7 +65,7 @@ export default async function PublicLayout({ children }: { children: React.React
       </div>
       <div className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 print:hidden md:right-6 md:bottom-6 md:gap-3">
         <FollowNotifications events={followEvents} />
-        <PremiumAiBar enabled={aiEnabled} initialMessages={aiMemory} />
+        <PremiumAiBar enabled={aiEnabled} initialMessages={aiMemory} locale={locale} />
       </div>
     </div>
   );

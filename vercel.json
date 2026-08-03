@@ -2,15 +2,15 @@
   "crons": [
     {
       "path": "/api/cron/sync-listado",
-      "schedule": "0 10 * * *"
+      "schedule": "0 16 * * *"
     },
     {
       "path": "/api/cron/screen-queue",
-      "schedule": "15 10 * * *"
+      "schedule": "15 16 * * *"
     },
     {
       "path": "/api/cron/preverify-editorial",
-      "schedule": "30 10 * * *"
+      "schedule": "30 16 * * *"
     }
   ]
 }

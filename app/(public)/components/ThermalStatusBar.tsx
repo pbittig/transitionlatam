@@ -1,10 +1,5 @@
 import { getStatusMaturity, isRejectedStatus, STATUS_BAND_LABEL } from "@/lib/shared/projectStatusMaturity";
 
-// Gradiente "frío → caliente" (azul → ámbar → rojo) — el mismo concepto de rampa
-// secuencial de la skill de dataviz, aplicado como termómetro literal en vez de
-// una sola tonalidad, porque es la metáfora pedida (temperatura del proceso).
-const THERMAL_GRADIENT = "linear-gradient(90deg, #2a78d6 0%, #1baf7a 35%, #eda100 65%, #e34948 100%)";
-
 export function ThermalStatusBar({
   status,
   compact = false,
@@ -32,26 +27,44 @@ export function ThermalStatusBar({
     return <span className="text-sm text-neutral-600 dark:text-neutral-400">{status}</span>;
   }
 
-  return (
-    <div className={compact ? "w-32" : "w-full max-w-sm"}>
-      <div className="relative h-1.5 rounded-full" style={{ background: THERMAL_GRADIENT }}>
+  if (compact) {
+    return (
+      <div className="w-32" title={status}>
         <div
-          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow dark:border-neutral-900"
-          style={{ left: `${maturity.order}%`, backgroundColor: "#0b0b0b" }}
+          className="h-2.5 w-full overflow-hidden rounded-full bg-brand-primary/15 ring-1 ring-brand-primary/10"
+          role="progressbar"
+          aria-label={`Estado de conexión: ${maturity.order}%`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={maturity.order}
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#333333] to-brand-primary shadow-[0_0_10px_rgba(56,215,197,0.22)]"
+            style={{ width: `${maturity.order}%` }}
+          />
+        </div>
+        {showPercentage && (
+          <div className="mt-1 text-right text-[11px] font-medium tabular-nums text-neutral-500">
+            {maturity.order}%
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-sm">
+      <div className="relative h-1.5 rounded-full bg-brand-primary/15">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#333333] to-brand-primary"
+          style={{ width: `${maturity.order}%` }}
           title={status}
         />
       </div>
-      {compact && showPercentage && (
-        <div className="mt-1 text-right text-xs font-medium tabular-nums text-neutral-500 dark:text-neutral-400">
-          {maturity.order}%
-        </div>
-      )}
-      {!compact && (
-        <div className="mt-1.5 flex items-center justify-between text-xs">
-          <span className="text-neutral-500 dark:text-neutral-400">{STATUS_BAND_LABEL[maturity.band]}</span>
-          <span className="text-neutral-400 dark:text-neutral-500">{maturity.order}%</span>
-        </div>
-      )}
+      <div className="mt-1.5 flex items-center justify-between text-xs">
+        <span className="text-neutral-500 dark:text-neutral-400">{STATUS_BAND_LABEL[maturity.band]}</span>
+        <span className="text-neutral-400 dark:text-neutral-500">{maturity.order}%</span>
+      </div>
     </div>
   );
 }

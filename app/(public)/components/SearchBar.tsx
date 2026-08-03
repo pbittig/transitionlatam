@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
+import type { AppLocale } from "@/lib/i18n";
 
 /** Buscador de texto — preserva el resto de filtros activos (chips, estado, tab) vía inputs ocultos. */
 export function SearchBar({
@@ -11,6 +12,7 @@ export function SearchBar({
   otherParams,
   placeholder = "Buscar por nombre...",
   children,
+  locale = "es",
 }: {
   basePath: string;
   value: string | undefined;
@@ -18,6 +20,7 @@ export function SearchBar({
   placeholder?: string;
   /** Controles extra (ej. un <select> de estado) que se envían junto con la búsqueda, en el mismo form. */
   children?: React.ReactNode;
+  locale?: AppLocale;
 }) {
   const router = useRouter();
 
@@ -51,7 +54,7 @@ export function SearchBar({
         type="submit"
         className="min-h-11 rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 sm:min-h-0 sm:rounded-lg dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200"
       >
-        Buscar
+        {locale === "en" ? "Search" : "Buscar"}
       </button>
       {value && (
         <Link
@@ -64,7 +67,7 @@ export function SearchBar({
           scroll={false}
           className="col-span-2 text-sm text-neutral-500 hover:underline sm:col-span-1 dark:text-neutral-400"
         >
-          Limpiar búsqueda
+          {locale === "en" ? "Clear search" : "Limpiar búsqueda"}
         </Link>
       )}
     </form>

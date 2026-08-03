@@ -20,9 +20,12 @@ export function LastSyncIndicator({ isoTimestamp, label = "Datos actualizados" }
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
-    setNow(Date.now());
+    const initialId = setTimeout(() => setNow(Date.now()), 0);
     const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initialId);
+      clearInterval(id);
+    };
   }, []);
 
   if (!isoTimestamp) return null;
@@ -30,8 +33,8 @@ export function LastSyncIndicator({ isoTimestamp, label = "Datos actualizados" }
   return (
     <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
       <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-primary opacity-60" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-primary" />
       </span>
       <span>{label} {now ? relativeTime(isoTimestamp, now) : "…"}</span>
     </div>

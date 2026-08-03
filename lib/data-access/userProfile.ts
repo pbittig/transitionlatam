@@ -5,6 +5,7 @@ export interface CurrentUserProfile {
   email: string;
   fullName: string | null;
   companyName: string | null;
+  mobilePhone: string | null;
   country: string | null;
   avatarUrl: string | null;
   planCode: string | null;
@@ -21,7 +22,7 @@ export async function getCurrentUserProfile(client: SupabaseClient): Promise<Cur
 
   const { data: localizedData, error } = await client
     .from("user_profile")
-    .select("id, email, full_name, company_name, country, avatar_url, trial_ends_at, preferred_language, plan:plan_id(code)")
+    .select("id, email, full_name, company_name, mobile_phone, country, avatar_url, trial_ends_at, preferred_language, plan:plan_id(code)")
     .eq("auth_user_id", user.id)
     .maybeSingle();
   let data = localizedData;
@@ -32,7 +33,7 @@ export async function getCurrentUserProfile(client: SupabaseClient): Promise<Cur
       .eq("auth_user_id", user.id)
       .maybeSingle();
     if (legacyError) throw new Error(`Error obteniendo perfil de usuario: ${legacyError.message}`);
-    data = legacyData ? { ...legacyData, preferred_language: "es" } : null;
+    data = legacyData ? { ...legacyData, mobile_phone: null, preferred_language: "es" } : null;
   } else if (error) {
     throw new Error(`Error obteniendo perfil de usuario: ${error.message}`);
   }
@@ -43,6 +44,7 @@ export async function getCurrentUserProfile(client: SupabaseClient): Promise<Cur
     email: data.email as string,
     fullName: data.full_name as string | null,
     companyName: data.company_name as string | null,
+    mobilePhone: data.mobile_phone as string | null,
     country: data.country as string | null,
     avatarUrl: data.avatar_url as string | null,
     planCode: (data.plan as unknown as { code: string } | null)?.code ?? null,

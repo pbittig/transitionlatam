@@ -1,4 +1,5 @@
 import type { SeiaRecordForProject } from "@/lib/data-access/seia";
+import type { AppLocale } from "@/lib/i18n";
 
 // Paleta de estado fija (nunca reutilizada para series categóricas) — ver
 // references/palette.md de la skill de dataviz.
@@ -17,14 +18,14 @@ const CONFIDENCE_LABEL: Record<string, string> = {
   baja: "Coincidencia de baja confianza — verificar",
 };
 
-export function SeiaStatusCard({ record }: { record: SeiaRecordForProject }) {
+export function SeiaStatusCard({ record, locale = "es" }: { record: SeiaRecordForProject; locale?: AppLocale }) {
   const key = record.status?.toLowerCase().trim() ?? "";
   const color = STATUS_COLOR[key] ?? { light: "#898781", dark: "#898781", label: record.status ?? "Sin estado" };
 
   return (
     <div className="rounded-xl border border-neutral-200 p-6 dark:border-neutral-800">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Evaluación ambiental (SEIA)</h3>
+        <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Environmental assessment (SEIA)" : "Evaluación ambiental (SEIA)"}</h3>
         <span
           className="rounded-full px-2.5 py-1 text-xs font-medium"
           style={{
@@ -39,20 +40,20 @@ export function SeiaStatusCard({ record }: { record: SeiaRecordForProject }) {
       <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
         {record.titular && (
           <div>
-            <dt className="text-xs text-neutral-500 dark:text-neutral-400">Titular</dt>
+            <dt className="text-xs text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Holder" : "Titular"}</dt>
             <dd className="text-neutral-800 dark:text-neutral-200">{record.titular}</dd>
           </div>
         )}
         {record.submissionType && (
           <div>
-            <dt className="text-xs text-neutral-500 dark:text-neutral-400">Tipo de presentación</dt>
+            <dt className="text-xs text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Submission type" : "Tipo de presentación"}</dt>
             <dd className="text-neutral-800 dark:text-neutral-200">{record.submissionType}</dd>
           </div>
         )}
         {record.filedAt && (
           <div>
-            <dt className="text-xs text-neutral-500 dark:text-neutral-400">Fecha de presentación</dt>
-            <dd className="text-neutral-800 dark:text-neutral-200">{new Date(record.filedAt).toLocaleDateString("es-CL")}</dd>
+            <dt className="text-xs text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Submission date" : "Fecha de presentación"}</dt>
+            <dd className="text-neutral-800 dark:text-neutral-200">{new Date(record.filedAt).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL")}</dd>
           </div>
         )}
       </dl>
@@ -63,7 +64,7 @@ export function SeiaStatusCard({ record }: { record: SeiaRecordForProject }) {
           rel="noreferrer"
           className="mt-3 inline-block text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
         >
-          Ver ficha en SEIA →
+          {locale === "en" ? "View SEIA record" : "Ver ficha en SEIA"} →
         </a>
       )}
       {record.matchConfidence && (

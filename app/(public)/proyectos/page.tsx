@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import ProyectosPage from "../proyectos-esperados/page";
 
-// El listado de proyectos se renombró y trasladó a Proyectos Esperados — este
-// alias evita enlaces rotos. Las fichas individuales (/proyectos/[id]) no cambian.
-export default function ProyectosRedirect() {
-  redirect("/proyectos-esperados");
-}
+export const metadata: Metadata = { title: "Proyectos futuros" };
+export const dynamic = "force-dynamic";
+
+export default ProyectosPage;

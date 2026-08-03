@@ -45,6 +45,9 @@ next-env.d.ts
 # datos crudos provistos por ONIX (no publicar/commitear — ver docs/09-seguridad.md)
 /dataset
 
+# logs de tareas programadas locales (ver scripts/run-daily-sync.bat)
+/logs
+
 # supabase local
 /supabase/.temp
 /supabase/.branches

@@ -1,24 +1,29 @@
 import type { VerificationProgress } from "@/lib/data-access/projects";
+import { ShieldCheck } from "lucide-react";
+import type { AppLocale } from "@/lib/i18n";
 
-/** Barra de progreso pública: cuántos proyectos del pipeline vigente ya pasaron por revisión manual — la tabla de abajo solo lista los verificados, el resto se sigue incorporando. */
-export function VerificationProgressBar({ progress }: { progress: VerificationProgress }) {
-  const pct = progress.total > 0 ? Math.round((progress.verified / progress.total) * 100) : 0;
+/** Señal pública de calidad editorial para las fichas revisadas manualmente. */
+export function VerificationProgressBar({ progress, locale = "es" }: { progress: VerificationProgress; locale?: AppLocale }) {
+  const upcoming = Math.max(0, progress.total - progress.verified);
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-neutral-600 dark:text-neutral-400">
-          <strong className="text-neutral-900 dark:text-neutral-50">{progress.verified.toLocaleString("es-CL")}</strong> de{" "}
-          {progress.total.toLocaleString("es-CL")} proyectos verificados
-        </span>
-        <span className="text-brand-primary font-medium">{pct}%</span>
+    <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-brand-primary ring-1 ring-neutral-200">
+        <ShieldCheck size={17} />
+      </span>
+      <div>
+        <p className="text-sm font-semibold text-neutral-900">
+          {progress.verified.toLocaleString(locale === "en" ? "en-US" : "es-CL")} {locale === "en" ? "validated project profiles" : "proyectos con ficha validada"}
+        </p>
+        <p className="mt-0.5 text-xs text-neutral-500">
+          {locale === "en" ? "Information reviewed and structured by our team." : "Información revisada y estructurada por nuestro equipo."}
+        </p>
+        {upcoming > 0 && (
+          <p className="mt-1 text-xs font-medium text-neutral-700">
+            {locale === "en" ? "Next expansion:" : "Próxima ampliación:"} {upcoming.toLocaleString(locale === "en" ? "en-US" : "es-CL")} {locale === "en" ? "additional project profiles in the editorial pipeline." : "proyectos adicionales por incorporar."}
+          </p>
+        )}
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
-        <div className="bg-brand-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="text-xs text-neutral-500 dark:text-neutral-400">
-        Solo mostramos proyectos ya revisados por nuestro equipo — seguimos incorporando el resto de la cartera.
-      </p>
     </div>
   );
 }

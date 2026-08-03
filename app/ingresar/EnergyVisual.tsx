@@ -15,13 +15,12 @@ export function EnergyVisual() {
       <div className="relative z-10 flex h-full flex-col justify-between p-8 text-white lg:p-12">
         <div>
           <h2 className="mt-6 max-w-xl text-3xl font-semibold leading-tight tracking-tight lg:text-5xl">
-            De los datos a la inteligencia de mercado.
+            De los datos a la inteligencia de proyectos.
           </h2>
-          <p className="mt-5 max-w-xl text-sm leading-7 text-emerald-50/80 lg:text-base">
-            Transition LATAM conecta proyectos, empresas y movimientos del mercado de la transición energética
-            chilena —generación, almacenamiento y data centers— para ayudarte a encontrar oportunidades, priorizar
-            cuentas, monitorear el avance de cada proyecto en su proceso de conexión y ambiental, y actuar con mejor
-            contexto.
+          <p className="mt-5 max-w-xl text-sm leading-7 text-white/80 lg:text-base">
+            Transition LATAM integra información clave sobre el ecosistema energético chileno para convertir datos
+            dispersos en inteligencia accionable: descubrir oportunidades, priorizar cuentas, seguir el avance
+            ambiental y de conexión de cada proyecto, y anticipar sus próximos hitos.
           </p>
 
           <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-2">
@@ -32,15 +31,15 @@ export function EnergyVisual() {
               { icon: BellRing, title: "Actúa en el momento correcto", text: "Sigue cambios clave y transforma señales en oportunidades comerciales." },
             ].map(({ icon: Icon, title, text }) => (
               <article key={title} className="rounded-2xl border border-white/10 bg-black/15 p-4 backdrop-blur-sm">
-                <Icon size={17} className="text-emerald-200" />
+                <Icon size={17} className="text-brand-primary" />
                 <h3 className="mt-3 text-sm font-semibold">{title}</h3>
-                <p className="mt-1 text-xs leading-5 text-emerald-50/65">{text}</p>
+                <p className="mt-1 text-xs leading-5 text-white/65">{text}</p>
               </article>
             ))}
           </div>
         </div>
 
-        <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/10 pt-5 text-xs text-emerald-50/65">
+        <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/10 pt-5 text-xs text-white/65">
           <span className="inline-flex items-center gap-1.5"><Building2 size={13} /> IPP y desarrolladores</span>
           <span>EPC y proveedores</span>
           <span>Inversionistas y asesores</span>

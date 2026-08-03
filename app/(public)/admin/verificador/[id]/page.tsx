@@ -31,8 +31,7 @@ export default async function VerificarProyectoPage({ params }: { params: Promis
     <div className="flex flex-col gap-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">Verificando</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
             {project.name}
           </h1>
         </div>

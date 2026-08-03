@@ -30,6 +30,7 @@ const STORAGE_MODIFIER_MARKERS = ["con baterías", "con bateria"];
 // para estos casos.
 const NAME_STORAGE_MARKER = /\bbess\b|\bbateria(s)?\b|\balmacenamiento\b|\bsae\b/;
 const NAME_STARTS_WITH_BESS = /^bess\b/;
+const NAME_CRCA_MARKER = /\bcrca\b/;
 
 /**
  * "BESS <sitio>" al inicio del nombre indica una solicitud de batería
@@ -51,6 +52,11 @@ export function applyNameBasedStorageOverride(
   projectKind: NormalizedProject["projectKind"],
 ): { technologyCode: string | null; includesStorage: boolean; projectKind: NormalizedProject["projectKind"] } {
   const normalizedName = normalizeForMatch(projectName);
+  // CRCA = Central Renovable con Almacenamiento. Es una iniciativa híbrida
+  // dentro del alcance prioritario aunque la fuente omita la tecnología base.
+  if (NAME_CRCA_MARKER.test(normalizedName)) {
+    return { technologyCode: technologyCode ?? "hybrid", includesStorage: true, projectKind: "hybrid" };
+  }
   if (!NAME_STORAGE_MARKER.test(normalizedName)) return { technologyCode, includesStorage, projectKind };
   if (NAME_STARTS_WITH_BESS.test(normalizedName)) {
     return { technologyCode: "bess", includesStorage: true, projectKind: "storage" };

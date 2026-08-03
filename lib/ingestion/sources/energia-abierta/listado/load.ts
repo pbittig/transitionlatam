@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeForMatch } from "./normalize";
 import type { NormalizedProject } from "./types";
-import { REJECTED_STATUSES, startOfCurrentMonthIso } from "@/lib/data-access/projects";
+import { REJECTED_STATUSES } from "@/lib/data-access/projects";
 import { prefilterProject } from "./prefilter";
+import { getStatusMaturity } from "@/lib/shared/projectStatusMaturity";
 
 const DATA_SOURCE_NAME = "Acceso Abierto - Coordinador Eléctrico Nacional (listado)";
 const CONFIDENCE_PUBLIC = "PUBLICO";
@@ -43,17 +44,44 @@ function statusRank(status: string | null): 0 | 1 | 2 {
 }
 
 /**
- * Etapa actual (2026-07-28, pedido explícito): el sync solo actualiza proyectos
- * "vigentes" — mismo criterio que ya usa el Verificador/proyectos-esperados
- * (applyPeriodFilter en lib/data-access/projects.ts): no rechazado/desistido y
- * con fecha de conexión estimada desde el inicio de mes. El resto (histórico:
- * rechazados, desistidos, vencidos o sin fecha) queda pendiente para una etapa
- * posterior — no se toca todavía.
+ * Un proyecto ya verificado a mano sigue recibiendo estado/fecha frescos del
+ * sync (ver comentario "isVerified" más abajo) — pero si el cambio es un
+ * retroceso de madurez o un rechazo, no debe aplicarse en silencio: se marca
+ * para que un humano lo revise (ver /admin/revision-dudosos), sin dejar de
+ * guardar el nuevo valor (ocultar el dato real sería peor que mostrarlo dudoso).
+ * No se excluye la transición Fehaciente→SUCTD del retroceso: aunque el diseño
+ * de statusRank la trata como esperada cuando genera una solicitud hermana
+ * nueva, un caso real (BESS TAMANGO, 2026-08) la mostró ocurriendo sobre el
+ * mismo external_reference viniendo de un estado ya avanzado ("declarado en
+ * construcción") — ahí sí es una anomalía. Más barato descartar un falso
+ * positivo con un clic que perder de vista un retroceso real.
  */
-function isVigenteRow(row: NormalizedProject): boolean {
-  if (statusRank(row.statusLabel) === 0) return false;
-  if (!row.estimatedConnectionDate) return false;
-  return row.estimatedConnectionDate >= startOfCurrentMonthIso();
+function reverificationReasonForStatusChange(oldStatus: string | null, newStatus: string): string | null {
+  if (statusRank(newStatus) === 0) {
+    return `El proyecto ya verificado pasó a estado "${newStatus}".`;
+  }
+  const oldMaturity = getStatusMaturity(oldStatus);
+  const newMaturity = getStatusMaturity(newStatus);
+  if (oldMaturity && newMaturity && newMaturity.order < oldMaturity.order) {
+    return `El estado retrocedió de "${oldStatus}" a "${newStatus}" después de haber sido verificado.`;
+  }
+  return null;
+}
+
+/**
+ * Actualizado 2026-08-02: antes excluía además cualquier solicitud con fecha
+ * estimada de conexión ya pasada ("vencida"), asumiendo que era historial
+ * descartable. Diagnóstico real contra la API (2026-08-02) mostró 267
+ * solicitudes renovables/BESS activas (no rechazadas/desistidas) excluidas
+ * solo por esa regla — en Chile es común que la fecha estimada se atrase sin
+ * que el trámite deje de estar vivo, así que "vencida" no implica "muerta".
+ * Ahora "vigente" solo excluye lo formalmente rechazado/desistido; no filtra
+ * por fecha. (No confundir con applyPeriodFilter en lib/data-access/projects.ts,
+ * que sigue usando fecha para el filtro de visualización de /proyectos-esperados
+ * y el Verificador — ese es un filtro de UI, no de elegibilidad de ingesta.)
+ */
+export function isVigenteRow(row: NormalizedProject): boolean {
+  return statusRank(row.statusLabel) !== 0;
 }
 
 export interface LoadSummary {
@@ -74,6 +102,7 @@ export interface LoadSummary {
 export async function loadNormalizedProjects(
   client: SupabaseClient,
   rows: NormalizedProject[],
+  options: { shuffleRows?: boolean } = {},
 ): Promise<LoadSummary> {
   const summary: LoadSummary = {
     totalRows: rows.length,
@@ -287,8 +316,14 @@ export async function loadNormalizedProjects(
       // capacidad, storage, punto de conexión, etc.) queda congelado en lo que el
       // admin dejó, aunque el listado traiga un valor distinto la próxima corrida.
       const isVerified = !!existingProject.verified_at;
+      const reverificationReason =
+        isVerified && statusChanged ? reverificationReasonForStatusChange(existingProject.status, row.statusLabel) : null;
       const fieldsToUpdate = isVerified
-        ? { status: row.statusLabel, estimated_connection_date: row.estimatedConnectionDate }
+        ? {
+            status: row.statusLabel,
+            estimated_connection_date: row.estimatedConnectionDate,
+            ...(reverificationReason ? { needs_reverification: true, reverification_reason: reverificationReason } : {}),
+          }
         : projectFields;
 
       const { data: existingConnection } = await client
@@ -510,7 +545,8 @@ export async function loadNormalizedProjects(
     return false;
   });
 
-  for (const row of shuffle(vigenteRows)) {
+  const rowsToProcess = options.shuffleRows === false ? vigenteRows : shuffle(vigenteRows);
+  for (const row of rowsToProcess) {
     await withRetry(() => processRow(row), `proyecto ${row.externalId} (${row.projectName})`);
   }
 

@@ -7,6 +7,8 @@ import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-
 import { getProjectStakeholders, type ProjectStakeholder } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import type { RawSeiaProject } from "@/lib/ingestion/sources/seia/types";
+import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 
 /** Autoriza si hay una sesión de admin real, o (mientras existan flujos sin login) la clave compartida. */
 async function isAuthorized(adminSecret: string): Promise<boolean> {
@@ -62,7 +64,7 @@ export async function assignSeiaMatch(
     const client = createSupabaseServiceClient();
     await saveSeiaMatch(client, projectId, candidate, "alta", "manual");
     revalidatePath(`/proyectos/${projectId}`);
-    revalidatePath("/proyectos-esperados");
+    revalidatePath("/proyectos");
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
@@ -78,10 +80,11 @@ export async function assignSeiaMatch(
 export async function revealStakeholders(
   projectId: string,
   developerCompanyId: string | null,
-  adminSecret: string,
 ): Promise<{ success: boolean; stakeholders?: ProjectStakeholder[]; error?: string }> {
-  if (!(await isAuthorized(adminSecret))) {
-    return { success: false, error: "Clave incorrecta." };
+  const admin = await isAdmin();
+  const profile = admin ? null : await getCurrentUserProfile(await createSupabaseServerClient());
+  if (!admin && profile?.planCode !== "premium") {
+    return { success: false, error: "El equipo del proyecto está disponible en Premium." };
   }
   try {
     const client = createSupabaseServiceClient();

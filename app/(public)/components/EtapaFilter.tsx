@@ -2,8 +2,9 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { PHASE_GROUPS, PHASE_GROUP_LABELS } from "@/lib/shared/projectPhaseDurations";
+import type { AppLocale } from "@/lib/i18n";
 
-export function EtapaFilter({ basePath }: { basePath: string }) {
+export function EtapaFilter({ basePath, locale = "es" }: { basePath: string; locale?: AppLocale }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const current = searchParams.get("etapa") ?? "";
@@ -20,7 +21,7 @@ export function EtapaFilter({ basePath }: { basePath: string }) {
   return (
     <div className="flex items-center gap-2">
       <label htmlFor="etapa" className="text-sm text-neutral-600 dark:text-neutral-400">
-        Etapa estimada:
+        {locale === "en" ? "Estimated stage:" : "Etapa estimada:"}
       </label>
       <select
         id="etapa"
@@ -28,10 +29,10 @@ export function EtapaFilter({ basePath }: { basePath: string }) {
         onChange={(e) => handleChange(e.target.value)}
         className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
       >
-        <option value="">Todas las etapas</option>
+        <option value="">{locale === "en" ? "All stages" : "Todas las etapas"}</option>
         {PHASE_GROUPS.map((g) => (
           <option key={g} value={g}>
-            {PHASE_GROUP_LABELS[g]}
+            {locale === "en" ? ({ temprano: "Early development", ingenieria: "Engineering", compras: "Procurement", construccion: "Construction", comisionamiento: "Commissioning / Testing" }[g]) : PHASE_GROUP_LABELS[g]}
           </option>
         ))}
       </select>

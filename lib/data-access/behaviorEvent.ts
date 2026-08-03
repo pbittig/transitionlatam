@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentUserProfile } from "./userProfile";
+import { recordAndCheckRate } from "@/lib/security/rateLimit";
 
 /**
  * Registra qué mira cada cuenta de autoservicio — la señal base para la
@@ -7,6 +8,9 @@ import { getCurrentUserProfile } from "./userProfile";
  * behavior_event en 20260720000003_users_and_leads.sql). No bloquea el
  * render de la página si falla (instrumentación, no funcionalidad crítica) y
  * no hace nada si no hay sesión de cliente activa (visitante anónimo o admin).
+ *
+ * De paso alimenta el rate limit anti-scraping (docs/09-seguridad.md §9.4/9.6)
+ * — misma llamada, no un sistema paralelo.
  */
 export async function logProjectView(client: SupabaseClient, projectId: string): Promise<void> {
   try {
@@ -18,6 +22,7 @@ export async function logProjectView(client: SupabaseClient, projectId: string):
       entity_type: "project",
       entity_id: projectId,
     });
+    await recordAndCheckRate(profile.id, "project_view", { limit: 60, windowSeconds: 300 });
   } catch {
     // instrumentación best-effort — nunca debe romper la página
   }

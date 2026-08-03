@@ -30,15 +30,14 @@ export default async function RegistroPage() {
             <img src="/tl-logo.png" alt="Transition LATAM" className="h-9 w-auto" />
             <LanguageSwitcher locale={locale} compact />
             <Link href="/ingresar" transitionTypes={["auth-back"]} className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-brand-deep dark:hover:text-brand-primary">
-              <ArrowLeft size={13} /> Volver a ingresar
+              <ArrowLeft size={13} /> {locale === "en" ? "Back to sign in" : "Volver a ingresar"}
             </Link>
           </div>
 
           <div className="mt-8">
-            <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">14 días Free · sin tarjeta</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Crea tu cuenta corporativa</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Create your business account" : "Crea tu cuenta corporativa"}</h1>
             <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
-              Completa tus datos para personalizar el portal según tu empresa y rol en el mercado energético.
+              {locale === "en" ? "Complete your details to tailor the portal to your company and role in the energy market." : "Completa tus datos para personalizar el portal según tu empresa y rol en el mercado energético."}
             </p>
           </div>
 
@@ -47,14 +46,14 @@ export default async function RegistroPage() {
           </div>
 
           <div className="mt-5 grid gap-2 text-xs text-neutral-500 sm:grid-cols-2 dark:text-neutral-400">
-            {["Sin compromiso de pago", "Información pública consolidada", "Acceso inmediato al portal", "Planes para equipos de empresa"].map((item) => (
+            {(locale === "en" ? ["No payment commitment", "Consolidated public information", "Immediate portal access", "Plans for business teams"] : ["Sin compromiso de pago", "Información pública consolidada", "Acceso inmediato al portal", "Planes para equipos de empresa"]).map((item) => (
               <span key={item} className="flex items-center gap-1.5"><Check size={13} className="text-brand-primary" /> {item}</span>
             ))}
           </div>
 
           <p className="mt-5 flex items-start gap-2 text-[10px] leading-5 text-neutral-400">
             <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-            Utiliza un correo corporativo. Tus datos se usan para crear y administrar el acceso de tu organización.
+            {locale === "en" ? "Use a business email. Your information is used to create and manage access for your organization." : "Utiliza un correo corporativo. Tus datos se usan para crear y administrar el acceso de tu organización."}
           </p>
         </div>
         </div>

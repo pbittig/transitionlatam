@@ -146,8 +146,9 @@ async function getPendingProjectIds(client: SupabaseClient, limit: number, edito
     if (editorialOnly) {
       query = query.eq("editorial_status", "pending").neq("prefilter_status", "out_of_scope");
     }
-    const result = await query
-      .order("estimated_connection_date", { ascending: true })
+    const result = await (editorialOnly
+      ? query.order("detected_at", { ascending: false, nullsFirst: false })
+      : query.order("estimated_connection_date", { ascending: true }))
       .limit(Math.max(limit + 100, limit));
     data = result.data as Array<{ id: string }> | null;
     error = result.error;

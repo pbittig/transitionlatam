@@ -2,6 +2,67 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { REJECTED_STATUSES, startOfCurrentMonthIso } from "./projects";
 
 const PIPELINE_SYNC_SETTING_KEY = "pipeline_last_synced_at";
+const PIPELINE_CURSOR_SETTING_KEY = "pipeline_sync_cursor";
+const PIPELINE_SEEN_EXTERNAL_IDS_KEY = "pipeline_seen_external_ids";
+
+export interface PipelineSyncCursor {
+  lastExternalId: string | null;
+  cycleStartedAt: string;
+  processedInCycle: number;
+}
+
+export async function getPipelineSyncCursor(client: SupabaseClient): Promise<PipelineSyncCursor | null> {
+  const { data, error } = await client
+    .from("app_setting")
+    .select("value")
+    .eq("key", PIPELINE_CURSOR_SETTING_KEY)
+    .maybeSingle();
+  if (error) throw new Error(`No se pudo leer el cursor del pipeline: ${error.message}`);
+  if (!data?.value || typeof data.value !== "object") return null;
+  const value = data.value as Partial<PipelineSyncCursor>;
+  if (typeof value.cycleStartedAt !== "string" || typeof value.processedInCycle !== "number") return null;
+  return {
+    lastExternalId: typeof value.lastExternalId === "string" ? value.lastExternalId : null,
+    cycleStartedAt: value.cycleStartedAt,
+    processedInCycle: value.processedInCycle,
+  };
+}
+
+export async function savePipelineSyncCursor(client: SupabaseClient, cursor: PipelineSyncCursor): Promise<void> {
+  const { error } = await client.from("app_setting").upsert({
+    key: PIPELINE_CURSOR_SETTING_KEY,
+    value: cursor,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(`No se pudo guardar el cursor del pipeline: ${error.message}`);
+}
+
+export async function clearPipelineSyncCursor(client: SupabaseClient): Promise<void> {
+  const { error } = await client.from("app_setting").delete().eq("key", PIPELINE_CURSOR_SETTING_KEY);
+  if (error) throw new Error(`No se pudo reiniciar el cursor del pipeline: ${error.message}`);
+}
+
+export async function getPipelineSeenExternalIds(client: SupabaseClient): Promise<Set<string>> {
+  const { data, error } = await client
+    .from("app_setting")
+    .select("value")
+    .eq("key", PIPELINE_SEEN_EXTERNAL_IDS_KEY)
+    .maybeSingle();
+  if (error) throw new Error(`No se pudo leer el registro de solicitudes revisadas: ${error.message}`);
+  return new Set(Array.isArray(data?.value) ? data.value.filter((id): id is string => typeof id === "string") : []);
+}
+
+export async function addPipelineSeenExternalIds(client: SupabaseClient, externalIds: string[]): Promise<void> {
+  if (externalIds.length === 0) return;
+  const seen = await getPipelineSeenExternalIds(client);
+  for (const externalId of externalIds) seen.add(externalId);
+  const { error } = await client.from("app_setting").upsert({
+    key: PIPELINE_SEEN_EXTERNAL_IDS_KEY,
+    value: [...seen],
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(`No se pudo guardar el registro de solicitudes revisadas: ${error.message}`);
+}
 
 /** Marca de tiempo de la última corrida exitosa del sync de listado (Acceso Abierto) — separado del sync de centrales CNE (power_plant.synced_at), que es manual. */
 export async function getPipelineLastSyncedAt(client: SupabaseClient): Promise<string | null> {
@@ -30,7 +91,10 @@ export async function getPipelineLastSyncedAt(client: SupabaseClient): Promise<s
 
 /** Registra que el sync de listado acaba de correr — llamado al final de runListadoSync. */
 export async function recordPipelineSync(client: SupabaseClient): Promise<void> {
-  await client.from("app_setting").upsert({ key: PIPELINE_SYNC_SETTING_KEY, value: true, updated_at: new Date().toISOString() });
+  const { error } = await client
+    .from("app_setting")
+    .upsert({ key: PIPELINE_SYNC_SETTING_KEY, value: true, updated_at: new Date().toISOString() });
+  if (error) throw new Error(`No se pudo registrar la sincronización del pipeline: ${error.message}`);
 }
 
 export interface PipelineFunnel {
@@ -118,6 +182,7 @@ export interface ScheduleForecastInput {
   includesStorage: boolean;
   capacityMw: number | null;
   estimatedConnectionDate: string | null;
+  verifiedAt: string | null;
 }
 
 /**
@@ -133,7 +198,7 @@ export async function getUpcomingScheduleInputs(client: SupabaseClient): Promise
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, status, capacity_mw, includes_storage, estimated_connection_date, technology:technology_id(code), location:location_id(region:region_id(name))",
+      "id, name, status, capacity_mw, includes_storage, estimated_connection_date, verified_at, technology:technology_id(code), location:location_id(region:region_id(name))",
     )
     .gte("estimated_connection_date", startOfCurrentMonthIso())
     .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
@@ -147,6 +212,7 @@ export async function getUpcomingScheduleInputs(client: SupabaseClient): Promise
     capacity_mw: number | null;
     includes_storage: boolean;
     estimated_connection_date: string | null;
+    verified_at: string | null;
     technology: { code: string } | null;
     location: { region: { name: string } | null } | null;
   }>).map((r) => ({
@@ -158,6 +224,7 @@ export async function getUpcomingScheduleInputs(client: SupabaseClient): Promise
     includesStorage: r.includes_storage,
     capacityMw: r.capacity_mw,
     estimatedConnectionDate: r.estimated_connection_date,
+    verifiedAt: r.verified_at,
   }));
 }
 

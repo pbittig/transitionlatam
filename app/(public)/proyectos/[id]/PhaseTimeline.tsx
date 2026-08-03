@@ -1,20 +1,30 @@
 import type { PhaseMilestone } from "@/lib/shared/computeEstimatedPhase";
 import { PHASE_COLORS } from "@/lib/shared/projectPhaseDurations";
+import type { AppLocale } from "@/lib/i18n";
 
 const CONFIDENCE_LABEL: Record<string, string> = { alta: "Alta", media: "Media", baja: "Baja" };
 
-function fmt(d: Date): string {
-  return d.toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
+function fmt(d: Date, locale: AppLocale): string {
+  return d.toLocaleDateString(locale === "en" ? "en-GB" : "es-CL", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+const PHASE_EN: Record<string, string> = {
+  campana_viento: "Wind measurement campaign", desarrollo: "Development", conceptual: "Conceptual engineering",
+  basica: "Basic engineering", detalle: "Detailed engineering", compras: "Procurement",
+  construccion: "Construction", comisionamiento: "Commissioning", factibilidad: "Feasibility / connection studies",
+  pruebas: "Testing and start-up",
+};
 
 export function PhaseTimeline({
   milestones,
   connectionDate,
   today = new Date(),
+  locale = "es",
 }: {
   milestones: PhaseMilestone[];
   connectionDate: string;
   today?: Date;
+  locale?: AppLocale;
 }) {
   const poc = new Date(connectionDate);
 
@@ -54,7 +64,7 @@ export function PhaseTimeline({
                   backgroundColor: PHASE_COLORS[s.phase],
                   opacity: s.reached ? 1 : 0.3,
                 }}
-                title={`${s.label} — desde ${fmt(s.start)} (rango: ${fmt(new Date(s.maxStartDate))} a ${fmt(new Date(s.minStartDate))} · confianza ${CONFIDENCE_LABEL[s.confidence]})`}
+                title={`${locale === "en" ? PHASE_EN[s.phase] : s.label} — ${fmt(s.start, locale)}`}
               />
             );
           })}
@@ -73,14 +83,14 @@ export function PhaseTimeline({
                 backgroundImage:
                   "repeating-linear-gradient(45deg, light-dark(rgba(38,38,38,.3), rgba(255,255,255,.25)) 0 3px, transparent 3px 7px)",
               }}
-              title={`${m.label}: rango ${fmt(new Date(m.maxStartDate))} a ${fmt(new Date(m.minStartDate))}`}
+              title={`${locale === "en" ? PHASE_EN[m.phase] : m.label}: ${fmt(new Date(m.maxStartDate), locale)} – ${fmt(new Date(m.minStartDate), locale)}`}
             />
           );
         })}
         {/* Marcador de hoy */}
         <div className="absolute top-1 flex -translate-x-1/2 flex-col items-center" style={{ left: `${todayPct}%` }}>
           <span className="text-[10px] font-semibold" style={{ color: "light-dark(#eb6834, #d95926)" }}>
-            Hoy
+            {locale === "en" ? "Today" : "Hoy"}
           </span>
         </div>
         <div
@@ -108,8 +118,8 @@ export function PhaseTimeline({
               className="h-2 w-2 rounded-sm"
               style={{ backgroundColor: PHASE_COLORS[m.phase], opacity: m.reached ? 1 : 0.4 }}
             />
-            {m.label} · {fmt(new Date(m.estimatedStartDate))}
-            <span className="text-neutral-400 dark:text-neutral-600">({CONFIDENCE_LABEL[m.confidence]})</span>
+            {locale === "en" ? PHASE_EN[m.phase] : m.label} · {fmt(new Date(m.estimatedStartDate), locale)}
+            <span className="text-neutral-400 dark:text-neutral-600">({locale === "en" ? m.confidence : CONFIDENCE_LABEL[m.confidence]})</span>
           </span>
         ))}
       </div>

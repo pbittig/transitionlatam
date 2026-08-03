@@ -228,7 +228,7 @@ export function MapView({
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-brand-primary/25 bg-brand-ink shadow-inner">
-      <div className="pointer-events-none absolute top-4 left-4 z-10 rounded-full border border-white/15 bg-brand-ink/80 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-white/80 uppercase shadow-lg backdrop-blur">
+      <div className="pointer-events-none absolute top-4 left-4 z-10 rounded-full border border-white/15 bg-brand-ink/80 px-3 py-1.5 text-xs font-medium text-white/80 shadow-lg backdrop-blur">
         Vista geoespacial · Chile
       </div>
       <div ref={containerRef} className="h-[600px] w-full" />

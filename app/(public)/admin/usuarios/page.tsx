@@ -17,7 +17,7 @@ export default async function AdminUsersPage() {
       <CreateUserForm plans={plans} />
       <div className="overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
         <table className="w-full min-w-[850px] text-sm">
-          <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500 dark:bg-neutral-900">
+          <thead className="bg-neutral-50 text-left text-xs text-neutral-500 dark:bg-neutral-900">
             <tr><th className="px-4 py-3">Usuario</th><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">Último acceso</th><th className="px-4 py-3">Acción</th></tr>
           </thead>
           <tbody>

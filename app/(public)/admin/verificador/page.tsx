@@ -188,7 +188,7 @@ export default async function VerificadorPage({
         <div>
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Avance total</p>
+              <p className="text-sm font-medium text-brand-deep dark:text-brand-primary">Avance total</p>
               <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
                 {progress.verified.toLocaleString("es-CL")} de {progress.total.toLocaleString("es-CL")} proyectos verificados
               </p>
@@ -202,7 +202,7 @@ export default async function VerificadorPage({
         <div>
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold tracking-wide text-brand-deep uppercase dark:text-brand-primary">Meta diaria · 50</p>
+              <p className="text-sm font-medium text-brand-deep dark:text-brand-primary">Meta diaria · 50</p>
               <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
                 {progress.verifiedToday.toLocaleString("es-CL")} verificados hoy · faltan{" "}
                 {Math.max(0, dailyGoal - progress.verifiedToday).toLocaleString("es-CL")}
@@ -232,7 +232,7 @@ export default async function VerificadorPage({
       ) : (
         <Panel className="overflow-x-auto p-0">
           <table className="w-full min-w-[700px] text-sm">
-            <thead className="border-b border-neutral-200 text-left text-xs font-medium tracking-wide text-neutral-500 uppercase dark:border-neutral-800 dark:text-neutral-400">
+            <thead className="border-b border-neutral-200 text-left text-xs font-medium text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
               <tr>
                 <SortableHeader label="Proyecto" column="name" activeColumn={sortColumn} activeDirection={sortDirection} buildHref={buildSortHref} />
                 <th className="px-4 py-3 font-medium">Comuna / Región</th>

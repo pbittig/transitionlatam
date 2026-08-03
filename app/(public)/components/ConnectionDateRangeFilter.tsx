@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MONTHS_HORIZON, monthLabel } from "@/lib/shared/connectionDateRange";
+import type { AppLocale } from "@/lib/i18n";
 
-export function ConnectionDateRangeFilter({ basePath }: { basePath: string }) {
+export function ConnectionDateRangeFilter({ basePath, locale = "es" }: { basePath: string; locale?: AppLocale }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const parsedFrom = Number(searchParams.get("mesDesde") ?? "0");
@@ -26,9 +27,9 @@ export function ConnectionDateRangeFilter({ basePath }: { basePath: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between text-sm text-neutral-600 dark:text-neutral-400">
-        <span>Fecha de conexión:</span>
+        <span>{locale === "en" ? "Connection date:" : "Fecha de conexión:"}</span>
         <span className="font-medium text-neutral-900 dark:text-neutral-50">
-          {from === 0 && to === MONTHS_HORIZON ? "Todo el horizonte (24 meses)" : `${monthLabel(from)} – ${monthLabel(to)}`}
+          {from === 0 && to === MONTHS_HORIZON ? (locale === "en" ? "Full horizon (24 months)" : "Todo el horizonte (24 meses)") : `${monthLabel(from)} – ${monthLabel(to)}`}
         </span>
       </div>
       <div className="relative h-6 px-2">
@@ -42,7 +43,7 @@ export function ConnectionDateRangeFilter({ basePath }: { basePath: string }) {
           min={0}
           max={MONTHS_HORIZON}
           value={from}
-          aria-label="Desde"
+          aria-label={locale === "en" ? "From" : "Desde"}
           onChange={(e) => {
             const v = Math.min(Number(e.target.value), to);
             setFrom(v);
@@ -55,7 +56,7 @@ export function ConnectionDateRangeFilter({ basePath }: { basePath: string }) {
           min={0}
           max={MONTHS_HORIZON}
           value={to}
-          aria-label="Hasta"
+          aria-label={locale === "en" ? "To" : "Hasta"}
           onChange={(e) => {
             const v = Math.max(Number(e.target.value), from);
             setTo(v);

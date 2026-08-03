@@ -12,10 +12,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           Esta sección es solo para administradores — inicia sesión para continuar.
         </p>
         <Link
-          href="/login"
+          href="/admin/acceso"
           className="w-fit rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-50 dark:text-neutral-900"
         >
-          Ingresar
+          Acceso administrativo
         </Link>
       </div>
     );

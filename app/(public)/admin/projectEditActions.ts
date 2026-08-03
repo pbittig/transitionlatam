@@ -168,7 +168,7 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
     revalidatePath("/admin/verificador");
     revalidatePath("/admin/trabajo-hoy");
     revalidatePath("/");
-    revalidatePath("/proyectos-esperados");
+    revalidatePath("/proyectos");
     revalidatePath(`/admin/editar-data/${projectId}`);
     revalidatePath(`/proyectos/${projectId}`);
     return { success: true };
