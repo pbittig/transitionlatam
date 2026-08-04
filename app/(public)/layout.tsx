@@ -60,7 +60,7 @@ export default async function PublicLayout({ children }: { children: React.React
         </footer>
       </div>
       <div className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 print:hidden md:right-6 md:bottom-6 md:gap-3">
-        <FollowNotifications events={followEvents} />
+        <FollowNotifications events={followEvents} locale={locale} />
         <PremiumAiBar enabled={aiEnabled} initialMessages={aiMemory} initialQuota={aiQuota} locale={locale} />
       </div>
     </div>

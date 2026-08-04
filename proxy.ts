@@ -82,7 +82,11 @@ export default async function proxy(request: NextRequest) {
   const isApiRoute = pathname.startsWith("/api/");
 
   if (!isPublicPage && !isApiRoute && !user && !(await hasValidAdminSession(request))) {
-    const loginUrl = new URL("/ingresar", request.url);
+    // /admin/* sin sesión de admin va al login de admin, no al de cliente —
+    // antes mandaba todo a /ingresar, así que entrar directo a /admin te
+    // dejaba en el login equivocado.
+    const loginPath = pathname.startsWith("/admin") ? "/admin/acceso" : "/ingresar";
+    const loginUrl = new URL(loginPath, request.url);
     const redirectResponse = NextResponse.redirect(loginUrl);
 
     // Conserva cualquier cookie de Supabase que se haya refrescado antes de
