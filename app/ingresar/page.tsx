@@ -25,7 +25,7 @@ export default async function IngresarPage() {
       <div className="grid min-h-full grid-cols-1 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="hidden lg:block">
           <ViewTransition name="auth-visual" share="auth-visual">
-            <EnergyVisual />
+            <EnergyVisual locale={locale} />
           </ViewTransition>
         </div>
 

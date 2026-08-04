@@ -25,7 +25,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!error) {
       return NextResponse.redirect(new URL(next, request.url));
     }
+    return NextResponse.redirect(new URL("/recuperar-clave?error=link_invalido", request.url));
   }
 
-  return NextResponse.redirect(new URL("/recuperar-clave?error=link_invalido", request.url));
+  // Sin "code": puede ser el flujo implícito de Supabase, que manda los
+  // tokens en el fragmento #access_token=... de la URL — el servidor nunca
+  // lo ve, pero el navegador lo conserva a través de este redirect (no le
+  // damos un fragmento propio al Location), así que igual mandamos a "next"
+  // y ahí el cliente lo toma del hash. Recién si tampoco hay nada en el hash
+  // se considera inválido — eso lo decide /restablecer-clave, no acá.
+  return NextResponse.redirect(new URL(next, request.url));
 }

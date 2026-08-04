@@ -101,7 +101,7 @@ export default async function PlansPage() {
 
       <section className="mx-auto grid w-full max-w-5xl items-stretch gap-5 md:grid-cols-2" aria-label="Comparación de planes">
         {plans.map((plan) => {
-          const isCurrent = currentPlan === plan.code || (plan.code === "premium" && currentPlan === "lite");
+          const isCurrent = currentPlan === plan.code;
           return (
             <article
               key={plan.code}

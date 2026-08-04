@@ -26,7 +26,7 @@ export default async function PublicLayout({ children }: { children: React.React
     getAppLocale(),
   ]);
   const remainingTrialDays = getRemainingTrialDays(userProfile?.trialEndsAt);
-  const followEnabled = admin || userProfile?.planCode === "lite" || userProfile?.planCode === "premium";
+  const followEnabled = admin || userProfile?.planCode === "premium";
   const followEvents = followEnabled
       ? await (async () => {
         const serviceClient = createSupabaseServiceClient();

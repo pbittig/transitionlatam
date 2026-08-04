@@ -60,7 +60,7 @@ export default async function RegistroPage() {
 
         <div className="hidden lg:block">
           <ViewTransition name="auth-visual" share="auth-visual">
-            <EnergyVisual />
+            <EnergyVisual locale={locale} />
           </ViewTransition>
         </div>
       </div>

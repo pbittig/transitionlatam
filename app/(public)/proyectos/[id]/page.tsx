@@ -34,6 +34,7 @@ import { chipLabelForProject } from "../../components/techChips";
 import { PlanGate } from "../../components/PlanGate";
 import { getAppLocale } from "@/lib/i18n";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
+import { ShareProjectButton } from "./ShareProjectButton";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     }),
     getCurrentUserProfile(client),
   ]);
-  const isFree = !admin && profile?.planCode !== "lite" && profile?.planCode !== "premium";
+  const isFree = !admin && profile?.planCode !== "premium";
   const teamLocked = !admin && profile?.planCode !== "premium";
   // Solo el nombre/correo enmascarado llega al cliente cuando está bloqueado —
   // el dato real nunca sale del servidor para un usuario sin Premium.
@@ -97,6 +98,11 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
         })
       ).map((s) => ({ name: maskName(s.name), email: s.email ? maskEmail(s.email) : null }))
     : [];
+  const visibleStakeholders = teamLocked
+    ? null
+    : await getProjectStakeholders(createSupabaseServiceClient(), project.id, project.developerCompanyId, {
+        skipCompanyFallback: true,
+      });
   const relatedPortfolioProjects = teamLocked
     ? []
     : await getRelatedPortfolioProjects(client, {
@@ -134,14 +140,15 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   return (
     <div className="flex flex-col gap-12">
       <div className="border-b border-neutral-100 pb-8 dark:border-neutral-900">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+          <div className="min-w-0">
             <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">
               {project.name}
             </h1>
             <p className="mt-1 text-sm text-neutral-400 dark:text-neutral-500">{project.internalCode}</p>
           </div>
           <div className="flex items-center gap-2">
+            <ShareProjectButton projectName={project.name} locale={locale} />
             <FollowButton projectId={project.id} initiallyFollowed={followed} locked={isFree} />
             <AddToCrmButton
               projectId={project.id}
@@ -266,6 +273,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
             projectId={project.id}
             developerCompanyId={project.developerCompanyId}
             canReveal={!teamLocked}
+            initialStakeholders={visibleStakeholders}
             maskedPreview={maskedContactPreview}
             locale={locale}
           />

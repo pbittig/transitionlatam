@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { RestablecerClaveForm } from "./RestablecerClaveForm";
+import { RestablecerClaveClient } from "./RestablecerClaveClient";
 import { getAppLocale } from "@/lib/i18n";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 
@@ -31,20 +31,7 @@ export default async function RestablecerClavePage() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-          {user ? (
-            <RestablecerClaveForm locale={locale} />
-          ) : (
-            <div className="flex flex-col gap-3 text-sm text-neutral-600 dark:text-neutral-400">
-              <p>
-                {locale === "en"
-                  ? "This link is invalid or has expired."
-                  : "Este link no es válido o ya venció."}
-              </p>
-              <Link href="/recuperar-clave" className="font-semibold text-brand-deep hover:underline dark:text-brand-primary">
-                {locale === "en" ? "Request a new link" : "Solicitar un link nuevo"}
-              </Link>
-            </div>
-          )}
+          {user ? <RestablecerClaveForm locale={locale} /> : <RestablecerClaveClient locale={locale} />}
         </div>
       </div>
     </div>

@@ -28,10 +28,10 @@ function getItems(locale: AppLocale) {
   const primaryItems = [
     { href: "/proyectos", label: locale === "en" ? "Future projects" : "Proyectos Futuros", icon: Activity, minPlan: "free" },
     { href: "/matriz", label: locale === "en" ? "Projects in operation" : "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
-    { href: "/monitoreo", label: locale === "en" ? "Tracking" : "Seguimiento", icon: Bell, minPlan: "lite" },
+    { href: "/monitoreo", label: locale === "en" ? "Tracking" : "Seguimiento", icon: Bell, minPlan: "premium" },
   ] as const;
   const secondaryItems = [
-    { href: "/analisis-dinamico", label: locale === "en" ? "Dynamic analysis" : "Análisis dinámico", icon: BarChart3, minPlan: "lite" },
+    { href: "/analisis-dinamico", label: locale === "en" ? "Dynamic analysis" : "Análisis dinámico", icon: BarChart3, minPlan: "premium" },
     { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
     { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
     { href: "/requerimientos", label: locale === "en" ? "Services" : "Servicios", icon: ClipboardList, minPlan: "free" },
@@ -52,8 +52,7 @@ export function MobileNavigation({
   const [open, setOpen] = useState(false);
   const { primaryItems, secondaryItems } = getItems(locale);
   const planCode = userProfile?.planCode ?? "free";
-  const isLocked = (minPlan?: string) =>
-    !isAdmin && (minPlan === "premium" ? planCode !== "premium" : minPlan === "lite" ? !["lite", "premium"].includes(planCode) : false);
+  const isLocked = (minPlan?: string) => !isAdmin && minPlan === "premium" && planCode !== "premium";
 
   return (
     <>

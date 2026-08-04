@@ -17,7 +17,7 @@ function getNavItems(locale: AppLocale) {
         { href: "/proyectos", label: "Future projects", icon: Activity, minPlan: "free" },
         { href: "/matriz", label: "Projects in operation", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Tracking", icon: Bell, minPlan: "lite" },
+        { href: "/monitoreo", label: "Tracking", icon: Bell, minPlan: "premium" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: "/requerimientos", label: "Services", icon: ClipboardList, minPlan: "free" },
       ]
@@ -25,7 +25,7 @@ function getNavItems(locale: AppLocale) {
         { href: "/proyectos", label: "Proyectos Futuros", icon: Activity, minPlan: "free" },
         { href: "/matriz", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Seguimiento", icon: Bell, minPlan: "lite" },
+        { href: "/monitoreo", label: "Seguimiento", icon: Bell, minPlan: "premium" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: "/requerimientos", label: "Servicios", icon: ClipboardList, minPlan: "free" },
       ];
@@ -44,7 +44,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const planCode = userProfile?.planCode ?? "free";
-  const isFree = !isAdmin && planCode !== "lite" && planCode !== "premium";
+  const isFree = !isAdmin && planCode !== "premium";
   const baseNavItems = getNavItems(locale);
   const navItems = isAdmin ? [...baseNavItems, { href: "/admin", label: "Admin", icon: ShieldCheck, minPlan: "free" }] : baseNavItems;
 
@@ -79,13 +79,7 @@ export function Sidebar({
         {navItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
-          const locked = !isAdmin && (
-            item.minPlan === "premium"
-              ? planCode !== "premium"
-              : item.minPlan === "lite"
-                ? isFree
-                : false
-          );
+          const locked = !isAdmin && item.minPlan === "premium" && planCode !== "premium";
 
           return (
             <Link

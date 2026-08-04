@@ -15,16 +15,18 @@ export function RevealStakeholders({
   projectId,
   developerCompanyId,
   canReveal = false,
+  initialStakeholders = null,
   maskedPreview = [],
   locale = "es",
 }: {
   projectId: string;
   developerCompanyId: string | null;
   canReveal?: boolean;
+  initialStakeholders?: ProjectStakeholder[] | null;
   maskedPreview?: MaskedContact[];
   locale?: AppLocale;
 }) {
-  const [stakeholders, setStakeholders] = useState<ProjectStakeholder[] | null>(null);
+  const [stakeholders, setStakeholders] = useState<ProjectStakeholder[] | null>(initialStakeholders);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
