@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   BarChart3,
-  Bell,
+  Eye,
   ChartNoAxesCombined,
   ClipboardList,
   ContactRound,
@@ -28,7 +28,7 @@ function getItems(locale: AppLocale) {
   const primaryItems = [
     { href: "/proyectos", label: locale === "en" ? "Future projects" : "Proyectos Futuros", icon: Activity, minPlan: "free" },
     { href: "/matriz", label: locale === "en" ? "Projects in operation" : "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
-    { href: "/monitoreo", label: locale === "en" ? "Tracking" : "Seguimiento", icon: Bell, minPlan: "premium" },
+    { href: "/monitoreo", label: locale === "en" ? "Tracking" : "Seguimiento", icon: Eye, minPlan: "premium" },
   ] as const;
   const secondaryItems = [
     { href: "/analisis-dinamico", label: locale === "en" ? "Dynamic analysis" : "Análisis dinámico", icon: BarChart3, minPlan: "premium" },

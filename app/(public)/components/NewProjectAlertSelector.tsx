@@ -4,17 +4,18 @@ import { useState, useTransition } from "react";
 import { BatteryCharging, Building2, Droplets, Leaf, Sun, Wind } from "lucide-react";
 import type { NewProjectAlertCategory } from "@/lib/data-access/watchlist";
 import { toggleAppSetting } from "../watchlistActions";
+import type { AppLocale } from "@/lib/i18n";
 
-const OPTIONS: Array<{ key: NewProjectAlertCategory; label: string; icon: typeof Sun }> = [
-  { key: "solar", label: "Solar", icon: Sun },
-  { key: "wind", label: "Eólico", icon: Wind },
-  { key: "hydro", label: "Hidroeléctrico", icon: Droplets },
-  { key: "other_renewable", label: "Otras renovables", icon: Leaf },
-  { key: "bess", label: "BESS", icon: BatteryCharging },
-  { key: "data_center", label: "Data Centers", icon: Building2 },
+const OPTIONS: Array<{ key: NewProjectAlertCategory; es: string; en: string; icon: typeof Sun }> = [
+  { key: "solar", es: "Solar", en: "Solar", icon: Sun },
+  { key: "wind", es: "Eólico", en: "Wind", icon: Wind },
+  { key: "hydro", es: "Hidroeléctrico", en: "Hydro", icon: Droplets },
+  { key: "other_renewable", es: "Otras renovables", en: "Other renewables", icon: Leaf },
+  { key: "bess", es: "BESS", en: "BESS", icon: BatteryCharging },
+  { key: "data_center", es: "Data Centers", en: "Data centers", icon: Building2 },
 ];
 
-export function NewProjectAlertSelector({ initialSelection }: { initialSelection: NewProjectAlertCategory[] }) {
+export function NewProjectAlertSelector({ initialSelection, locale = "es" }: { initialSelection: NewProjectAlertCategory[]; locale?: AppLocale }) {
   const [selected, setSelected] = useState(new Set(initialSelection));
   const [pending, startTransition] = useTransition();
 
@@ -39,9 +40,9 @@ export function NewProjectAlertSelector({ initialSelection }: { initialSelection
 
   return (
     <div>
-      <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">Avisarme de nuevos proyectos:</p>
+      <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">{locale === "en" ? "Notify me about new projects:" : "Avisarme de nuevos proyectos:"}</p>
       <div className="mt-2 flex flex-wrap gap-2">
-        {OPTIONS.map(({ key, label, icon: Icon }) => {
+        {OPTIONS.map(({ key, es, en, icon: Icon }) => {
           const active = selected.has(key);
           return (
             <button
@@ -56,12 +57,12 @@ export function NewProjectAlertSelector({ initialSelection }: { initialSelection
                   : "border-neutral-200 bg-white text-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
               }`}
             >
-              <Icon size={13} /> {label}
+              <Icon size={13} /> {locale === "en" ? en : es}
             </button>
           );
         })}
       </div>
-      <p className="mt-2 text-[10px] text-neutral-400">Puedes seleccionar una, varias o ninguna categoría.</p>
+      <p className="mt-2 text-[10px] text-neutral-400">{locale === "en" ? "Select one, several or no categories." : "Puedes seleccionar una, varias o ninguna categoría."}</p>
     </div>
   );
 }

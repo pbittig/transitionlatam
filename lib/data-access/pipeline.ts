@@ -4,6 +4,7 @@ import { REJECTED_STATUSES, startOfCurrentMonthIso } from "./projects";
 const PIPELINE_SYNC_SETTING_KEY = "pipeline_last_synced_at";
 const PIPELINE_CURSOR_SETTING_KEY = "pipeline_sync_cursor";
 const PIPELINE_SEEN_EXTERNAL_IDS_KEY = "pipeline_seen_external_ids";
+const PIPELINE_LAST_RAW_COUNT_KEY = "pipeline_last_raw_count";
 
 export interface PipelineSyncCursor {
   lastExternalId: string | null;
@@ -87,6 +88,30 @@ export async function getPipelineLastSyncedAt(client: SupabaseClient): Promise<s
     throw new Error(`No se pudo leer la última actividad del pipeline: ${latestEventError.message}`);
   }
   return latestEvent?.recorded_at ?? null;
+}
+
+/**
+ * Total de filas crudas devueltas por la API de Acceso Abierto en el último
+ * fetch — sirve para detectar un fetch truncado/incompleto (caso real
+ * 2026-08-04: BESS Gaia I existía y pasaba todos los filtros, pero una
+ * corrida no la trajo; la fuente no pagina, es un solo request de ~2700
+ * filas, frágil ante cualquier corte de red a mitad de respuesta).
+ */
+export async function getPipelineLastRawCount(client: SupabaseClient): Promise<number | null> {
+  const { data, error } = await client
+    .from("app_setting")
+    .select("value")
+    .eq("key", PIPELINE_LAST_RAW_COUNT_KEY)
+    .maybeSingle();
+  if (error) throw new Error(`No se pudo leer el conteo previo de la fuente: ${error.message}`);
+  return typeof data?.value === "number" ? data.value : null;
+}
+
+export async function savePipelineLastRawCount(client: SupabaseClient, count: number): Promise<void> {
+  const { error } = await client
+    .from("app_setting")
+    .upsert({ key: PIPELINE_LAST_RAW_COUNT_KEY, value: count, updated_at: new Date().toISOString() });
+  if (error) throw new Error(`No se pudo guardar el conteo de la fuente: ${error.message}`);
 }
 
 /** Registra que el sync de listado acaba de correr — llamado al final de runListadoSync. */

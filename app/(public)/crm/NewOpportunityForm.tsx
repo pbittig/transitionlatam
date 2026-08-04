@@ -8,13 +8,13 @@ import type { AppLocale } from "@/lib/i18n";
 const initialState: CreateOpportunityState = {};
 
 const OPPORTUNITY_TYPES = [
-  { value: "investment", label: "Inversión" },
-  { value: "epc", label: "EPC / Construcción" },
-  { value: "technology_sale", label: "Equipos y tecnología" },
-  { value: "partnership", label: "Alianza o socio" },
-  { value: "market_entry", label: "Entrada a mercado" },
-  { value: "development", label: "Desarrollo de proyecto" },
-  { value: "advisory", label: "Servicios profesionales" },
+  { value: "investment", es: "Inversión", en: "Investment" },
+  { value: "epc", es: "EPC / Construcción", en: "EPC / Construction" },
+  { value: "technology_sale", es: "Equipos y tecnología", en: "Equipment and technology" },
+  { value: "partnership", es: "Alianza o socio", en: "Partnership" },
+  { value: "market_entry", es: "Entrada a mercado", en: "Market entry" },
+  { value: "development", es: "Desarrollo de proyecto", en: "Project development" },
+  { value: "advisory", es: "Servicios profesionales", en: "Professional services" },
 ];
 
 export function NewOpportunityForm({ projects, locale = "es" }: { projects: OpportunityProjectOption[]; locale?: AppLocale }) {
@@ -47,23 +47,23 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-neutral-400">Sólo se muestran proyectos revisados. La empresa y los contactos se obtienen desde su ficha.</p>
+        <p className="mt-1 text-xs text-neutral-400">{locale === "en" ? "Only reviewed projects are shown. Company and contact information comes from the project profile." : "Sólo se muestran proyectos revisados. La empresa y los contactos se obtienen desde su ficha."}</p>
       </div>
       <div>
         <label htmlFor="companyName" className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
-          Empresa titular
+          {locale === "en" ? "Project company" : "Empresa titular"}
         </label>
         <input
           id="companyName"
           value={selectedProject?.company?.name ?? ""}
           readOnly
-          placeholder={projectId ? "Empresa pendiente de identificar" : "Seleccione primero un proyecto"}
+          placeholder={projectId ? (locale === "en" ? "Company pending identification" : "Empresa pendiente de identificar") : (locale === "en" ? "Select a project first" : "Seleccione primero un proyecto")}
           className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
         />
       </div>
       <div>
         <label htmlFor="personId" className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
-          Contacto relacionado
+          {locale === "en" ? "Related contact" : "Contacto relacionado"}
         </label>
         <select
           id="personId"
@@ -73,7 +73,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           disabled={!selectedProject}
           className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm disabled:bg-neutral-50 disabled:text-neutral-400 dark:border-neutral-700 dark:disabled:bg-neutral-900"
         >
-          <option value="">{selectedProject?.contacts.length ? "Seleccionar contacto (opcional)" : "Sin contactos relacionados disponibles"}</option>
+          <option value="">{selectedProject?.contacts.length ? (locale === "en" ? "Select contact (optional)" : "Seleccionar contacto (opcional)") : (locale === "en" ? "No related contacts available" : "Sin contactos relacionados disponibles")}</option>
           {selectedProject?.contacts.map((contact) => (
             <option key={contact.id} value={contact.id}>
               {contact.name}{contact.email ? ` (${contact.email})` : ""}
@@ -90,7 +90,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           name="description"
           required
           rows={3}
-          placeholder="Ej: Proyecto próximo a construcción; existe una potencial necesidad de suministro BESS."
+          placeholder={locale === "en" ? "E.g. Project approaching construction with a potential BESS supply requirement." : "Ej: Proyecto próximo a construcción; existe una potencial necesidad de suministro BESS."}
           className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         />
       </div>
@@ -104,10 +104,10 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           defaultValue=""
           className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         >
-          <option value="">Sin clasificar</option>
+          <option value="">{locale === "en" ? "Unclassified" : "Sin clasificar"}</option>
           {OPPORTUNITY_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
-              {t.label}
+              {t[locale]}
             </option>
           ))}
         </select>
@@ -120,7 +120,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           id="ownerName"
           name="ownerName"
           type="text"
-          placeholder="Nombre del responsable"
+          placeholder={locale === "en" ? "Owner name" : "Nombre del responsable"}
           className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         />
       </div>
@@ -132,7 +132,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           id="nextStep"
           name="nextStep"
           type="text"
-          placeholder="Ej: Identificar contacto de compras"
+          placeholder={locale === "en" ? "E.g. Identify the procurement contact" : "Ej: Identificar contacto de compras"}
           className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         />
       </div>

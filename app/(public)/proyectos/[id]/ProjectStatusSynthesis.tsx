@@ -23,7 +23,56 @@ const OUTLOOK_COLOR: Record<Exclude<CodOutlook["band"], "no_aplica">, string> = 
   baja: "light-dark(#c23a2a, #ef4444)",
 };
 
-const CONFIDENCE_LABEL: Record<string, string> = { alta: "Alta", media: "Media", baja: "Baja" };
+const CONFIDENCE_LABEL: Record<AppLocale, Record<string, string>> = {
+  es: { alta: "Alta", media: "Media", baja: "Baja" },
+  en: { alta: "High", media: "Medium", baja: "Low" },
+};
+
+const LOCALIZED_STAGE: Record<AppLocale, Record<MacroStage, string>> = {
+  es: { desarrollo: "En desarrollo", ingenieria: "En ingeniería", compras: "En compras", construccion: "En construcción", comisionamiento: "En comisionamiento", operativo: "Debería estar operativo", no_iniciado: "Aún no iniciado" },
+  en: { desarrollo: "In development", ingenieria: "In engineering", compras: "In procurement", construccion: "Under construction", comisionamiento: "In commissioning", operativo: "Should be operational", no_iniciado: "Not started yet" },
+};
+
+const PHASE_LABEL_EN: Record<string, string> = {
+  "Campaña de Medición de Viento": "Wind measurement campaign",
+  Desarrollo: "Development",
+  "Ingeniería Conceptual": "Conceptual engineering",
+  "Ingeniería Básica": "Basic engineering",
+  "Ingeniería de Detalle": "Detailed engineering",
+  Compras: "Procurement",
+  Construcción: "Construction",
+  Comisionamiento: "Commissioning",
+  "Estudios de Factibilidad / Conexión": "Feasibility / connection studies",
+  "Pruebas y Puesta en Servicio": "Testing and start-up",
+};
+
+function phaseLabel(label: string, locale: AppLocale): string {
+  return locale === "en" ? (PHASE_LABEL_EN[label] ?? label) : label;
+}
+
+function synthesisNarrative(synthesis: ProjectSynthesis, locale: AppLocale): string {
+  if (locale === "es") return synthesis.narrative;
+  if (synthesis.macroStage === "operativo") return "The estimated connection date has passed; the project should already be operational.";
+  if (synthesis.macroStage === "no_iniciado") return "Development should not have started yet based on the estimated connection date.";
+  return synthesis.currentPhaseLabel ? `We currently estimate that the project is in ${phaseLabel(synthesis.currentPhaseLabel, locale)}.` : "There is not enough schedule information to estimate the current phase.";
+}
+
+function outlookLabel(label: string, locale: AppLocale): string {
+  if (locale === "es") return label;
+  const fixed: Record<string, string> = {
+    Base: "Base",
+    "RCA aprobada": "Approved RCA",
+    "SEIA en trámite": "SEIA assessment in progress",
+    "Sin expediente SEIA asociado": "No associated SEIA filing",
+    "Proyecto finalizado": "Project completed",
+    "Declarado en construcción": "Declared under construction",
+    "Trámite de conexión en etapa avanzada": "Grid connection process at an advanced stage",
+    "Trámite de conexión todavía en etapa inicial": "Grid connection process still at an early stage",
+    "Fecha estimada de conexión ya pasó sin llegar a construcción": "Estimated connection date passed before construction",
+  };
+  const months = label.match(/^Solo quedan ~([0-9]+) meses para el COD$/);
+  return months ? `Only ~${months[1]} months remain until COD` : (fixed[label] ?? label);
+}
 
 function fmt(iso: string, locale: AppLocale): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "es-CL", { month: "long", year: "numeric" });
@@ -50,11 +99,11 @@ export function ProjectStatusSynthesis({
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: stageColor }} />
           <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-            {synthesis.macroStageLabel.toUpperCase()}
+            {LOCALIZED_STAGE[locale][synthesis.macroStage].toUpperCase()}
           </span>
           {synthesis.confidence && (
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-              {locale === "en" ? "Confidence" : "Confianza"} {locale === "en" ? synthesis.confidence : CONFIDENCE_LABEL[synthesis.confidence]}
+              {locale === "en" ? "Confidence" : "Confianza"} {CONFIDENCE_LABEL[locale][synthesis.confidence]}
             </span>
           )}
         </div>
@@ -64,16 +113,16 @@ export function ProjectStatusSynthesis({
             style={{ width: `${synthesis.progressPct}%`, backgroundColor: stageColor }}
           />
         </div>
-        <p className="mt-3 max-w-2xl text-sm text-neutral-600 dark:text-neutral-400">{synthesis.narrative}</p>
+        <p className="mt-3 max-w-2xl text-sm text-neutral-600 dark:text-neutral-400">{synthesisNarrative(synthesis, locale)}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {nextMilestone && (
           <div className="rounded-lg border border-neutral-100 p-4 dark:border-neutral-900">
             <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Next expected milestone" : "Próximo hito esperado"}</p>
-            <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-50">{nextMilestone.label}</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-50">{phaseLabel(nextMilestone.label, locale)}</p>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {fmt(nextMilestone.expectedDate, locale)} · {locale === "en" ? "confidence" : "confianza"} {locale === "en" ? nextMilestone.confidence : CONFIDENCE_LABEL[nextMilestone.confidence]}
+              {fmt(nextMilestone.expectedDate, locale)} · {locale === "en" ? "confidence" : "confianza"} {CONFIDENCE_LABEL[locale][nextMilestone.confidence]}
             </p>
           </div>
         )}
@@ -112,7 +161,7 @@ export function ProjectStatusSynthesis({
             <ul className="mt-1 flex flex-col gap-0.5 text-xs">
               {codOutlook.breakdown.map((step, i) => (
                 <li key={i} className="flex items-baseline justify-between gap-2 text-neutral-500 dark:text-neutral-400">
-                  <span className="truncate">{step.label}</span>
+                  <span className="truncate">{outlookLabel(step.label, locale)}</span>
                   <span
                     className={`shrink-0 tabular-nums font-medium ${
                       step.delta > 0

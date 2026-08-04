@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Bell, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, ShieldCheck } from "lucide-react";
+import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, ShieldCheck } from "lucide-react";
 import { logout } from "@/app/ingresar/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import type { AppLocale } from "@/lib/i18n";
@@ -17,7 +17,7 @@ function getNavItems(locale: AppLocale) {
         { href: "/proyectos", label: "Future projects", icon: Activity, minPlan: "free" },
         { href: "/matriz", label: "Projects in operation", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Tracking", icon: Bell, minPlan: "premium" },
+        { href: "/monitoreo", label: "Tracking", icon: Eye, minPlan: "premium" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: "/requerimientos", label: "Services", icon: ClipboardList, minPlan: "free" },
       ]
@@ -25,7 +25,7 @@ function getNavItems(locale: AppLocale) {
         { href: "/proyectos", label: "Proyectos Futuros", icon: Activity, minPlan: "free" },
         { href: "/matriz", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Seguimiento", icon: Bell, minPlan: "premium" },
+        { href: "/monitoreo", label: "Seguimiento", icon: Eye, minPlan: "premium" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: "/requerimientos", label: "Servicios", icon: ClipboardList, minPlan: "free" },
       ];

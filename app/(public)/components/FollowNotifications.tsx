@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bell, CheckCheck, X } from "lucide-react";
+import { CheckCheck, Eye, X } from "lucide-react";
 import type { WatchlistEvent } from "@/lib/data-access/watchlist";
 import type { AppLocale } from "@/lib/i18n";
 
@@ -109,7 +109,7 @@ export function FollowNotifications({ events, locale = "es" }: { events: Watchli
             <div className="max-h-80 overflow-y-auto">
               {events.length === 0 ? (
                 <div className="px-5 py-8 text-center">
-                  <Bell size={20} className="mx-auto text-brand-primary" />
+                  <Eye size={20} className="mx-auto text-brand-primary" />
                   <p className="mt-2 text-sm font-medium text-neutral-800">{locale === "en" ? "No recent updates" : "Sin novedades recientes"}</p>
                   <p className="mt-1 text-xs text-neutral-500">{locale === "en" ? "You will receive a notification here when we detect a change." : "Recibirá una notificación aquí cuando detectemos un cambio."}</p>
                 </div>
@@ -128,7 +128,7 @@ export function FollowNotifications({ events, locale = "es" }: { events: Watchli
         )}
 
         <button type="button" onClick={toggleOpen} aria-label={unread ? (locale === "en" ? `${unread} new alerts` : `${unread} alertas nuevas`) : (locale === "en" ? "Open tracking center" : "Abrir centro de monitoreo")} aria-expanded={open} className="relative flex h-11 w-11 items-center justify-center rounded-full border border-brand-primary/30 bg-white text-brand-deep shadow-lg shadow-brand-deep/10 transition hover:-translate-y-0.5 hover:border-brand-primary dark:bg-neutral-950 dark:text-brand-primary">
-          <Bell size={19} />
+          <Eye size={19} />
           {unread > 0 && <span className="absolute -top-1 -right-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#333333] px-1 text-[10px] font-bold text-white ring-2 ring-white">{unread > 9 ? "9+" : unread}</span>}
         </button>
       </div>
@@ -137,7 +137,7 @@ export function FollowNotifications({ events, locale = "es" }: { events: Watchli
         {toasts.map((event) => (
           <div key={event.id} className="follow-toast rounded-2xl border border-brand-primary/25 bg-white p-4 shadow-xl shadow-brand-deep/10 dark:bg-neutral-950">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary"><Bell size={15} /></span>
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary"><Eye size={15} /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-brand-deep dark:text-brand-primary">{EVENT_LABEL[locale][event.eventType] ?? event.eventType}</p>
                 <Link href={`/proyectos/${event.projectId}`} className="mt-1 block truncate text-sm font-semibold text-neutral-950 hover:underline dark:text-white">{event.projectName}</Link>

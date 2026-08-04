@@ -113,7 +113,7 @@ export default async function CrmPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen de oportunidades">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={locale === "en" ? "Opportunity summary" : "Resumen de oportunidades"}>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><BriefcaseBusiness size={15} className="text-brand-primary" /> {locale === "en" ? "Active pipeline" : "Pipeline activo"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{active}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? `${contactReady} to contact · ${inConversation} in meetings` : `${contactReady} por contactar · ${inConversation} en reunión`}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><CircleAlert size={15} className="text-brand-primary" /> {locale === "en" ? "Needs attention" : "Requieren atención"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{overdue}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "overdue actions to resolve" : "acciones vencidas que conviene resolver"}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Clock3 size={15} className="text-brand-primary" /> {locale === "en" ? "With next action" : "Con próxima acción"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{withNextStep}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities with scheduled follow-up" : "oportunidades con seguimiento programado"}</p></Panel>
@@ -132,7 +132,7 @@ export default async function CrmPage() {
         </div>
         <PlanGate
           locked={premiumLocked}
-          label="Disponible en plan Prime"
+          label={locale === "en" ? "Available on Prime" : "Disponible en plan Prime"}
           variant="showcase"
           title={locale === "en" ? "A CRM connected to the energy market" : "Un CRM conectado al mercado energético"}
           description={locale === "en" ? "Turn projects and market relationships into a shared, prioritized and traceable pipeline." : "Convierta proyectos y relaciones de mercado en un pipeline compartido, priorizado y trazable."}
@@ -142,7 +142,7 @@ export default async function CrmPage() {
             <details className="group rounded-2xl border border-brand-primary/30 bg-brand-surface/60 dark:bg-brand-primary/5">
               <summary className="flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-sm font-semibold text-brand-deep select-none [&::-webkit-details-marker]:hidden dark:text-brand-primary">
                 <Plus size={16} /> {locale === "en" ? "Add opportunity to the funnel" : "Registrar oportunidad en el funnel"}
-                <span className="hidden text-xs font-normal text-neutral-500 sm:inline">— vinculada a proyecto, empresa y contacto</span>
+                <span className="hidden text-xs font-normal text-neutral-500 sm:inline">— {locale === "en" ? "linked to a project, company and contact" : "vinculada a proyecto, empresa y contacto"}</span>
                 <ChevronDown size={14} className="ml-auto transition-transform group-open:rotate-180" />
               </summary>
               <div className="border-t border-brand-primary/15 bg-white px-4 py-4 dark:bg-neutral-950">

@@ -19,18 +19,13 @@ import { getAppLocale } from "@/lib/i18n";
 export const metadata: Metadata = { title: "Seguimiento" };
 export const dynamic = "force-dynamic";
 
-const EVENT_LABEL: Record<string, string> = {
-  announced: "Solicitud ingresada",
-  capacity_change: "Cambio de capacidad",
-  ownership_change: "Cambio de propiedad",
-  developer_change: "Cambio de desarrollador",
-  connection_date_change: "Cambio de fecha de conexión",
-  connection_point_change: "Cambio de punto de conexión",
-  construction_date_change: "Cambio de fecha de construcción",
-  status_change: "Cambio de estado",
-  seia_milestone: "Hito SEIA",
-  delay: "Retraso",
-  other: "Otro",
+const EVENT_LABEL: Record<"es" | "en", Record<string, string>> = {
+  es: { announced: "Solicitud ingresada", capacity_change: "Cambio de capacidad", ownership_change: "Cambio de propiedad", developer_change: "Cambio de desarrollador", connection_date_change: "Cambio de fecha de conexión", connection_point_change: "Cambio de punto de conexión", construction_date_change: "Cambio de fecha de construcción", status_change: "Cambio de estado", seia_milestone: "Hito SEIA", delay: "Retraso", other: "Otro" },
+  en: { announced: "Request added", capacity_change: "Capacity change", ownership_change: "Ownership change", developer_change: "Developer change", connection_date_change: "Connection date change", connection_point_change: "Connection point change", construction_date_change: "Construction date change", status_change: "Status change", seia_milestone: "SEIA milestone", delay: "Delay", other: "Other" },
+};
+
+const EVENT_DESCRIPTION_EN: Record<string, string> = {
+  announced: "A new request was added to the public project pipeline.", capacity_change: "The project's recorded capacity was updated.", ownership_change: "Ownership information was updated.", developer_change: "The recorded developer was updated.", connection_date_change: "The estimated connection date was updated.", connection_point_change: "The connection point was updated.", construction_date_change: "The construction date was updated.", status_change: "The request status was updated.", seia_milestone: "A new environmental assessment milestone was detected.", delay: "The available dates indicate a possible delay.", other: "New project information was detected.",
 };
 
 export default async function AlertasPage() {
@@ -94,7 +89,7 @@ export default async function AlertasPage() {
         locale={locale}
       />
 
-      <section className="grid gap-4 sm:grid-cols-3" aria-label="Resumen de monitoreo">
+      <section className="grid gap-4 sm:grid-cols-3" aria-label={locale === "en" ? "Tracking summary" : "Resumen de monitoreo"}>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><FolderHeart size={15} className="text-brand-primary" /> {locale === "en" ? "Followed projects" : "Proyectos seguidos"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{followed.length}</p><p className="text-sm text-neutral-500">{locale === "en" ? "your active radar" : "radar activo"}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Activity size={15} className="text-brand-primary" /> {locale === "en" ? "Recent changes" : "Movimientos recientes"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{recentEvents}</p><p className="text-sm text-neutral-500">{locale === "en" ? "available in recent history" : "disponibles en el historial reciente"}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><BellRing size={15} className="text-brand-primary" /> {locale === "en" ? "Projects with updates" : "Proyectos con novedades"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{projectsWithMovement}</p><p className="text-sm text-neutral-500">{locale === "en" ? "require another review" : "requieren una nueva revisión"}</p></Panel>
@@ -107,8 +102,8 @@ export default async function AlertasPage() {
             <p className="mt-1 text-sm text-neutral-500">{locale === "en" ? "Review the current status of projects in your radar." : "Consulte el estado actual de los proyectos incluidos en el radar."}</p>
           </div>
           <div className="flex flex-col items-start gap-2">
-            <AppSettingToggle settingKey="follow_notifications_enabled" initiallyOn={followNotificationsEnabled} label="Mostrar campanita y avisos emergentes" />
-            <NewProjectAlertSelector initialSelection={[...selectedCategories]} />
+            <AppSettingToggle settingKey="follow_notifications_enabled" initiallyOn={followNotificationsEnabled} label={locale === "en" ? "Show tracking icon and pop-up alerts" : "Mostrar icono de seguimiento y avisos emergentes"} />
+            <NewProjectAlertSelector initialSelection={[...selectedCategories]} locale={locale} />
           </div>
         </div>
         <PlanGate
@@ -128,11 +123,11 @@ export default async function AlertasPage() {
                 <li key={f.projectId} className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
                   <div className="min-w-0">
                     <Link href={`/proyectos/${f.projectId}`} className="block truncate font-medium text-neutral-900 hover:underline dark:text-neutral-50">{f.projectName}</Link>
-                    <p className="mt-1 text-xs text-neutral-400">Siguiendo desde {new Date(f.followedAt).toLocaleDateString("es-CL")}</p>
+                    <p className="mt-1 text-xs text-neutral-400">{locale === "en" ? "Following since" : "Siguiendo desde"} {new Date(f.followedAt).toLocaleDateString(locale === "en" ? "en-US" : "es-CL")}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <ThermalStatusBar status={f.status} compact />
-                    <FollowButton projectId={f.projectId} initiallyFollowed={true} locked={isFree} />
+                    <FollowButton projectId={f.projectId} initiallyFollowed={true} locked={isFree} locale={locale} />
                   </div>
                 </li>
               ))}
@@ -162,11 +157,11 @@ export default async function AlertasPage() {
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary"><Bell size={15} /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{EVENT_LABEL[e.eventType] ?? e.eventType}</div>
-                      <div className="flex items-center gap-1 text-xs text-neutral-400"><CalendarClock size={12} /> {new Date(e.occurredAt).toLocaleDateString("es-CL")}</div>
+                      <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{EVENT_LABEL[locale][e.eventType] ?? e.eventType}</div>
+                      <div className="flex items-center gap-1 text-xs text-neutral-400"><CalendarClock size={12} /> {new Date(e.occurredAt).toLocaleDateString(locale === "en" ? "en-US" : "es-CL")}</div>
                     </div>
                     <Link href={`/proyectos/${e.projectId}`} className="mt-1 block text-sm font-medium text-brand-deep hover:underline dark:text-brand-primary">{e.projectName}</Link>
-                    {e.description && <div className="mt-1 text-sm leading-6 text-neutral-600 dark:text-neutral-400">{e.description}</div>}
+                    {e.description && <div className="mt-1 text-sm leading-6 text-neutral-600 dark:text-neutral-400">{locale === "en" ? (EVENT_DESCRIPTION_EN[e.eventType] ?? "New project information was detected.") : e.description}</div>}
                   </div>
                 </li>
               ))}

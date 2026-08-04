@@ -149,7 +149,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           </div>
           <div className="flex items-center gap-2">
             <ShareProjectButton projectName={project.name} locale={locale} />
-            <FollowButton projectId={project.id} initiallyFollowed={followed} locked={isFree} />
+            <FollowButton projectId={project.id} initiallyFollowed={followed} locked={isFree} locale={locale} />
             <AddToCrmButton
               projectId={project.id}
               projectName={project.name}

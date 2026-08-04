@@ -24,5 +24,19 @@ export const OPPORTUNITY_STAGE_LABEL: Record<OpportunityStage, string> = {
   cierre_perdido: "Cierre — Perdido",
 };
 
+export const OPPORTUNITY_STAGE_LABEL_EN: Record<OpportunityStage, string> = {
+  contacto: "Initial contact",
+  reunion: "Meeting",
+  elaboracion_propuesta: "Proposal preparation",
+  envio_propuesta: "Proposal sent",
+  seguimiento: "Follow-up",
+  cierre_ganado: "Closed — Won",
+  cierre_perdido: "Closed — Lost",
+};
+
+export function opportunityStageLabel(stage: OpportunityStage, locale: "es" | "en"): string {
+  return locale === "en" ? OPPORTUNITY_STAGE_LABEL_EN[stage] : OPPORTUNITY_STAGE_LABEL[stage];
+}
+
 /** Etapas terminales — una oportunidad acá no cuenta como "activa" para el botón de alta rápida. */
 export const CLOSED_STAGES: readonly OpportunityStage[] = ["cierre_ganado", "cierre_perdido"];

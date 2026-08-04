@@ -7,10 +7,42 @@ import {
   clearPipelineSyncCursor,
   getPipelineSyncCursor,
   getPipelineSeenExternalIds,
+  getPipelineLastRawCount,
+  savePipelineLastRawCount,
   recordPipelineSync,
   savePipelineSyncCursor,
 } from "@/lib/data-access/pipeline";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
+import { sendInternalNotification } from "@/lib/notifications/resend";
+
+const RAW_COUNT_DROP_ALERT_THRESHOLD = 0.1; // 10%
+const RAW_COUNT_ALERT_EMAIL = "patrick.bittig@onixcg.com";
+
+/**
+ * Red de seguridad contra un fetch truncado/incompleto de Acceso Abierto —
+ * caso real (2026-08-04): BESS Gaia I existía y pasaba todos los filtros,
+ * pero una corrida no la trajo. La fuente no pagina (un solo request de
+ * ~2700 filas), frágil ante cualquier corte de red a mitad de respuesta, y
+ * eso no genera ningún error — el sync simplemente procesa menos filas de
+ * las que debería, en silencio. No bloquea el sync (podría ser una caída
+ * real y legítima), solo alerta para revisión humana.
+ */
+async function checkRawFetchSanity(client: SupabaseClient, currentCount: number): Promise<void> {
+  const previousCount = await getPipelineLastRawCount(client);
+  if (previousCount !== null && currentCount < previousCount * (1 - RAW_COUNT_DROP_ALERT_THRESHOLD)) {
+    try {
+      const dropPct = Math.round((1 - currentCount / previousCount) * 100);
+      await sendInternalNotification({
+        to: RAW_COUNT_ALERT_EMAIL,
+        subject: `Alerta: Acceso Abierto devolvió ${dropPct}% menos filas que antes`,
+        html: `<p>El fetch de solicitudes trajo <strong>${currentCount}</strong> filas, contra <strong>${previousCount}</strong> de la corrida anterior (-${dropPct}%). Podría ser un fetch truncado/incompleto — revisar antes de confiar en que el sync de esta corrida trajo todo.</p>`,
+      });
+    } catch (err) {
+      console.error("[pipeline] No se pudo enviar la alerta de conteo:", (err as Error).message);
+    }
+  }
+  await savePipelineLastRawCount(client, currentCount);
+}
 
 /**
  * Punto único de la sincronización del listado — usado por scripts/sync-listado.ts
@@ -20,6 +52,7 @@ import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-
 export async function runListadoSync(client?: SupabaseClient): Promise<LoadSummary> {
   const supabase = client ?? createSupabaseServiceClient();
   const rawRows = await fetchSolicitudesFromApi();
+  await checkRawFetchSanity(supabase, rawRows.length);
   const normalized = rawRows.map(normalizeApiRow).filter((row) => isVigenteRow(row) && isRenewableOrBessProject(row));
   const summary = await loadNormalizedProjects(supabase, normalized);
   await recordPipelineSync(supabase);
@@ -80,6 +113,7 @@ export async function runListadoSyncBatch(
   const hoursSinceCompletion = lastCompletedAt === null ? null : (Date.now() - lastCompletedAt) / 3_600_000;
 
   const rawRows = await fetchSolicitudesFromApi();
+  await checkRawFetchSanity(supabase, rawRows.length);
   const eligibleRows = rawRows
     .map(normalizeApiRow)
     .filter((row) => isVigenteRow(row) && isRenewableOrBessProject(row))

@@ -47,14 +47,31 @@ interface RawApiSolicitud {
   rut_empresa: string | null;
 }
 
+/**
+ * Reintenta el fetch en sí (no solo el guardado) — caso real (2026-08-04):
+ * este endpoint no pagina, es un solo request de ~2700 filas, y un corte de
+ * red a mitad de la respuesta no siempre lanza un error de `fetch` (puede
+ * devolver un JSON truncado pero igual parseable si el corte cae en un lugar
+ * "conveniente" del array). No elimina el riesgo del todo — por eso además
+ * existe la alerta de conteo en runSync.ts — pero baja la probabilidad real.
+ */
 export async function fetchSolicitudesFromApi(): Promise<RawApiSolicitud[]> {
   const url = `${API_BASE}?tipo=6&anio=null&tipo_solicitud_id=null&solicitud_id=null`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Acceso Abierto (listado) respondió ${res.status} ${res.statusText}`);
-  return (await res.json()) as RawApiSolicitud[];
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) throw new Error(`Acceso Abierto (listado) respondió ${res.status} ${res.statusText}`);
+      return (await res.json()) as RawApiSolicitud[];
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+    }
+  }
+  throw lastError ?? new Error("Acceso Abierto (listado): fetch falló sin detalle.");
 }
 
 function toNumber(value: string | number | null): number | null {
