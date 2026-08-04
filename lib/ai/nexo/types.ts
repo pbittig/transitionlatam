@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { KimiTool } from "@/lib/ai/provider/kimi";
+import type { AiTool } from "@/lib/ai/provider/openai";
 
 export type NexoIntent = "project_lookup" | "company_lookup" | "market_analysis" | "data_quality" | "general";
 
 export interface NexoTool {
-  definition: KimiTool;
+  definition: AiTool;
   intents: NexoIntent[];
   execute: (client: SupabaseClient, args: unknown) => Promise<Record<string, unknown>>;
 }

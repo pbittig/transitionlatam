@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { chatWithKimi, streamKimi, type KimiChatMessage } from "@/lib/ai/provider/kimi";
+import { chatWithOpenAi, streamOpenAi, type AiChatMessage } from "@/lib/ai/provider/openai";
 import { auditToolCall, finishNexoRun, startNexoRun } from "./audit";
 import { getNexoTool, toolsForIntent } from "./registry";
 import { classifyNexoIntent } from "./router";
@@ -29,7 +29,7 @@ export async function runNexoOrchestrator(input: {
   const intent = classifyNexoIntent(input.question);
   const allowedTools = toolsForIntent(intent);
   const runId = await startNexoRun(input.client, input.owner, input.question, intent);
-  const messages: KimiChatMessage[] = [
+  const messages: AiChatMessage[] = [
     {
       role: "system",
       content:
@@ -48,12 +48,19 @@ export async function runNexoOrchestrator(input: {
   let model = "";
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const result = await chatWithKimi(messages, { maxTokens: 700, tools: allowedTools.map((tool) => tool.definition) });
+      const result = await chatWithOpenAi(messages, { maxTokens: 700, tools: allowedTools.map((tool) => tool.definition) });
       inputTokens += result.inputTokens;
       outputTokens += result.outputTokens;
       model = result.model;
       if (!result.toolCalls?.length) {
-        if (input.onDelta && result.content) input.onDelta(result.content);
+        if (input.onDelta) {
+          const streamed = await streamOpenAi(messages, input.onDelta, { maxTokens: 900 });
+          inputTokens += streamed.inputTokens;
+          outputTokens += streamed.outputTokens;
+          model = streamed.model;
+          await finishNexoRun(input.client, runId, { status: "completed", model, inputTokens, outputTokens });
+          return { answer: streamed.content, model, inputTokens, outputTokens, intent };
+        }
         await finishNexoRun(input.client, runId, { status: "completed", model, inputTokens, outputTokens });
         return { answer: result.content, model, inputTokens, outputTokens, intent };
       }
@@ -77,8 +84,8 @@ export async function runNexoOrchestrator(input: {
     }
 
     const final = input.onDelta
-      ? await streamKimi(messages, input.onDelta, { maxTokens: 900 })
-      : await chatWithKimi(messages, { maxTokens: 900 });
+      ? await streamOpenAi(messages, input.onDelta, { maxTokens: 900 })
+      : await chatWithOpenAi(messages, { maxTokens: 900 });
     inputTokens += final.inputTokens;
     outputTokens += final.outputTokens;
     model = final.model;
