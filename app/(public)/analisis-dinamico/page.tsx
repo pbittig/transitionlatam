@@ -153,9 +153,9 @@ export default async function AnalisisDinamicoPage({
           </div>
           <ol className="grid gap-3 sm:grid-cols-3">
             {[
-              { number: "1", icon: Search, title: "Filtra", description: "Selecciona la tecnología y etapa que deseas analizar." },
+              { number: "1", icon: Search, title: "Filtre", description: "Seleccione la tecnología y etapa que desea analizar." },
               { number: "2", icon: Layers3, title: "Combina", description: "Cruza los criterios para analizar solamente la cartera relevante." },
-              { number: "3", icon: ChartNoAxesCombined, title: "Interpreta", description: "Revisa escala, riesgo y calendario; los resultados se recalculan automáticamente." },
+              { number: "3", icon: ChartNoAxesCombined, title: "Interprete", description: "Revise escala, riesgo y calendario; los resultados se recalculan automáticamente." },
             ].map(({ number, icon: Icon, title, description }) => (
               <li key={number} className="rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-900">
                 <div className="flex items-center justify-between">
@@ -175,7 +175,7 @@ export default async function AnalisisDinamicoPage({
 
         <Panel className="border-brand-primary/25">
           <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Una lectura enfocada de la cartera</h2>
-          <p className="mt-1 text-sm text-neutral-500">Revisa escala, composición, riesgo y calendario probable para la selección actual.</p>
+          <p className="mt-1 text-sm text-neutral-500">Revise escala, composición, riesgo y calendario probable para la selección actual.</p>
           <ul className="mt-4 grid gap-2 text-sm text-neutral-600 dark:text-neutral-300">
             {[
               "Cantidad de proyectos y capacidad total en MW/GW.",
@@ -197,7 +197,7 @@ export default async function AnalisisDinamicoPage({
         <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Filtros de análisis</h2>
-            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">Selecciona tecnología y etapa para construir tu vista.</p>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">Seleccione tecnología y etapa para construir su vista.</p>
           </div>
           {activeLabels.length > 0 && (
             <Link
@@ -308,8 +308,8 @@ function LockedAnalysisPage() {
       <PlanGate
         locked
         variant="showcase"
-        title="Desbloquea tu análisis de cartera"
-        description="Selecciona varias tecnologías y etapas para recalcular automáticamente el tamaño, riesgo y cronograma de la oportunidad."
+        title="Desbloquee su análisis de proyectos"
+        description="Seleccione varias tecnologías y etapas para recalcular automáticamente el tamaño, riesgo y cronograma de la oportunidad."
         features={[
           "Multiselector de tecnologías renovables y BESS",
           "Comparación simultánea de etapas",

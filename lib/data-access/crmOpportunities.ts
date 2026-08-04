@@ -25,7 +25,7 @@ export async function getActiveOpportunityProjectIds(client: SupabaseClient, pro
 /** Alta rápida de un click — ver AddToCrmButton.tsx. Etapa inicial fija: "contacto". */
 export async function createProjectOpportunity(
   client: SupabaseClient,
-  args: { projectId: string; projectName: string; developerCompanyId: string | null },
+  args: { projectId: string; projectName: string; developerCompanyId: string | null; organizationId: string; createdBy: string | null },
 ): Promise<void> {
   const { error } = await client.from("opportunity").insert({
     project_id: args.projectId,
@@ -33,6 +33,8 @@ export async function createProjectOpportunity(
     stage: "contacto",
     description: `Proyecto: ${args.projectName}`,
     confidence_level: "INTELIGENCIA_DE_MERCADO",
+    organization_id: args.organizationId,
+    created_by: args.createdBy,
   });
   if (error) throw new Error(`Error agregando proyecto al CRM: ${error.message}`);
 }

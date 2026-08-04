@@ -29,7 +29,6 @@ import {
 } from "@/lib/shared/marketSnapshot";
 import { chipsToNamePatterns, chipsToTechnologyCodes, parseChipKeys, TECH_CHIPS } from "../components/techChips";
 import { TechSelectFilter } from "../components/TechSelectFilter";
-import { ConnectionDateRangeFilter } from "../components/ConnectionDateRangeFilter";
 import { MONTHS_HORIZON, monthOffsetToIso } from "@/lib/shared/connectionDateRange";
 import { EtapaFilter } from "../components/EtapaFilter";
 import { SearchBar } from "../components/SearchBar";
@@ -45,16 +44,15 @@ import { AnalysisDrawer } from "../components/AnalysisDrawer";
 import { MarketSnapshotList } from "../components/MarketSnapshotList";
 import { PipelineHealthBar } from "../components/PipelineHealthBar";
 import { MarketCalendarNarrative } from "../components/MarketCalendarNarrative";
-import { VerificationProgressBar } from "../components/VerificationProgressBar";
 import { ModuleGuide } from "../components/ModuleGuide";
 import { PlanGate } from "../components/PlanGate";
 import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { recordAndCheckRate } from "@/lib/security/rateLimit";
-import { Activity, ArrowUpRight, BatteryCharging, FolderKanban } from "lucide-react";
+import { Activity, BatteryCharging, FolderKanban } from "lucide-react";
 import { getAppLocale } from "@/lib/i18n";
 
-export const metadata: Metadata = { title: "Proyectos Esperados" };
+export const metadata: Metadata = { title: "Proyectos Futuros" };
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
@@ -169,7 +167,7 @@ export default async function ProyectosEsperadosPage({
     result.items.map((p) => p.id),
   );
   const crmProjectIds = admin || !isFree
-    ? await getActiveOpportunityProjectIds(createSupabaseServiceClient(), result.items.map((p) => p.id))
+    ? await getActiveOpportunityProjectIds(admin ? createSupabaseServiceClient() : client, result.items.map((p) => p.id))
     : new Set<string>();
 
   // Los mismos chips de tecnología que ya filtran la tabla/mapa de arriba
@@ -198,10 +196,6 @@ export default async function ProyectosEsperadosPage({
   const forecast = computeScheduleForecast(filteredScheduleInputs);
 
   const pipelineTotals = computePipelineTotals(filteredScheduleInputs);
-  const verificationProgress = {
-    verified: filteredScheduleInputs.filter((project) => project.verifiedAt !== null).length,
-    total: filteredScheduleInputs.length,
-  };
   const pipelineByTechnology = computePipelineByTechnology(filteredScheduleInputs);
   const pipelineByRegion = computePipelineByRegion(filteredScheduleInputs);
   const pipelineHealth = computePipelineHealth(filteredScheduleInputs, seiaStatusByProjectId);
@@ -238,36 +232,33 @@ export default async function ProyectosEsperadosPage({
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Future projects" : "Proyectos futuros"}</h1>
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Future projects" : "Proyectos Futuros"}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
               {locale === "en" ? "Projects under development, their regulatory signals and pathway to connection. Source: Open Access. Separate from " : "Proyectos en desarrollo, sus señales regulatorias y la ruta hacia su conexión. Fuente: Acceso Abierto. Distinto de "}
               <Link href="/matriz" className="font-medium text-white underline underline-offset-2">{locale === "en" ? "Infrastructure" : "Infraestructura"}</Link>{locale === "en" ? " (power plants already in operation)." : " (centrales ya operativas)."}
             </p>
           </div>
-          <a href="#lista-proyectos" className="inline-flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/15">
-            {locale === "en" ? "Explore portfolio" : "Explorar cartera"} <ArrowUpRight size={16} />
-          </a>
         </div>
       </section>
 
       <ModuleGuide
-        purpose={locale === "en" ? "Identify relevant future projects before they enter operation and organize the portfolio by technology, stage, date and scale." : "Detectar proyectos futuros relevantes antes de que entren en operación y ordenar la cartera por tecnología, etapa, fecha y escala."}
-        deliverables={locale === "en" ? ["Current portfolio of monitored projects", "Estimated dates, capacity, technology and developer", "Individual project profiles and progress signals"] : ["Cartera vigente de proyectos monitoreados", "Fechas estimadas, capacidad, tecnología y desarrollador", "Acceso a fichas individuales y señales de avance"]}
-        howToUse={locale === "en" ? ["Filter the portfolio for your target market", "Open the best-fit project profiles", "Follow priority projects and review changes"] : ["Filtra la cartera según tu mercado objetivo", "Abre las fichas con mejor encaje", "Sigue los proyectos prioritarios y revisa sus cambios"]}
+        purpose={locale === "en" ? "Identify relevant future projects before they enter operation and organize them by technology, stage, date and scale." : "Detectar proyectos futuros relevantes antes de que entren en operación y ordenarlos por tecnología, etapa, fecha y escala."}
+        deliverables={locale === "en" ? ["Current list of identified projects", "Estimated dates, capacity, technology and developer", "Individual project profiles and progress signals"] : ["Listado vigente de proyectos identificados", "Fechas estimadas, capacidad, tecnología y desarrollador", "Acceso a fichas individuales y señales de avance"]}
+        howToUse={locale === "en" ? ["Filter projects for your target market", "Open the best-fit project profiles", "Follow priority projects and review changes"] : ["Filtre los proyectos según su mercado objetivo", "Abra las fichas con mejor encaje", "Siga los proyectos prioritarios y revise sus cambios"]}
         plan="Free"
-        upgradeMessage={locale === "en" ? "Free lets you explore the portfolio; Lite unlocks full profiles, dynamic analysis and continuous monitoring." : "Free permite explorar la cartera; Lite desbloquea fichas completas, análisis dinámico y monitoreo continuo."}
+        upgradeMessage={locale === "en" ? "Free lets you explore identified projects; Prime unlocks full profiles, dynamic analysis and continuous tracking." : "Free permite explorar los proyectos identificados; Prime desbloquea fichas completas, análisis dinámico y seguimiento continuo."}
         locale={locale}
       />
 
       <section aria-labelledby="pipeline-summary-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 id="pipeline-summary-title" className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Scale and composition" : "Magnitud y composición"}</h2>
+          <h2 id="pipeline-summary-title" className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Identified projects" : "Proyectos identificados"}</h2>
           <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Indicators follow the technology filter where applicable." : "Los indicadores respetan el filtro tecnológico cuando corresponde."}</p>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[
-            { icon: FolderKanban, label: locale === "en" ? "Monitored projects" : "Proyectos monitoreados", value: pipelineTotals.count.toLocaleString(locale === "en" ? "en-US" : "es-CL"), detail: locale === "en" ? "current requests with a schedule" : "solicitudes vigentes con cronograma", iconClass: "bg-brand-surface text-brand-deep" },
-            { icon: Activity, label: locale === "en" ? "Projects with connection requests" : "Proyectos con solicitud de conexión", value: `${(filteredCapacityMw / 1000).toLocaleString(locale === "en" ? "en-US" : "es-CL", { maximumFractionDigits: 1 })} GW`, detail: locale === "en" ? "using the active technology filter" : "con el filtro tecnológico activo", iconClass: "bg-brand-surface text-brand-deep" },
+            { icon: FolderKanban, label: locale === "en" ? "Monitored projects" : "Proyectos monitoreados", value: pipelineTotals.count.toLocaleString(locale === "en" ? "en-US" : "es-CL"), detail: undefined, iconClass: "bg-brand-surface text-brand-deep" },
+            { icon: Activity, label: locale === "en" ? "Projects with connection requests" : "Proyectos con solicitud de conexión", value: `${(filteredCapacityMw / 1000).toLocaleString(locale === "en" ? "en-US" : "es-CL", { maximumFractionDigits: 1 })} GW`, detail: undefined, iconClass: "bg-brand-surface text-brand-deep" },
             { icon: BatteryCharging, label: locale === "en" ? "Projects with BESS" : "Proyectos con BESS", value: bessCount.toLocaleString(locale === "en" ? "en-US" : "es-CL"), detail: locale === "en" ? "include battery storage" : "incluyen almacenamiento en baterías", iconClass: "bg-brand-surface text-brand-deep" },
           ].map(({ icon: Icon, label, value, detail, iconClass }) => (
             <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -276,7 +267,7 @@ export default async function ProyectosEsperadosPage({
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClass}`}><Icon size={15} /></span>
               </div>
               <p className="mt-4 text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">{value}</p>
-              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{detail}</p>
+              {detail && <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{detail}</p>}
             </article>
           ))}
         </div>
@@ -311,11 +302,6 @@ export default async function ProyectosEsperadosPage({
           );
         })}
       </div>
-      {tab === "esperados" && (
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {locale === "en" ? "From the first day of this month onward, ordered by the nearest connection date." : "Desde el día 1 de este mes en adelante, ordenados por fecha de conexión más próxima."}
-        </p>
-      )}
       {tab === "historico" && (
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           Todo lo que ya pasó de fecha, más lo rechazado o desistido, sin importar la fecha.
@@ -324,11 +310,11 @@ export default async function ProyectosEsperadosPage({
 
       <section id="lista-proyectos" className="flex flex-col gap-5">
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
-          <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Connection portfolio" : "Cartera de conexión"}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Identified projects" : "Proyectos identificados"}</h2>
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString(locale === "en" ? "en-US" : "es-CL")} {locale === "en" ? "requests in this view" : "solicitudes en la vista"}</span>
         </div>
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Filter the portfolio" : "Filtra la cartera"}</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Combine technologies and search to find relevant projects or opportunities." : "Combina tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante."}</p></div>{(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">{locale === "en" ? "Reset filters" : "Restablecer filtros"}</Link>}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Filter projects" : "Filtre los proyectos"}</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Combine technologies and search to find relevant projects or opportunities." : "Combine tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante."}</p></div>{(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">{locale === "en" ? "Reset filters" : "Restablecer filtros"}</Link>}</div>
         <SearchBar
           basePath="/proyectos"
           value={search}
@@ -338,16 +324,12 @@ export default async function ProyectosEsperadosPage({
         />
         <TechSelectFilter basePath="/proyectos" selectedKeys={selectedKeys} excludeKeys={["termica", "transmision"]} locale={locale} />
         {tab === "esperados" && <EtapaFilter basePath="/proyectos" locale={locale} />}
-        {tab === "esperados" && <ConnectionDateRangeFilter basePath="/proyectos" locale={locale} />}
         {activeFilterLabels.length > 0 ? <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">{locale === "en" ? "Current view:" : "Vista actual:"}</span> {activeFilterLabels.join(" · ")}</p> : <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">{locale === "en" ? "Filters also narrow the maturity, milestones and future demand analysis." : "Los filtros también acotan el análisis de madurez, hitos y demanda futura."}</p>}
         </Panel>
       </section>
 
       <Panel className="flex flex-col gap-4 overflow-hidden p-0">
-        <div className="px-5 pt-5">
-        {tab === "esperados" && <VerificationProgressBar progress={verificationProgress} locale={locale} />}
-        </div>
-        <div className="border-t border-neutral-100 dark:border-neutral-800"><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} crmProjectIds={crmProjectIds} isFree={isFree} locale={locale} /></div>
+        <div><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} crmProjectIds={crmProjectIds} isFree={isFree} locale={locale} /></div>
         <div className="px-5 pb-5"><Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} /></div>
       </Panel>
 
@@ -358,7 +340,7 @@ export default async function ProyectosEsperadosPage({
             Análisis dinámico
           </h2>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Filtra los proyectos futuros y abre el análisis con los indicadores recalculados para esa selección.
+            Filtre los proyectos futuros y abra el análisis con los indicadores recalculados para esa selección.
           </p>
         </div>
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
@@ -383,7 +365,6 @@ export default async function ProyectosEsperadosPage({
             <TechSelectFilter basePath="/proyectos" selectedKeys={selectedKeys} excludeKeys={["termica", "transmision"]} />
             {tab === "esperados" && <EtapaFilter basePath="/proyectos" />}
           </div>
-          {tab === "esperados" && <ConnectionDateRangeFilter basePath="/proyectos" />}
           {activeFilterLabels.length > 0 ? (
             <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
               <span className="font-medium">Análisis actual:</span> {activeFilterLabels.join(" · ")}
@@ -400,7 +381,7 @@ export default async function ProyectosEsperadosPage({
           >
         <div className="rounded-2xl border border-brand-primary/25 bg-brand-surface p-5 dark:bg-brand-primary/10">
           <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Cómo leer este análisis</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Comienza por el panorama actual y la salud de la cartera; después revisa regiones y antigüedad; finalmente usa los calendarios y la demanda de equipos para identificar ventanas comerciales.</p>
+          <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Comience por el panorama actual y la salud de los proyectos; después revise regiones y antigüedad; finalmente utilice los calendarios y la demanda de equipos para identificar ventanas comerciales.</p>
         </div>
         <Panel className="flex flex-col gap-4">
           <div>

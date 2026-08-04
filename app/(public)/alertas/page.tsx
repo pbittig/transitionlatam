@@ -19,7 +19,7 @@ import { computeScheduleForecast, FORECAST_PHASE_LABELS } from "@/lib/shared/sch
 import type { PhaseKey } from "@/lib/shared/projectPhaseDurations";
 import { getAppLocale } from "@/lib/i18n";
 
-export const metadata: Metadata = { title: "Monitoreo" };
+export const metadata: Metadata = { title: "Seguimiento" };
 export const dynamic = "force-dynamic";
 
 const EVENT_LABEL: Record<string, string> = {
@@ -73,7 +73,7 @@ export default async function AlertasPage({
   if (!admin && !profile) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Monitoreo</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Tracking" : "Seguimiento"}</h1>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">{locale === "en" ? "Sign in to monitor projects and review updates." : "Inicia sesión para monitorear proyectos y ver sus novedades."}</p>
         <Link href="/ingresar" className="w-fit rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-50 dark:text-neutral-900">
           {locale === "en" ? "Sign in" : "Ingresar"}
@@ -114,9 +114,9 @@ export default async function AlertasPage({
         <span className="absolute -top-24 right-0 h-64 w-64 rounded-full border border-white/10" aria-hidden />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-3xl">
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Monitoring" : "Monitoreo"}</h1>
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Tracking" : "Seguimiento"}</h1>
             <p className="mt-3 text-sm leading-6 text-white/75 md:text-base">
-              {locale === "en" ? "Keep projects under continuous observation and receive alerts when their status, capacity, dates, connection, developer or environmental milestones change." : "Mantén proyectos bajo observación continua y recibe avisos cuando cambien su estado, capacidad, fechas, conexión, desarrollador o hitos ambientales."}
+              {locale === "en" ? "Keep projects under continuous observation and receive alerts when their status, capacity, dates, connection, developer or environmental milestones change." : "Mantenga proyectos bajo observación continua y reciba avisos cuando cambien su estado, capacidad, fechas, conexión, desarrollador o hitos ambientales."}
             </p>
           </div>
           <Link href="/proyectos" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink shadow-sm">
@@ -128,9 +128,9 @@ export default async function AlertasPage({
       <ModuleGuide
         purpose={locale === "en" ? "Continuously observe relevant projects and detect changes that may open a commercial window or change priorities." : "Mantener bajo observación continua los proyectos relevantes y detectar cambios que pueden abrir una ventana comercial o alterar una prioridad."}
         deliverables={locale === "en" ? ["Personal project radar", "History of changes and new milestones", "Alerts for status, dates, connection and SEIA"] : ["Radar personal de proyectos", "Historial de movimientos y nuevos hitos", "Alertas sobre estados, fechas, conexión y SEIA"]}
-        howToUse={locale === "en" ? ["Add projects from their profile", "Configure relevant categories", "Review alerts and define a commercial action"] : ["Agrega proyectos al monitoreo desde su ficha", "Configura las categorías relevantes", "Revisa alertas y define una acción comercial"]}
-        plan="Lite"
-        upgradeMessage={locale === "en" ? "Lite enables monitoring and history; Premium turns each signal into an opportunity in the CRM." : "Lite activa monitoreo e historial; Premium permite convertir cada señal en una oportunidad dentro del CRM."}
+        howToUse={locale === "en" ? ["Add projects from their profile", "Configure relevant categories", "Review alerts and define a commercial action"] : ["Agregue proyectos al seguimiento desde su ficha", "Configure las categorías relevantes", "Revise las alertas y defina una acción comercial"]}
+        plan="Prime"
+        upgradeMessage={locale === "en" ? "Prime enables tracking, history and conversion of each signal into a CRM opportunity." : "Prime activa seguimiento e historial y permite convertir cada señal en una oportunidad dentro del CRM."}
         locale={locale}
       />
 
@@ -215,7 +215,7 @@ export default async function AlertasPage({
       </Panel>
 
       <section className="grid gap-4 sm:grid-cols-3" aria-label="Resumen de monitoreo">
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><FolderHeart size={15} className="text-brand-primary" /> {locale === "en" ? "Followed projects" : "Proyectos seguidos"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{followed.length}</p><p className="text-sm text-neutral-500">{locale === "en" ? "your active radar" : "tu radar activo"}</p></Panel>
+        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><FolderHeart size={15} className="text-brand-primary" /> {locale === "en" ? "Followed projects" : "Proyectos seguidos"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{followed.length}</p><p className="text-sm text-neutral-500">{locale === "en" ? "your active radar" : "radar activo"}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Activity size={15} className="text-brand-primary" /> {locale === "en" ? "Recent changes" : "Movimientos recientes"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{recentEvents}</p><p className="text-sm text-neutral-500">{locale === "en" ? "available in recent history" : "disponibles en el historial reciente"}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><BellRing size={15} className="text-brand-primary" /> {locale === "en" ? "Projects with updates" : "Proyectos con novedades"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{projectsWithMovement}</p><p className="text-sm text-neutral-500">{locale === "en" ? "require another review" : "requieren una nueva revisión"}</p></Panel>
       </section>
@@ -224,7 +224,7 @@ export default async function AlertasPage({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
           <div>
             <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">{locale === "en" ? "Projects you follow" : "Proyectos que sigues"} ({followed.length})</h2>
-            <p className="mt-1 text-sm text-neutral-500">{locale === "en" ? "Review the current status of projects in your radar." : "Consulta el estado actual de los proyectos incluidos en tu radar."}</p>
+            <p className="mt-1 text-sm text-neutral-500">{locale === "en" ? "Review the current status of projects in your radar." : "Consulte el estado actual de los proyectos incluidos en el radar."}</p>
           </div>
           <div className="flex flex-col items-start gap-2">
             <AppSettingToggle settingKey="follow_notifications_enabled" initiallyOn={followNotificationsEnabled} label="Mostrar campanita y avisos emergentes" />
@@ -234,8 +234,8 @@ export default async function AlertasPage({
         <PlanGate
           locked={isFree}
           variant="showcase"
-          title={locale === "en" ? "Follow the projects that matter" : "Sigue los proyectos que importan"}
-          description={locale === "en" ? "Create a custom radar and review relevant changes without searching project by project." : "Crea tu radar personalizado y revisa cambios relevantes sin volver a buscar proyecto por proyecto."}
+          title={locale === "en" ? "Follow the projects that matter" : "Siga los proyectos relevantes"}
+          description={locale === "en" ? "Create a custom radar and review relevant changes without searching project by project." : "Cree un radar personalizado y revise cambios relevantes sin volver a buscar proyecto por proyecto."}
           features={locale === "en" ? ["Custom project list", "Status and date changes", "Connection and SEIA updates", "Recent history in one view"] : ["Lista personalizada de proyectos", "Cambios de estado y fechas", "Novedades de conexión y SEIA", "Historial reciente en una sola vista"]}
         >
           {followed.length === 0 ? (
@@ -269,8 +269,8 @@ export default async function AlertasPage({
         <PlanGate
           locked={isFree}
           variant="showcase"
-          title={locale === "en" ? "Detect changes before your next conversation" : "Detecta cambios antes de tu próxima conversación"}
-          description={locale === "en" ? "The feed highlights milestones and commercial movements so your team can act with context and on time." : "El feed destaca hitos y movimientos comerciales para que tu equipo pueda actuar con contexto y a tiempo."}
+          title={locale === "en" ? "Detect changes before your next conversation" : "Detecte cambios antes de su próxima conversación"}
+          description={locale === "en" ? "The feed highlights milestones and commercial movements so your team can act with context and on time." : "El feed destaca hitos y movimientos comerciales para que su equipo pueda actuar con contexto y a tiempo."}
           features={locale === "en" ? ["Alerts ordered by date", "Identified project and change", "Event description", "Direct access to the profile"] : ["Alertas ordenadas por fecha", "Proyecto y cambio identificado", "Descripción del evento", "Acceso directo a la ficha"]}
         >
           {events.length === 0 ? (

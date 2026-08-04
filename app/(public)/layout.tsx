@@ -51,16 +51,10 @@ export default async function PublicLayout({ children }: { children: React.React
       <MobileNavigation isAdmin={admin} userProfile={userProfile} locale={locale} />
       <div className="flex min-h-full flex-col md:pl-60 print:pl-0">
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-5 pb-28 sm:px-7 sm:pt-8 md:pb-12 print:px-0 print:py-0">{children}</main>
-        <footer className="border-t border-neutral-100 py-8 text-center text-sm text-neutral-500 print:hidden dark:border-neutral-800 dark:text-neutral-400">
-          Transition LATAM — {locale === "en" ? "a platform by" : "una plataforma de"}{" "}
-          <a
-            href="https://www.onixcg.com"
-            target="_blank"
-            rel="noreferrer"
-            className="underline underline-offset-2 hover:text-neutral-700 dark:hover:text-neutral-200"
-          >
-            ONIX Consulting Group
-          </a>
+        <footer className="border-t border-neutral-100 px-4 py-8 text-center text-sm text-neutral-500 print:hidden dark:border-neutral-800 dark:text-neutral-400">
+          {locale === "en"
+            ? "Data is compiled from public sources and is provided for reference. Verify the information with the relevant authorities before making decisions."
+            : "Los datos se elaboran a partir de fuentes públicas y tienen carácter referencial. Verifica la información con los organismos competentes antes de tomar decisiones."}
         </footer>
       </div>
       <div className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 print:hidden md:right-6 md:bottom-6 md:gap-3">

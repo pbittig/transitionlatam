@@ -27,12 +27,12 @@ export default async function RecuperarClavePage() {
 
         <div className="mt-8">
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">
-            {locale === "en" ? "Reset your password" : "Recupera tu clave"}
+            {locale === "en" ? "Reset your password" : "Recupere su clave"}
           </h1>
           <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
             {locale === "en"
               ? "Enter your account email and we'll send you a link to set a new password."
-              : "Ingresa el correo de tu cuenta y te enviaremos un link para definir una clave nueva."}
+              : "Ingrese el correo de su cuenta y enviaremos un enlace para definir una clave nueva."}
           </p>
         </div>
 

@@ -15,7 +15,7 @@ export async function ingresar(_prevState: IngresarState | undefined, formData: 
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "Ingresa tu correo y clave." };
+    return { error: "Ingrese su correo y clave." };
   }
 
   const client = await createSupabaseServerClient();

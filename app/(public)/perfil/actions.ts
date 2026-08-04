@@ -22,16 +22,16 @@ export async function updateProfile(
   const {
     data: { user },
   } = await client.auth.getUser();
-  if (!user) return { error: locale === "en" ? "Your session expired. Please sign in again." : "Tu sesión expiró — vuelve a ingresar." };
+  if (!user) return { error: locale === "en" ? "Your session expired. Please sign in again." : "Su sesión expiró. Ingrese nuevamente." };
 
   const profile = await getCurrentUserProfile(client);
-  if (!profile) return { error: locale === "en" ? "We could not find your profile." : "No encontramos tu perfil." };
+  if (!profile) return { error: locale === "en" ? "We could not find your profile." : "No encontramos su perfil." };
 
   const fullName = String(formData.get("fullName") ?? "").trim();
   const companyName = String(formData.get("companyName") ?? "").trim();
   const preferredLanguage = String(formData.get("preferredLanguage") ?? "es");
   if (!fullName) return { error: locale === "en" ? "Full name cannot be empty." : "El nombre no puede quedar vacío." };
-  if (!isAppLocale(preferredLanguage)) return { error: locale === "en" ? "Select a valid language." : "Selecciona un idioma válido." };
+  if (!isAppLocale(preferredLanguage)) return { error: locale === "en" ? "Select a valid language." : "Seleccione un idioma válido." };
 
   const patch: Record<string, string> = { full_name: fullName, company_name: companyName, preferred_language: preferredLanguage };
 

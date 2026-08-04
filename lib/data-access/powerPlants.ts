@@ -43,6 +43,17 @@ export async function getLastSyncTimestamp(client: SupabaseClient): Promise<stri
   return data?.[0]?.synced_at ?? null;
 }
 
+export async function getLatestCapacitySourceDate(client: SupabaseClient): Promise<string | null> {
+  const { data, error } = await client
+    .from("cne_capacidad_sync_log")
+    .select("fecha_act")
+    .order("fecha_act", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Error al leer la fecha de corte CNE: ${error.message}`);
+  return data?.fecha_act ?? null;
+}
+
 export async function getPowerPlantStats(client: SupabaseClient): Promise<PowerPlantStats> {
   const { data, error } = await client.rpc("get_power_plant_stats");
   if (error) throw new Error(`Error al leer get_power_plant_stats: ${error.message}`);
@@ -73,10 +84,48 @@ export interface PowerPlantMapPoint {
   name: string;
   ownerName: string | null;
   technologyDetail: string | null;
+  plantType: string | null;
   status: string | null;
   capacityMw: number | null;
   lat: number;
   lng: number;
+}
+
+// Filtro conservador para el Chile continental. La fuente contiene algunas
+// coordenadas evidentemente erróneas en el Pacífico o al este de la frontera.
+// Los límites se interpolan por latitud para seguir la forma larga y angosta
+// del país sin aceptar un rectángulo que incluiría buena parte de Argentina.
+const CHILE_LONGITUDE_CORRIDOR = [
+  { lat: -17.5, west: -70.45, east: -68.8 },
+  { lat: -20, west: -70.25, east: -68.4 },
+  { lat: -23, west: -70.65, east: -67.9 },
+  { lat: -26, west: -70.85, east: -68.3 },
+  { lat: -30, west: -71.55, east: -69.2 },
+  { lat: -32, west: -71.65, east: -69.8 },
+  { lat: -34, west: -72.05, east: -70.1 },
+  { lat: -36, west: -72.85, east: -70.5 },
+  { lat: -38, west: -73.55, east: -71.0 },
+  { lat: -40, west: -73.25, east: -71.5 },
+  { lat: -42, west: -74.05, east: -71.7 },
+  { lat: -46, west: -75.0, east: -71.7 },
+  { lat: -50, west: -75.0, east: -72.2 },
+  { lat: -53, west: -74.5, east: -69.0 },
+  { lat: -56, west: -72.2, east: -66.8 },
+] as const;
+
+function isLikelyInContinentalChile(lat: number, lng: number): boolean {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat > -17.5 || lat < -56) return false;
+  for (let index = 1; index < CHILE_LONGITUDE_CORRIDOR.length; index += 1) {
+    const north = CHILE_LONGITUDE_CORRIDOR[index - 1];
+    const south = CHILE_LONGITUDE_CORRIDOR[index];
+    if (lat <= north.lat && lat >= south.lat) {
+      const ratio = (north.lat - lat) / (north.lat - south.lat);
+      const west = north.west + (south.west - north.west) * ratio;
+      const east = north.east + (south.east - north.east) * ratio;
+      return lng >= west && lng <= east;
+    }
+  }
+  return false;
 }
 
 // El cap de 1000 filas de PostgREST aplica por respuesta, no al total — se pagina
@@ -96,7 +145,7 @@ export async function getPowerPlantsForMap(
   while (true) {
     let query = client
       .from("power_plant")
-      .select("id_central, name, owner_name, technology_detail, status, net_capacity_mw, latitude, longitude")
+      .select("id_central, name, owner_name, technology_detail, plant_type, status, net_capacity_mw, latitude, longitude")
       .eq("is_hidden", false)
       .not("latitude", "is", null);
     if (filters.status) query = query.eq("status", filters.status);
@@ -111,11 +160,13 @@ export async function getPowerPlantsForMap(
     if (!data || data.length === 0) break;
 
     for (const row of data) {
+      if (!isLikelyInContinentalChile(row.latitude, row.longitude)) continue;
       all.push({
         id: row.id_central,
         name: row.name,
         ownerName: row.owner_name,
         technologyDetail: row.technology_detail,
+        plantType: row.plant_type,
         status: row.status,
         capacityMw: row.net_capacity_mw,
         lat: row.latitude,

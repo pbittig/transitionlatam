@@ -31,10 +31,10 @@ const plans = [
     clp: 0,
     seats: 1,
     users: "1 usuario",
-    description: "Para conocer la plataforma y comprobar si la información responde a las necesidades de tu equipo.",
+    description: "Para conocer la plataforma y comprobar si la información responde a las necesidades de su equipo.",
     bestFor: "Personas evaluando la plataforma o equipos que necesitan validar rápidamente la cobertura disponible.",
     receives: ["Panorama de la matriz eléctrica", "Exploración inicial de proyectos futuros", "Vista de muestra de módulos avanzados"],
-    outcome: "Confirmar si Transition LATAM cubre tu mercado y definir qué proyectos vale la pena analizar con mayor profundidad.",
+    outcome: "Confirmar si Transition LATAM cubre su mercado y definir qué proyectos conviene analizar con mayor profundidad.",
     features: [
       "14 días de acceso gratuito",
       "Panorama general de infraestructura energética",
@@ -45,58 +45,35 @@ const plans = [
     featured: false,
   },
   {
-    code: "lite",
-    name: "Lite",
-    eyebrow: "Análisis y monitoreo",
-    usd: 1200,
-    clp: Math.round(1200 * USD_CLP / 1000) * 1000,
-    seats: 2,
-    users: "2 usuarios",
-    description: "Para equipos que necesitan revisar proyectos en detalle y recibir señales cuando cambian.",
-    bestFor: "Equipos de desarrollo, ingeniería, proveedores y asesores que monitorean una cartera activa de proyectos.",
-    receives: ["Fichas completas y cronología estimada", "Análisis dinámico por tecnología y etapa", "Monitoreo, alertas e historial de cambios"],
-    outcome: "Priorizar proyectos, anticipar hitos y volver al equipo cuando aparece una señal relevante sin revisar manualmente toda la cartera.",
-    features: [
-      "Todo lo disponible en Free",
-      "Acceso completo a las fichas de proyectos",
-      "Listado completo de proyectos futuros",
-      "Alertas e historial de cambios de proyectos",
-      "2 cuentas para integrantes de la misma empresa",
-    ],
-    cta: "Elegir Lite",
-    featured: false,
-  },
-  {
     code: "premium",
-    name: "Premium",
-    eyebrow: "Análisis y gestión comercial",
-    usd: 1450,
-    clp: Math.round(1450 * USD_CLP / 1000) * 1000,
+    name: "Prime",
+    eyebrow: "Inteligencia y gestión comercial",
+    usd: 1600,
+    clp: Math.round(1600 * USD_CLP / 1000) * 1000,
+    semiannualUsd: 950,
+    semiannualClp: Math.round(950 * USD_CLP / 1000) * 1000,
     seats: 3,
     users: "3 usuarios",
     description: "Para equipos que además necesitan entender empresas, organizar oportunidades y preparar análisis.",
     bestFor: "Equipos comerciales, inversionistas, EPC y proveedores que convierten inteligencia de mercado en pipeline y ventas.",
-    receives: ["Todo el análisis y monitoreo de Lite", "Empresas, grupos, SPV y contexto relacional", "CRM, Nexo y reportes asistidos"],
+    receives: ["Análisis completo y seguimiento de proyectos", "Empresas, grupos, SPV y contexto relacional", "CRM, Nexo y reportes asistidos"],
     outcome: "Pasar del proyecto detectado a una oportunidad gestionada, con contexto empresarial, responsable y próximo paso compartido.",
     features: [
-      "Todo lo incluido en Lite",
+      "Todo lo disponible en Free",
+      "Acceso completo a fichas, análisis y seguimiento",
       "Mapa de empresas, propietarios y sociedades de proyecto (SPV)",
       "Gestión comercial (CRM), oportunidades y próximos pasos",
       "Nexo para hacer preguntas sobre la plataforma",
       "Creación asistida de análisis y reportes",
       "3 cuentas para integrantes de la misma empresa",
     ],
-    cta: "Elegir Premium",
+    cta: "Elegir Prime",
     featured: true,
   },
 ] as const;
 
 function formatClp(value: number) {
   return value.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-}
-
-function formatUsd(value: number) {
-  return value.toLocaleString("es-CL", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 export default async function PlansPage() {
@@ -110,21 +87,21 @@ export default async function PlansPage() {
         <span className="absolute -top-24 right-10 h-64 w-64 rounded-full border border-white/10" aria-hidden />
         <span className="absolute -right-16 -bottom-32 h-80 w-80 rounded-full bg-brand-primary/20 blur-3xl" aria-hidden />
         <div className="relative max-w-3xl">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Elige el nivel de inteligencia que necesita tu equipo.</h1>
+          <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Seleccione el nivel de inteligencia que necesita su equipo.</h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-white/75 md:text-base">
-            Un contrato anual por empresa, con cuentas de usuario incluidas y precios finales con IVA.
+            Seleccione acceso gratuito por 14 días o Prime con contratación semestral o anual para su empresa.
           </p>
           <div className="mt-6 flex flex-wrap gap-2 text-[11px] font-medium text-white/75">
-            <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5">Pago anual</span>
+            <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5">Pago semestral o anual</span>
             <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5">IVA incluido</span>
             <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5">Usuarios por empresa incluidos</span>
           </div>
         </div>
       </section>
 
-      <section className="grid items-stretch gap-5 lg:grid-cols-3" aria-label="Comparación de planes">
+      <section className="mx-auto grid w-full max-w-5xl items-stretch gap-5 md:grid-cols-2" aria-label="Comparación de planes">
         {plans.map((plan) => {
-          const isCurrent = currentPlan === plan.code;
+          const isCurrent = currentPlan === plan.code || (plan.code === "premium" && currentPlan === "lite");
           return (
             <article
               key={plan.code}
@@ -138,7 +115,7 @@ export default async function PlansPage() {
                 <h2 className="text-2xl font-semibold text-neutral-950 dark:text-white">{plan.name}</h2>
                 {isCurrent && (
                   <span className="rounded-full bg-brand-surface px-2.5 py-1 text-[10px] font-semibold text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary">
-                    Tu plan
+                    Plan actual
                   </span>
                 )}
               </div>
@@ -149,31 +126,19 @@ export default async function PlansPage() {
                 </div>
               ) : (
                 <div className="mt-6">
-                  <p className="flex items-baseline gap-1 text-neutral-950 dark:text-white">
-                    <span className="text-4xl font-semibold tracking-tight">USD {plan.usd.toLocaleString("es-CL")}</span>
-                    <span className="text-sm text-neutral-500">/año</span>
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-brand-deep dark:text-brand-primary">
-                    ≈ {formatClp(plan.clp)} CLP al año
-                  </p>
-                  <p className="mt-1 text-xs text-neutral-500">IVA incluido</p>
-                  <div className="mt-4 rounded-xl border border-brand-primary/30 bg-gradient-to-r from-brand-surface to-brand-primary/10 px-4 py-3 dark:from-brand-primary/10 dark:to-brand-primary/5">
-                    <p className="text-xs font-medium text-neutral-600">
-                      Costo mensual equivalente por usuario
-                    </p>
-                    <p className="mt-1 flex flex-wrap items-baseline gap-x-1 text-brand-ink dark:text-white">
-                      <span className="text-2xl font-semibold">
-                        USD {formatUsd(plan.usd / 12 / plan.seats)}
-                      </span>
-                      <span className="text-xs text-neutral-500 dark:text-neutral-400">/ usuario / mes</span>
-                    </p>
-                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                      ≈ {formatClp(plan.clp / 12 / plan.seats)} CLP mensuales por usuario
-                    </p>
-                    <p className="mt-2 text-[10px] font-medium text-brand-deep dark:text-brand-primary">
-                      Solo como referencia · el plan se contrata y paga por año
-                    </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Semestral</p>
+                      <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">USD {plan.semiannualUsd.toLocaleString("es-CL")}</p>
+                      <p className="mt-1 text-xs text-neutral-500">por 6 meses · ≈ {formatClp(plan.semiannualClp)} CLP</p>
+                    </div>
+                    <div className="rounded-xl border border-brand-primary bg-brand-surface/60 p-4 dark:bg-brand-primary/10">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-brand-deep dark:text-brand-primary">Anual · mejor valor</p>
+                      <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">USD {plan.usd.toLocaleString("es-CL")}</p>
+                      <p className="mt-1 text-xs text-neutral-500">por 12 meses · ≈ {formatClp(plan.clp)} CLP</p>
+                    </div>
                   </div>
+                  <p className="mt-2 text-xs text-neutral-500">Precios finales con IVA incluido.</p>
                 </div>
               )}
               <div className="mt-5 inline-flex w-fit items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs font-medium text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
@@ -217,10 +182,8 @@ export default async function PlansPage() {
                   <LockKeyhole size={15} /> Plan actual
                 </span>
               ) : (
-                <a
-                  href={`https://www.onixcg.com/contacto?plan=${plan.code}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href={`/requerimientos?plan=${plan.code === "premium" ? "prime" : plan.code}`}
                   className={`mt-7 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
                     plan.featured
                       ? "bg-brand-primary text-[#333333] hover:brightness-95"
@@ -228,7 +191,7 @@ export default async function PlansPage() {
                   }`}
                 >
                   {plan.cta} <ArrowRight size={15} />
-                </a>
+                </Link>
               )}
             </article>
           );
@@ -236,7 +199,7 @@ export default async function PlansPage() {
       </section>
 
       <p className="-mt-5 text-center text-xs text-neutral-500 dark:text-neutral-400">
-        Conversión referencial con dólar observado de {formatClp(USD_CLP)} por USD al {FX_DATE}. El cobro se realiza anualmente.
+        Conversión referencial con dólar observado de {formatClp(USD_CLP)} por USD al {FX_DATE}. Prime puede contratarse por semestre o por año.
       </p>
 
       <section>
@@ -251,37 +214,37 @@ export default async function PlansPage() {
             {
               icon: Building2,
               name: "Fichas completas",
-              plan: "Lite",
+              plan: "Prime",
               text: "Información técnica, empresa desarrolladora, ubicación, etapa, fechas y antecedentes del proyecto.",
             },
             {
               icon: Activity,
               name: "Monitoreo y alertas",
-              plan: "Lite",
+              plan: "Prime",
               text: "Avisos cuando cambia el estado, la capacidad, una fecha relevante, la conexión o un hito ambiental.",
             },
             {
               icon: Network,
               name: "Empresas y relaciones",
-              plan: "Premium",
+              plan: "Prime",
               text: "Vista de desarrolladores, sociedades de proyecto (SPV), propietarios y empresas relacionadas.",
             },
             {
               icon: ListChecks,
               name: "Gestión comercial (CRM)",
-              plan: "Premium",
-              text: "Organiza oportunidades, conversaciones, responsables y próximos pasos vinculados a cada proyecto.",
+              plan: "Prime",
+              text: "Organice oportunidades, conversaciones, responsables y próximos pasos vinculados a cada proyecto.",
             },
             {
               icon: Bot,
               name: "Nexo",
-              plan: "Premium",
+              plan: "Prime",
               text: "Permite hacer preguntas en lenguaje natural y comparar información disponible en la plataforma.",
             },
             {
               icon: FileText,
               name: "Reportes asistidos",
-              plan: "Premium",
+              plan: "Prime",
               text: "Ayuda a convertir una consulta o selección de proyectos en un resumen estructurado para análisis.",
             },
           ].map(({ icon: Icon, name, plan, text }) => (
@@ -326,7 +289,7 @@ export default async function PlansPage() {
           </div>
           <div className="space-y-3 p-4">
             <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-brand-deep px-4 py-3 text-sm text-white">
-              Compara los proyectos BESS que entrarían en operación durante 2027.
+              Compare los proyectos BESS que entrarían en operación durante 2027.
             </div>
             <div className="max-w-[90%] rounded-2xl rounded-bl-sm bg-neutral-100 px-4 py-3 text-sm leading-6 text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
               Encontré proyectos relevantes. Puedo ordenarlos por capacidad, desarrollador, región y madurez, o preparar un reporte ejecutivo.
@@ -340,9 +303,9 @@ export default async function PlansPage() {
       </section>
 
       <div className="text-center">
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">¿Necesitas confirmar el plan adecuado para tu empresa?</p>
-        <Link href="https://www.onixcg.com/contacto" target="_blank" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-deep hover:underline dark:text-brand-primary">
-          Hablar con ONIX <ArrowRight size={14} />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">¿Necesita confirmar el plan adecuado para su empresa?</p>
+        <Link href="/requerimientos?motivo=planes" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-deep hover:underline dark:text-brand-primary">
+          Solicitar información <ArrowRight size={14} />
         </Link>
       </div>
     </div>

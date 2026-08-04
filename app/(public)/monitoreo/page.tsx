@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import MonitoreoPage from "../alertas/page";
 
-export const metadata: Metadata = { title: "Monitoreo" };
+export const metadata: Metadata = { title: "Seguimiento" };
 export const dynamic = "force-dynamic";
 
 export default MonitoreoPage;

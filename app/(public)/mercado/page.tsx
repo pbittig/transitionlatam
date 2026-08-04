@@ -2,11 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Activity, BatteryCharging, Building2 } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
-import { getPowerPlantRegionBubbles, getPowerPlantStats, listPowerPlants } from "@/lib/data-access/powerPlants";
+import { getLatestCapacitySourceDate, getPowerPlantRegionBubbles, getPowerPlantsForMap, getPowerPlantStats, listPowerPlants } from "@/lib/data-access/powerPlants";
 import { getConstructionStats, getConstructionProjects } from "@/lib/data-access/construction";
-import { getUpcomingScheduleInputs } from "@/lib/data-access/pipeline";
-import { computePipelineByTechnology } from "@/lib/shared/marketSnapshot";
-import { MARKET_TECH_CATEGORIES, constructionTechToCategory, operationPlantTypeToCategory } from "@/lib/shared/marketTechCategories";
 import { chipsToNamePatterns, chipsToPlantTypes, parseChipKeys, TECH_CHIPS } from "../components/techChips";
 import { TechChipFilter } from "../components/TechChipFilter";
 import { SearchBar } from "../components/SearchBar";
@@ -19,8 +16,8 @@ import { BubbleChart } from "../components/BubbleChart";
 import { Panel } from "../components/Panel";
 import { OwnerCapacityDonut } from "../components/OwnerCapacityDonut";
 import { TechnologyCapacityDonut } from "../components/TechnologyCapacityDonut";
-import { TechStageHeatmap, type HeatmapColumn } from "../components/TechStageHeatmap";
 import { ModuleGuide } from "../components/ModuleGuide";
+import { MapView } from "../components/MapView";
 
 export const metadata: Metadata = { title: "Mercado — Transition LATAM" };
 export const dynamic = "force-dynamic";
@@ -55,13 +52,14 @@ export default async function MercadoPage({
 
   const client = await createSupabaseServerClient();
 
-  const [stats, regionBubbles, plantList, constructionStats, constructionProjects, scheduleInputs] = await Promise.all([
+  const [stats, regionBubbles, plantList, operatingPlantsMap, capacitySourceDate, constructionStats, constructionProjects] = await Promise.all([
     getPowerPlantStats(client),
     getPowerPlantRegionBubbles(client),
     listPowerPlants(client, { status: params.estado, plantTypes, namePatterns, search }, page, PAGE_SIZE),
+    getPowerPlantsForMap(client, { status: "Operativa" }),
+    getLatestCapacitySourceDate(client),
     getConstructionStats(client),
     getConstructionProjects(client),
-    getUpcomingScheduleInputs(client),
   ]);
   const totalPages = Math.max(1, Math.ceil(plantList.totalCount / plantList.pageSize));
   const constructionTotalPages = Math.max(1, Math.ceil(constructionProjects.length / CONSTRUCTION_PAGE_SIZE));
@@ -74,27 +72,6 @@ export default async function MercadoPage({
   const topOwnerShare = topOwner && stats.operatingCapacityMw > 0 ? (topOwner.capacityMw / stats.operatingCapacityMw) * 100 : 0;
   const topRegion = [...regionBubbles].sort((a, b) => b.capacityMw - a.capacityMw)[0];
 
-  // Heatmap Tecnología × Etapa — normaliza las tres fuentes (plant_type, tipo_tecnologia_final, technology.code) a las mismas categorías.
-  const pipelineByTechnology = computePipelineByTechnology(scheduleInputs);
-  const operationValues: Partial<Record<(typeof MARKET_TECH_CATEGORIES)[number], number>> = {};
-  for (const t of stats.byTechnology) {
-    const cat = operationPlantTypeToCategory(t.technology);
-    if (cat) operationValues[cat] = (operationValues[cat] ?? 0) + t.capacityMw;
-  }
-  const constructionValues: Partial<Record<(typeof MARKET_TECH_CATEGORIES)[number], number>> = {};
-  for (const p of constructionProjects) {
-    const cat = constructionTechToCategory(p.tipoTecnologiaFinal);
-    if (cat) constructionValues[cat] = (constructionValues[cat] ?? 0) + (p.potenciaNetaMw ?? 0);
-  }
-  const pipelineValues: Partial<Record<(typeof MARKET_TECH_CATEGORIES)[number], number>> = {};
-  for (const t of pipelineByTechnology) {
-    pipelineValues[t.category] = t.capacityMw;
-  }
-  const heatmapColumns: HeatmapColumn[] = [
-    { key: "operacion", label: "Operación", values: operationValues },
-    { key: "construccion", label: "Construcción", values: constructionValues },
-    { key: "pipeline", label: "Pipeline", values: pipelineValues },
-  ];
   // Proyectos con BESS: standalone (tecnología final = BESS) o incorporado a otra
   // central (proyecto_bess_asociado) — la única fuente con esta granularidad hoy
   // es la Declaración en Construcción de la CNE, no el registro de centrales operativas.
@@ -113,9 +90,9 @@ export default async function MercadoPage({
         <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative">
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Matriz eléctrica</h1>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Proyectos en Operación</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
-          Revisa la capacidad operativa del sistema, las obras en construcción y su composición tecnológica. Fuentes: CNE y Coordinador Eléctrico Nacional.
+          Revise la capacidad operativa del sistema, las obras en construcción y su composición tecnológica. Fuentes: CNE y Coordinador Eléctrico Nacional.
           </p>
         </div>
       </section>
@@ -123,23 +100,27 @@ export default async function MercadoPage({
       <ModuleGuide
         purpose="Entender cómo está compuesta hoy la matriz eléctrica chilena y cómo cambia al incorporar centrales en construcción y proyectos futuros."
         deliverables={["Capacidad y centrales por tecnología y región", "Principales propietarios y concentración", "Comparación entre operación, construcción y pipeline"]}
-        howToUse={["Filtra por tecnología o estado", "Compara capacidad instalada y futura", "Identifica brechas, concentración y crecimiento"]}
+        howToUse={["Filtre por tecnología o estado", "Compare la capacidad instalada y futura", "Identifique brechas, concentración y crecimiento"]}
         plan="Free"
-        upgradeMessage="Free entrega el panorama de mercado; Lite agrega profundidad por proyecto, análisis y monitoreo."
+        upgradeMessage="Free entrega el panorama de mercado; Prime agrega profundidad por proyecto, análisis y seguimiento."
       />
 
       <section aria-labelledby="system-summary-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="system-summary-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Capacidad por etapa de desarrollo</h2>
+            <h2 id="system-summary-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Datos del sistema eléctrico nacional</h2>
           </div>
-          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">Compara lo que ya opera, lo que se está construyendo y lo que todavía busca materializarse.</p>
+          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
+            {capacitySourceDate
+              ? `Capacidad instalada actualizada al ${new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${capacitySourceDate}T00:00:00Z`))}. Fuente: CNE.`
+              : "Fuente: Comisión Nacional de Energía (CNE)."}
+          </p>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[
-            { icon: Activity, label: "En operación", value: `${(stats.operatingCapacityMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${stats.totalPlants.toLocaleString("es-CL")} centrales registradas`, iconClass: "bg-brand-surface text-brand-deep" },
-            { icon: Building2, label: "En construcción", value: `${(constructionStats.totalPotenciaMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${constructionStats.count.toLocaleString("es-CL")} proyectos declarados`, iconClass: "bg-brand-surface text-brand-deep" },
-            { icon: BatteryCharging, label: "BESS en construcción", value: `${(bessTotalMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`, detail: `${bessProjects.length.toLocaleString("es-CL")} proyectos con baterías`, iconClass: "bg-brand-surface text-brand-deep" },
+            { icon: Activity, label: "En operación · capacidad neta", value: `${Math.round(stats.operatingCapacityMw).toLocaleString("es-CL")} MW`, detail: `${stats.totalPlants.toLocaleString("es-CL")} centrales registradas`, iconClass: "bg-brand-surface text-brand-deep" },
+            { icon: Building2, label: "En construcción · capacidad neta", value: `${Math.round(constructionStats.totalPotenciaMw).toLocaleString("es-CL")} MW`, detail: `${constructionStats.count.toLocaleString("es-CL")} proyectos declarados`, iconClass: "bg-brand-surface text-brand-deep" },
+            { icon: BatteryCharging, label: "BESS en construcción · capacidad neta", value: `${Math.round(bessTotalMw).toLocaleString("es-CL")} MW`, detail: `${bessProjects.length.toLocaleString("es-CL")} proyectos con baterías`, iconClass: "bg-brand-surface text-brand-deep" },
           ].map(({ icon: Icon, label, value, detail, iconClass }) => (
             <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
@@ -193,14 +174,33 @@ export default async function MercadoPage({
         </div>
       </section>
 
+      {operatingPlantsMap.length > 0 && (
+        <section className="flex flex-col gap-4" aria-labelledby="operating-map-title">
+          <div>
+            <h2 id="operating-map-title" className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Mapa de proyectos en operación</h2>
+            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+              Ubicación de {operatingPlantsMap.length.toLocaleString("es-CL")} centrales operativas con coordenadas disponibles. Seleccione un punto para revisar su tecnología, capacidad y propietario.
+            </p>
+          </div>
+          <MapView regionBubbles={[]} precisePoints={[]} powerPlants={operatingPlantsMap} />
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+            <p className="font-semibold text-neutral-800 dark:text-neutral-200">Notas:</p>
+            <ol className="mt-1 list-decimal space-y-1 pl-5">
+              <li>La capacidad instalada neta no considera los sistemas de «Los Lagos» (10,5 MW) e «Isla de Pascua» (8 MW).</li>
+              <li>La central de Gas Natural localizada en Salta (Argentina), interconectada al SING (380 MW), no se considera.</li>
+            </ol>
+          </div>
+        </section>
+      )}
+
       <section className="order-last flex flex-col gap-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Parque generador y almacenamiento</h2>
+          <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Proyectos en Operación</h2>
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{plantList.totalCount.toLocaleString("es-CL")} activos en la vista</span>
         </div>
 
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtra la infraestructura</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combina tecnología, condición operativa y búsqueda por central o propietario.</p></div>{hasFilter && <Link href="/matriz" className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtre la infraestructura</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combine tecnología, condición operativa y búsqueda por central o propietario.</p></div>{hasFilter && <Link href="/matriz" className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
           <SearchBar basePath="/matriz" value={search} otherParams={{ tech: params.tech }} placeholder="Buscar por nombre de central o propietario...">
             <select
               name="estado"
@@ -243,31 +243,15 @@ export default async function MercadoPage({
         <section className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Construcción</h2>
           <p className="-mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Declaración en Construcción de la Comisión Nacional de Energía (CNE) — incluye generación, almacenamiento
-            (BESS) y transmisión.
+            Declaración en Construcción de la Comisión Nacional de Energía (CNE) (incluye: Generación + Almacenamiento).
           </p>
           <Panel className="flex flex-col gap-4">
-            <p className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-              {constructionStats.count.toLocaleString("es-CL")} proyectos ·{" "}
-              {Math.round(constructionStats.totalPotenciaMw).toLocaleString("es-CL")} MW ·{" "}
-              {constructionStats.bessCount.toLocaleString("es-CL")} con BESS
-            </p>
             <ConstructionProjectTable items={paginatedConstructionProjects} />
             <Pager
               page={constructionPage}
               totalPages={constructionTotalPages}
               buildHref={(nextPage) => buildHref(params, { construccionPage: String(nextPage) })}
             />
-          </Panel>
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">¿Dónde está el mercado?</h2>
-          <p className="-mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Tecnología × Etapa, en MW — Operación, Construcción y Pipeline lado a lado.
-          </p>
-          <Panel>
-            <TechStageHeatmap categories={[...MARKET_TECH_CATEGORIES]} columns={heatmapColumns} />
           </Panel>
         </section>
 

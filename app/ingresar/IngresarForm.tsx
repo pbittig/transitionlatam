@@ -34,7 +34,7 @@ export function IngresarForm({ locale = "es" }: { locale?: AppLocale }) {
           name="password"
           type="password"
           required
-          placeholder={locale === "en" ? "Your password" : "Tu contraseña"}
+          placeholder={locale === "en" ? "Your password" : "Su contraseña"}
           className="w-full rounded-xl border border-neutral-300 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 dark:border-neutral-700"
         />
       </div>

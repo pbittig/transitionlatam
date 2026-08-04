@@ -34,7 +34,7 @@ function ProjectTechnologyIcon({ project, locale }: { project: ProjectListItem; 
 
 function TablePlanGate({
   children,
-  label = "Disponible en plan Lite o Premium",
+  label = "Disponible en plan Prime",
   narrow = false,
 }: {
   children: React.ReactNode;
@@ -97,7 +97,7 @@ export function ProjectTable({
         <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 text-left text-xs font-medium text-neutral-500">
           <tr>
             <th className="px-3 py-3 font-medium">{locale === "en" ? "Project" : "Proyecto"}</th>
-            <th className="px-3 py-3 font-medium">{locale === "en" ? "Generation (MW)" : "Generación (MW)"}</th>
+            <th className="px-3 py-3 font-medium">{locale === "en" ? "Renewable generation (MW)" : "Renovable (MW)"}</th>
             <th className="px-3 py-3 font-medium">{locale === "en" ? "Battery (MW/MWh)" : "Batería (MW/MWh)"}</th>
             {seiaByProjectId && <th className="px-3 py-3 font-medium"><LockedColumnHeader locked={isFree}>{locale === "en" ? "Environmental status" : "Estado ambiental"}</LockedColumnHeader></th>}
             <th className="px-3 py-3 font-medium"><LockedColumnHeader locked={isFree}>{locale === "en" ? "Connection progress" : "Avance de conexión"}</LockedColumnHeader></th>
@@ -170,7 +170,7 @@ export function ProjectTable({
                 {seiaByProjectId && (
                   <td className="px-3 py-3">
                     {isFree ? (
-                      <TablePlanGate label={locale === "en" ? "Environmental status available from the Lite plan" : "Estado ambiental disponible desde el plan Lite"}>
+                      <TablePlanGate label={locale === "en" ? "Environmental status available on Prime" : "Estado ambiental disponible en Prime"}>
                         {seia ? (
                           <SeiaStatusBar status={seia.status} submissionType={seia.submissionType} compact />
                         ) : (
@@ -186,7 +186,7 @@ export function ProjectTable({
                 )}
                 <td className="px-3 py-3">
                   {isFree ? (
-                    <TablePlanGate label={locale === "en" ? "Connection progress available from the Lite plan" : "Avance de conexión disponible desde el plan Lite"}>
+                    <TablePlanGate label={locale === "en" ? "Connection progress available on Prime" : "Avance de conexión disponible en Prime"}>
                       <ThermalStatusBar status={p.status} compact showPercentage />
                     </TablePlanGate>
                   ) : (
@@ -210,7 +210,7 @@ export function ProjectTable({
                 </td>
                 <td className="w-20 px-3 py-3">
                   {isFree ? (
-                    <TablePlanGate label={locale === "en" ? "Health Score available from the Lite plan" : "Health Score disponible desde el plan Lite"} narrow>
+                    <TablePlanGate label={locale === "en" ? "Health Score available on Prime" : "Health Score disponible en Prime"} narrow>
                       <HealthScoreBadge health={health} compact />
                     </TablePlanGate>
                   ) : (
@@ -219,7 +219,7 @@ export function ProjectTable({
                 </td>
                 <td className="w-20 px-3 py-3">
                   {isFree ? (
-                    <TablePlanGate label={locale === "en" ? "CRM available on the Premium plan" : "CRM disponible en el plan Premium"} narrow>
+                    <TablePlanGate label={locale === "en" ? "CRM available on Prime" : "CRM disponible en Prime"} narrow>
                       <ContactRound size={16} className="text-neutral-500" />
                     </TablePlanGate>
                   ) : (

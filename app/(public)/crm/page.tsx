@@ -51,11 +51,13 @@ export default async function CrmPage() {
   }
 
   const premiumLocked = !admin && profile?.planCode !== "premium";
-  const serviceClient = (await import("@/lib/data-access/supabase-service-client")).createSupabaseServiceClient();
-  const [opportunities, projectOptions] = await Promise.all([
-    getOpportunityBoard(serviceClient),
-    getOpportunityProjectOptions(serviceClient),
-  ]);
+  const crmClient = admin
+    ? (await import("@/lib/data-access/supabase-service-client")).createSupabaseServiceClient()
+    : premiumLocked ? null : client;
+  // Nunca se envían oportunidades reales al HTML bloqueado de un usuario Free.
+  const [opportunities, projectOptions] = crmClient
+    ? await Promise.all([getOpportunityBoard(crmClient), getOpportunityProjectOptions(crmClient)])
+    : [[], []];
   const contactReady = opportunities.filter((item) => item.stage === "contacto").length;
   const inConversation = opportunities.filter((item) => item.stage === "reunion").length;
   const withNextStep = opportunities.filter((item) => item.nextStepAt).length;
@@ -73,7 +75,7 @@ export default async function CrmPage() {
           <div className="max-w-3xl">
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">CRM</h1>
             <p className="mt-3 text-sm leading-6 text-white/75 md:text-base">
-              {locale === "en" ? "Turn an identified project into an actionable opportunity: understand the context, identify the right company and contact, assign an owner and never lose the next step." : "Convierte un proyecto detectado en una oportunidad accionable: entiende el contexto, identifica la empresa y el contacto correcto, define un responsable y nunca pierdas el próximo paso."}
+              {locale === "en" ? "Turn an identified project into an actionable opportunity: understand the context, identify the right company and contact, assign an owner and never lose the next step." : "Convierta un proyecto identificado en una oportunidad accionable: comprenda el contexto, identifique la empresa y el contacto correctos, defina un responsable y mantenga siempre un próximo paso."}
             </p>
           </div>
           <Link href="/proyectos" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink shadow-sm transition hover:-translate-y-0.5">
@@ -85,15 +87,15 @@ export default async function CrmPage() {
       <ModuleGuide
         purpose={locale === "en" ? "Turn identified projects into commercial opportunities with ownership, priority, next action and shared context." : "Convertir proyectos detectados en oportunidades comerciales con responsable, prioridad, próxima acción y contexto compartido."}
         deliverables={locale === "en" ? ["Opportunity pipeline by stage", "Owners, conversations and next steps", "Direct link to project, company and team"] : ["Pipeline de oportunidades por etapa", "Responsables, conversaciones y próximos pasos", "Vínculo directo con proyecto, empresa y equipo"]}
-        howToUse={locale === "en" ? ["Select a project with potential", "Register the opportunity and its owner", "Update the next step until won or discarded"] : ["Selecciona un proyecto con potencial", "Registra la oportunidad y su responsable", "Actualiza el próximo paso hasta cerrar o descartar"]}
-        plan="Premium"
-        upgradeMessage={locale === "en" ? "Premium combines market data, companies, CRM and assisted analysis in one commercial workflow." : "Premium une datos de mercado, empresas, CRM y análisis asistido en un mismo flujo comercial."}
+        howToUse={locale === "en" ? ["Select a project with potential", "Register the opportunity and its owner", "Update the next step until won or discarded"] : ["Seleccione un proyecto con potencial", "Registre la oportunidad y su responsable", "Actualice el próximo paso hasta cerrar o descartar"]}
+        plan="Prime"
+        upgradeMessage={locale === "en" ? "Prime combines market data, companies, CRM and assisted analysis in one commercial workflow." : "Prime une datos de mercado, empresas, CRM y análisis asistido en un mismo flujo comercial."}
         locale={locale}
       />
 
       <section aria-labelledby="crm-role-title">
-        <h2 id="crm-role-title" className="text-xl font-semibold text-neutral-950 dark:text-white">{locale === "en" ? "Use it according to your role in the ecosystem" : "Úsalo según tu rol en el ecosistema"}</h2>
-        <p className="mt-2 text-sm text-neutral-500">{locale === "en" ? "Organize opportunities according to your company's role in the energy market." : "Organiza oportunidades de acuerdo con la función de tu empresa en el mercado energético."}</p>
+        <h2 id="crm-role-title" className="text-xl font-semibold text-neutral-950 dark:text-white">{locale === "en" ? "Use it according to your role in the ecosystem" : "Utilice el CRM según su rol en el ecosistema"}</h2>
+        <p className="mt-2 text-sm text-neutral-500">{locale === "en" ? "Organize opportunities according to your company's role in the energy market." : "Organice las oportunidades de acuerdo con la función de su empresa en el mercado energético."}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
             { icon: Zap, role: "IPP / Developer", value: locale === "en" ? "Partners, land, connection and competing portfolios" : "Socios, terrenos, conexión y cartera competidora" },
@@ -112,10 +114,10 @@ export default async function CrmPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen de oportunidades">
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><BriefcaseBusiness size={15} className="text-brand-primary" /> {locale === "en" ? "Active pipeline" : "Pipeline activo"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Premium">{active}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? `${contactReady} to contact · ${inConversation} in meetings` : `${contactReady} por contactar · ${inConversation} en reunión`}</p></Panel>
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><CircleAlert size={15} className="text-brand-primary" /> {locale === "en" ? "Needs attention" : "Requieren atención"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Premium">{overdue}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "overdue actions to resolve" : "acciones vencidas que conviene resolver"}</p></Panel>
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Clock3 size={15} className="text-brand-primary" /> {locale === "en" ? "With next action" : "Con próxima acción"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Premium">{withNextStep}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities with scheduled follow-up" : "oportunidades con seguimiento programado"}</p></Panel>
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Handshake size={15} className="text-brand-primary" /> {locale === "en" ? "Won" : "Ganadas"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Premium">{won}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities converted into results" : "oportunidades convertidas en resultado"}</p></Panel>
+        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><BriefcaseBusiness size={15} className="text-brand-primary" /> {locale === "en" ? "Active pipeline" : "Pipeline activo"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{active}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? `${contactReady} to contact · ${inConversation} in meetings` : `${contactReady} por contactar · ${inConversation} en reunión`}</p></Panel>
+        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><CircleAlert size={15} className="text-brand-primary" /> {locale === "en" ? "Needs attention" : "Requieren atención"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{overdue}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "overdue actions to resolve" : "acciones vencidas que conviene resolver"}</p></Panel>
+        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Clock3 size={15} className="text-brand-primary" /> {locale === "en" ? "With next action" : "Con próxima acción"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{withNextStep}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities with scheduled follow-up" : "oportunidades con seguimiento programado"}</p></Panel>
+        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Handshake size={15} className="text-brand-primary" /> {locale === "en" ? "Won" : "Ganadas"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{won}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities converted into results" : "oportunidades convertidas en resultado"}</p></Panel>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -130,10 +132,10 @@ export default async function CrmPage() {
         </div>
         <PlanGate
           locked={premiumLocked}
-          label="Disponible en plan Premium"
+          label="Disponible en plan Prime"
           variant="showcase"
           title={locale === "en" ? "A CRM connected to the energy market" : "Un CRM conectado al mercado energético"}
-          description={locale === "en" ? "Turn projects and market relationships into a shared, prioritized and traceable pipeline." : "Convierte proyectos y relaciones de mercado en un pipeline compartido, priorizado y trazable."}
+          description={locale === "en" ? "Turn projects and market relationships into a shared, prioritized and traceable pipeline." : "Convierta proyectos y relaciones de mercado en un pipeline compartido, priorizado y trazable."}
           features={locale === "en" ? ["Pipeline by stage and owner", "Views for IPPs, investors, EPCs and vendors", "Overdue action alerts", "Project, company and contact context"] : ["Pipeline por etapa y responsable", "Vista para IPP, inversionistas, EPC y proveedores", "Alertas de acciones vencidas", "Contexto del proyecto, empresa y contacto"]}
         >
           <div className="flex flex-col gap-4">
@@ -147,7 +149,7 @@ export default async function CrmPage() {
                 <NewOpportunityForm projects={projectOptions} locale={locale} />
               </div>
             </details>
-            <OpportunityBoard opportunities={opportunities} locale={locale} />
+            <OpportunityBoard opportunities={opportunities} projects={projectOptions} locale={locale} />
           </div>
         </PlanGate>
       </section>
@@ -155,7 +157,7 @@ export default async function CrmPage() {
       <section className="grid gap-4 rounded-3xl border border-brand-primary/25 bg-gradient-to-br from-brand-surface via-white to-white p-6 md:grid-cols-[1fr_auto] md:items-center dark:via-neutral-950 dark:to-neutral-950">
         <div>
           <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">{locale === "en" ? "Research the company behind the project" : "Investiga la empresa detrás del proyecto"}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">{locale === "en" ? "Review the corporate group, related entities and portfolio before preparing a meeting, proposal or commercial approach." : "Revisa el grupo empresarial, las sociedades relacionadas y su cartera antes de preparar una reunión, propuesta o acercamiento comercial."}</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">{locale === "en" ? "Review the corporate group, related entities and portfolio before preparing a meeting, proposal or commercial approach." : "Revise el grupo empresarial, las sociedades relacionadas y sus proyectos antes de preparar una reunión, propuesta o acercamiento comercial."}</p>
         </div>
         <Link href="/empresas" className="inline-flex w-fit items-center gap-2 rounded-xl bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-ink">
           {locale === "en" ? "View companies and relationships" : "Ver empresas y relaciones"} <ArrowUpRight size={15} />

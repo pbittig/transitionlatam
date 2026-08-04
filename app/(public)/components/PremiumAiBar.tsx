@@ -196,7 +196,7 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
                   <Sparkles size={13} className="text-brand-primary" /> {locale === "en" ? "What do you need to analyze?" : "¿Qué necesitas analizar?"}
                 </div>
                 <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  {locale === "en" ? "Explore projects, compare market signals or prepare a synthesis." : "Consulta proyectos, compara señales del mercado o prepara una síntesis."}
+                  {locale === "en" ? "Explore projects, compare market signals or prepare a synthesis." : "Consulte proyectos, compare señales del mercado o prepare una síntesis."}
                 </p>
               </div>}
               {messages.length > 0 && (
@@ -211,8 +211,8 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
               )}
               {messages.length === 0 && <div className="mt-3 grid gap-1.5">
                 {[
-                  { icon: Search, label: locale === "en" ? "Identify the projects closest to connection" : "Identifica los proyectos más próximos a conectarse" },
-                  { icon: GitCompareArrows, label: locale === "en" ? "Compare two projects" : "Compara dos proyectos" },
+                  { icon: Search, label: locale === "en" ? "Identify the projects closest to connection" : "Identifique los proyectos más próximos a conectarse" },
+                  { icon: GitCompareArrows, label: locale === "en" ? "Compare two projects" : "Compare dos proyectos" },
                   { icon: FileText, label: locale === "en" ? "Summarize the main risks" : "Resume los principales riesgos" },
                 ].map(({ icon: Icon, label }) => (
                   <button key={label} type="button" onClick={() => setQuestion(label)} className="flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-left text-[11px] font-medium text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-950">
@@ -239,15 +239,15 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
               <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary">
                 <LockKeyhole size={19} />
               </span>
-              <p className="mt-3 text-sm font-semibold text-neutral-950 dark:text-white">{locale === "en" ? "Nexo is available on Premium" : "Nexo estará disponible en Premium"}</p>
+              <p className="mt-3 text-sm font-semibold text-neutral-950 dark:text-white">{locale === "en" ? "Nexo is available on Prime" : "Nexo estará disponible en Prime"}</p>
               <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-neutral-500 dark:text-neutral-400">
-                {locale === "en" ? "Ask questions about the data, compare projects and prepare reports from the platform." : "Haz preguntas sobre la información, compara proyectos y prepara reportes desde la plataforma."}
+                {locale === "en" ? "Ask questions about the data, compare projects and prepare reports from the platform." : "Realice consultas sobre la información, compare proyectos y prepare reportes desde la plataforma."}
               </p>
               <Link
                 href="/planes"
                 className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-[#333333] transition hover:brightness-95"
               >
-                {locale === "en" ? "Explore Premium" : "Conocer Premium"} <ArrowRight size={14} />
+                {locale === "en" ? "Explore Prime" : "Conocer Prime"} <ArrowRight size={14} />
               </Link>
             </div>
           )}

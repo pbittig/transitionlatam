@@ -26,9 +26,9 @@ export function EnergyVisual() {
           <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-2">
             {[
               { icon: ChartNoAxesCombined, title: "Entiende la matriz", text: "Capacidad instalada, construcción y pipeline en una misma lectura." },
-              { icon: FolderKanban, title: "Detecta proyectos", text: "Encuentra iniciativas futuras por tecnología, etapa, región y fecha." },
+              { icon: FolderKanban, title: "Detecte proyectos", text: "Encuentre iniciativas futuras por tecnología, etapa, región y fecha." },
               { icon: Network, title: "Conoce quién está detrás", text: "Relaciona proyecto, empresa titular, grupo y contactos relevantes." },
-              { icon: BellRing, title: "Actúa en el momento correcto", text: "Sigue cambios clave y transforma señales en oportunidades comerciales." },
+              { icon: BellRing, title: "Actúe en el momento correcto", text: "Siga cambios clave y transforme señales en oportunidades comerciales." },
             ].map(({ icon: Icon, title, text }) => (
               <article key={title} className="rounded-2xl border border-white/10 bg-black/15 p-4 backdrop-blur-sm">
                 <Icon size={17} className="text-brand-primary" />

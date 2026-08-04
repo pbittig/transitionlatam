@@ -22,7 +22,7 @@ export async function recuperarClave(
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
-  if (!email) return { error: "Ingresa tu correo." };
+  if (!email) return { error: "Ingrese su correo." };
 
   const client = await createSupabaseServerClient();
   const origin = await getSiteOrigin();
@@ -33,6 +33,6 @@ export async function recuperarClave(
   // Mismo mensaje exista o no la cuenta — no revela qué correos están registrados.
   return {
     message:
-      "Si existe una cuenta con ese correo, te enviamos un link para restablecer tu clave. Revisa tu bandeja (y spam) en los próximos minutos.",
+      "Si existe una cuenta con ese correo, enviaremos un enlace para restablecer la clave. Revise su bandeja de entrada y la carpeta de spam en los próximos minutos.",
   };
 }

@@ -106,7 +106,7 @@ export function RevealStakeholders({
         href="/planes"
         className="w-fit text-xs font-medium text-brand-deep underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300"
       >
-        {locale === "en" ? "Contact details available on Premium — see plans" : "El contacto completo está disponible en Premium — ver planes"}
+        {locale === "en" ? "Contact details available on Prime — see plans" : "El contacto completo está disponible en Prime — ver planes"}
       </Link>
       {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>

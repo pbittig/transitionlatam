@@ -55,6 +55,12 @@ function line(text: string, style?: Partial<CSSStyleDeclaration>): HTMLDivElemen
   return div;
 }
 
+function formatCapacityMw(value: number | null | undefined): string {
+  return value == null
+    ? ""
+    : `${value.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MW`;
+}
+
 function regionPopupContent(bubble: RegionBubble): HTMLElement {
   const root = document.createElement("div");
   const title = document.createElement("strong");
@@ -73,7 +79,7 @@ function pointPopupContent(point: MapPoint): HTMLElement {
   title.textContent = point.name;
   root.appendChild(title);
   root.appendChild(
-    line(`${point.technology ?? "Sin clasificar"}${point.capacityMw ? ` · ${point.capacityMw} MW` : ""}`),
+    line(`${point.technology ?? "Sin clasificar"}${point.capacityMw != null ? ` · ${formatCapacityMw(point.capacityMw)}` : ""}`),
   );
   const link = document.createElement("a");
   link.href = `/proyectos/${point.id}`;
@@ -89,11 +95,22 @@ function powerPlantPopupContent(plant: PowerPlantMapPoint): HTMLElement {
   title.textContent = plant.name;
   root.appendChild(title);
   root.appendChild(
-    line(`${plant.technologyDetail ?? "Sin clasificar"}${plant.capacityMw ? ` · ${plant.capacityMw} MW` : ""}`),
+    line(`${plant.technologyDetail ?? "Sin clasificar"}${plant.capacityMw != null ? ` · ${formatCapacityMw(plant.capacityMw)}` : ""}`),
   );
   if (plant.ownerName) root.appendChild(line(plant.ownerName));
   if (plant.status) root.appendChild(line(plant.status, { fontSize: "11px", color: "#888" }));
   return root;
+}
+
+function powerPlantMarkerAppearance(plant: PowerPlantMapPoint): { icon: string; color: string; label: string } {
+  const technology = `${plant.plantType ?? ""} ${plant.technologyDetail ?? ""}`.toLowerCase();
+  if (/solar|fotovolta/.test(technology)) return { icon: "☀", color: "#d97706", label: "Solar" };
+  if (/eólic|eolic|wind/.test(technology)) return { icon: "≋", color: "#2563eb", label: "Eólica" };
+  if (/hidro|hydro/.test(technology)) return { icon: "●", color: "#0891b2", label: "Hidroeléctrica" };
+  if (/bess|bater|almacen/.test(technology)) return { icon: "▰", color: "#7c3aed", label: "Almacenamiento" };
+  if (/geoterm/.test(technology)) return { icon: "♨", color: "#dc2626", label: "Geotérmica" };
+  if (/biomasa|biogas|biogás/.test(technology)) return { icon: "◆", color: "#16a34a", label: "Biomasa" };
+  return { icon: "●", color: "#64748b", label: plant.technologyDetail ?? "Otra tecnología" };
 }
 
 export function MapView({
@@ -194,15 +211,27 @@ export function MapView({
     }
 
     for (const plant of powerPlants) {
+      const appearance = powerPlantMarkerAppearance(plant);
       const el = document.createElement("div");
-      el.style.width = "9px";
-      el.style.height = "9px";
-      el.style.backgroundColor = "#70877d";
-      el.style.border = "1px solid #eff5f1";
-      el.style.boxShadow = "0 2px 7px rgba(24, 54, 47, 0.3)";
+      el.textContent = appearance.icon;
+      el.title = `${appearance.label}: ${plant.name}`;
+      el.setAttribute("aria-label", `${appearance.label}: ${plant.name}`);
+      el.style.width = "24px";
+      el.style.height = "24px";
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.justifyContent = "center";
+      el.style.borderRadius = "9999px";
+      el.style.backgroundColor = appearance.color;
+      el.style.color = "white";
+      el.style.fontSize = "14px";
+      el.style.fontWeight = "700";
+      el.style.lineHeight = "1";
+      el.style.border = "2px solid rgba(255,255,255,.95)";
+      el.style.boxShadow = "0 2px 8px rgba(24, 54, 47, 0.38)";
       el.style.cursor = "pointer";
 
-      const popup = new maplibregl.Popup({ offset: 8 }).setDOMContent(powerPlantPopupContent(plant));
+      const popup = new maplibregl.Popup({ offset: 14 }).setDOMContent(powerPlantPopupContent(plant));
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([plant.lng, plant.lat])

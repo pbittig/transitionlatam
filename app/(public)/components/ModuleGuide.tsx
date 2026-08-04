@@ -13,7 +13,7 @@ export function ModuleGuide({
   purpose: string;
   deliverables: string[];
   howToUse: string[];
-  plan: "Free" | "Lite" | "Premium";
+  plan: "Free" | "Prime";
   upgradeMessage: string;
   locale?: AppLocale;
 }) {
@@ -40,15 +40,17 @@ export function ModuleGuide({
   ];
 
   return (
-    <details className="group overflow-hidden rounded-2xl border border-neutral-200 bg-white" aria-label={locale === "en" ? "Section guide" : "Guía de esta sección"}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-medium text-neutral-700">
+    <details className="group overflow-hidden rounded-2xl border border-neutral-950 bg-white shadow-sm" aria-label={locale === "en" ? "Section guide" : "Guía de esta sección"}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 bg-neutral-950 px-5 py-4 text-sm font-semibold text-white transition hover:bg-black">
         <span className="flex items-center gap-2">
-          <Compass size={16} className="text-brand-primary" />
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/15 text-brand-primary">
+            <Compass size={16} />
+          </span>
           {locale === "en" ? "How to use this section" : "Cómo aprovechar esta sección"}
         </span>
-        <ChevronDown size={16} className="transition group-open:rotate-180" />
+        <ChevronDown size={17} className="text-brand-primary transition group-open:rotate-180" />
       </summary>
-      <div className="border-t border-neutral-100">
+      <div className="border-t border-brand-primary/40">
         <div className="grid gap-px bg-neutral-100 md:grid-cols-3">
           {blocks.map(({ icon: Icon, title, content }) => (
             <article key={title} className="bg-white p-5">

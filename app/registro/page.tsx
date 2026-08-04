@@ -9,7 +9,7 @@ import { LanguageSwitcher } from "../components/LanguageSwitcher";
 
 export const metadata: Metadata = {
   title: "Crear cuenta",
-  description: "Crea tu cuenta Free de Transition LATAM y explora durante 14 días la inteligencia del mercado energético.",
+  description: "Cree su cuenta Free de Transition LATAM y explore durante 14 días la inteligencia del mercado energético.",
 };
 export const dynamic = "force-dynamic";
 
@@ -35,9 +35,9 @@ export default async function RegistroPage() {
           </div>
 
           <div className="mt-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Create your business account" : "Crea tu cuenta corporativa"}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Create your business account" : "Cree su cuenta corporativa"}</h1>
             <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
-              {locale === "en" ? "Complete your details to tailor the portal to your company and role in the energy market." : "Completa tus datos para personalizar el portal según tu empresa y rol en el mercado energético."}
+              {locale === "en" ? "Complete your details to tailor the portal to your company and role in the energy market." : "Complete sus datos para personalizar el portal según su empresa y rol en el mercado energético."}
             </p>
           </div>
 
@@ -53,7 +53,7 @@ export default async function RegistroPage() {
 
           <p className="mt-5 flex items-start gap-2 text-[10px] leading-5 text-neutral-400">
             <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-            {locale === "en" ? "Use a business email. Your information is used to create and manage access for your organization." : "Utiliza un correo corporativo. Tus datos se usan para crear y administrar el acceso de tu organización."}
+            {locale === "en" ? "Use a business email. Your information is used to create and manage access for your organization." : "Utilice un correo corporativo. Sus datos se utilizan para crear y administrar el acceso de su organización."}
           </p>
         </div>
         </div>

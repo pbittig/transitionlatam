@@ -15,13 +15,22 @@ export interface OpportunityBoardItem {
   project: { id: string; name: string } | null;
   company: { id: string; name: string } | null;
   person: { id: string; name: string } | null;
+  activities: OpportunityActivityItem[];
+}
+
+export interface OpportunityActivityItem {
+  id: string;
+  type: "note" | "call" | "meeting" | "email" | "stage_change";
+  note: string;
+  occurredAt: string;
+  authorName: string | null;
 }
 
 export interface OpportunityProjectOption {
   id: string;
   name: string;
   company: { id: string; name: string } | null;
-  contacts: Array<{ id: string; name: string; role: string | null }>;
+  contacts: Array<{ id: string; name: string; email: string | null; role: string | null }>;
 }
 
 /** Opciones relacionadas para crear una oportunidad desde un proyecto real. */
@@ -67,20 +76,24 @@ export async function getOpportunityProjectOptions(client: SupabaseClient): Prom
   }>;
   const personIds = [...new Set(relations.map((relation) => relation.source_id))];
   const { data: people } = personIds.length
-    ? await client.from("person").select("id, full_name").in("id", personIds)
+    ? await client.from("person").select("id, full_name, email").in("id", personIds)
     : { data: [] };
-  const peopleById = new Map((people ?? []).map((person) => [person.id as string, person.full_name as string]));
+  const peopleById = new Map((people ?? []).map((person) => [person.id as string, {
+    name: person.full_name as string,
+    email: person.email as string | null,
+  }]));
 
   return rows.map((project) => {
     const targetIds = new Set([project.id, project.company?.id].filter((id): id is string => Boolean(id)));
-    const contactsById = new Map<string, { id: string; name: string; role: string | null }>();
+    const contactsById = new Map<string, { id: string; name: string; email: string | null; role: string | null }>();
     for (const relation of relations) {
       if (!targetIds.has(relation.target_id)) continue;
-      const name = peopleById.get(relation.source_id);
-      if (!name || contactsById.has(relation.source_id)) continue;
+      const person = peopleById.get(relation.source_id);
+      if (!person || contactsById.has(relation.source_id)) continue;
       contactsById.set(relation.source_id, {
         id: relation.source_id,
-        name,
+        name: person.name,
+        email: person.email,
         role: relation.relationship_type?.replaceAll("_", " ") ?? null,
       });
     }
@@ -117,11 +130,12 @@ export async function getOpportunityBoard(client: SupabaseClient): Promise<Oppor
       project: item.project,
       company: null,
       person: null,
+      activities: [],
     }));
   }
   if (error) throw new Error(`Error obteniendo oportunidades: ${error.message}`);
 
-  return ((data ?? []) as unknown as Array<{
+  const rows = ((data ?? []) as unknown as Array<{
     id: string; stage: OpportunityStage; opportunity_type: string | null; description: string | null; owner_name: string | null;
     next_step: string | null; next_step_at: string | null; last_contacted_at: string | null;
     project: { id: string; name: string; verified_at: string | null } | null; company: { id: string; name: string } | null; person: { id: string; full_name: string } | null;
@@ -139,5 +153,34 @@ export async function getOpportunityBoard(client: SupabaseClient): Promise<Oppor
     project: item.project,
     company: item.company,
     person: item.person ? { id: item.person.id, name: item.person.full_name } : null,
+    activities: [],
   }));
+
+  const opportunityIds = rows.map((item) => item.id);
+  if (!opportunityIds.length) return rows;
+  const { data: activities, error: activityError } = await client
+    .from("opportunity_activity")
+    .select("id, opportunity_id, activity_type, note, occurred_at, author:created_by(full_name)")
+    .in("opportunity_id", opportunityIds)
+    .order("occurred_at", { ascending: false })
+    .limit(500);
+  if (activityError?.code === "42P01" || activityError?.code === "PGRST205") return rows;
+  if (activityError) throw new Error(`Error obteniendo historial comercial: ${activityError.message}`);
+
+  const activitiesByOpportunity = new Map<string, OpportunityActivityItem[]>();
+  for (const activity of (activities ?? []) as unknown as Array<{
+    id: string; opportunity_id: string; activity_type: OpportunityActivityItem["type"];
+    note: string; occurred_at: string; author: { full_name: string | null } | null;
+  }>) {
+    const list = activitiesByOpportunity.get(activity.opportunity_id) ?? [];
+    list.push({
+      id: activity.id,
+      type: activity.activity_type,
+      note: activity.note,
+      occurredAt: activity.occurred_at,
+      authorName: activity.author?.full_name ?? null,
+    });
+    activitiesByOpportunity.set(activity.opportunity_id, list);
+  }
+  return rows.map((item) => ({ ...item, activities: activitiesByOpportunity.get(item.id) ?? [] }));
 }

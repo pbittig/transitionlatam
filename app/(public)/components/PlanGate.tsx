@@ -4,7 +4,7 @@ import { LockKeyhole } from "lucide-react";
 export function PlanGate({
   locked,
   children,
-  label = "Disponible en plan Lite o Premium",
+  label = "Disponible en plan Prime",
   variant = "compact",
 }: {
   locked: boolean;

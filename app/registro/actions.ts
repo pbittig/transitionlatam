@@ -57,14 +57,14 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
   }
   const mobileDigits = mobilePhone.replace(/\D/g, "");
   if (mobileDigits.length < 8 || mobileDigits.length > 15 || !/^\+?[\d\s()-]+$/.test(mobilePhone)) {
-    return { error: "Ingresa un teléfono móvil válido, incluyendo el código de país." };
+    return { error: "Ingrese un teléfono móvil válido, incluyendo el código de país." };
   }
   if (password.length < 8) {
     return { error: "La clave debe tener al menos 8 caracteres." };
   }
   const emailDomain = email.split("@")[1];
   if (!emailDomain || BLOCKED_EMAIL_DOMAINS.has(emailDomain)) {
-    return { error: "Usa tu correo corporativo — no aceptamos correos personales (Gmail, Hotmail, Outlook, etc.)." };
+    return { error: "Utilice su correo corporativo; no se aceptan correos personales (Gmail, Hotmail, Outlook, etc.)." };
   }
 
   const client = await createSupabaseServerClient();
@@ -127,7 +127,7 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
     profileError = retry.error;
   }
   if (profileError) {
-    return { error: `No pudimos completar tu perfil: ${profileError.message}` };
+    return { error: `No pudimos completar su perfil: ${profileError.message}` };
   }
 
   // No debe bloquear el registro si falla — el usuario ya tiene su cuenta y su
@@ -161,7 +161,7 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
   // poder iniciar sesión en /ingresar.
   if (!signUpData.session) {
     return {
-      message: `Cuenta creada. Revisa tu correo (${email}) y confirma tu cuenta antes de ingresar. Si no lo ves en los próximos minutos, revisa también la carpeta de spam/correo no deseado.`,
+      message: `Cuenta creada. Revise su correo (${email}) y confirme su cuenta antes de ingresar. Si no encuentra el mensaje en los próximos minutos, revise también la carpeta de spam o correo no deseado.`,
     };
   }
 

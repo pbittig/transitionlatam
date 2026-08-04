@@ -28,8 +28,8 @@ export function AddToCrmButton({
   if (locked) {
     return (
       <span
-        title="Disponible en plan Lite o Premium"
-        aria-label="Agregar al CRM — disponible en plan Lite o Premium"
+        title="Disponible en plan Prime"
+        aria-label="Agregar al CRM — disponible en plan Prime"
         className={
           compact
             ? "inline-flex h-7 w-7 cursor-not-allowed items-center justify-center rounded-md text-neutral-300 dark:text-neutral-700"

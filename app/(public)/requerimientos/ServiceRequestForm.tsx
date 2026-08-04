@@ -19,7 +19,7 @@ export function ServiceRequestForm({ locale = "es" }: { locale?: AppLocale }) {
         <CheckCircle2 className="mb-5 text-brand-primary" size={34} strokeWidth={1.7} />
         <h2 className="text-xl font-semibold tracking-tight text-neutral-950">{locale === "en" ? "Request received" : "Requerimiento recibido"}</h2>
         <p className="mt-2 max-w-md text-sm leading-6 text-neutral-600">
-          {locale === "en" ? "We will review the scope and contact you to define next steps and prepare a proposal." : "Revisaremos el alcance y nos pondremos en contacto contigo para definir los próximos pasos y preparar una cotización."}
+          {locale === "en" ? "We will review the scope and contact you to define next steps and prepare a proposal." : "Revisaremos el alcance y nos pondremos en contacto con usted para definir los próximos pasos y preparar una propuesta."}
         </p>
       </div>
     );
@@ -27,10 +27,11 @@ export function ServiceRequestForm({ locale = "es" }: { locale?: AppLocale }) {
 
   return (
     <form action={formAction} className="space-y-6">
+      <input type="hidden" name="locale" value={locale} />
       <div>
         <label htmlFor="serviceType" className="text-sm font-medium text-neutral-800">{locale === "en" ? "Required service" : "Servicio requerido"}</label>
         <select id="serviceType" name="serviceType" required defaultValue="" className={fieldClass}>
-          <option value="" disabled>{locale === "en" ? "Select an option" : "Selecciona una alternativa"}</option>
+          <option value="" disabled>{locale === "en" ? "Select an option" : "Seleccione una alternativa"}</option>
           <option value="market_study">{locale === "en" ? "Market study" : "Estudio de mercado"}</option>
           <option value="market_intelligence">{locale === "en" ? "Market intelligence" : "Inteligencia de mercado"}</option>
           <option value="project_intelligence">{locale === "en" ? "Project intelligence" : "Inteligencia de proyectos"}</option>
@@ -41,8 +42,8 @@ export function ServiceRequestForm({ locale = "es" }: { locale?: AppLocale }) {
       </div>
 
       <div>
-        <label htmlFor="description" className="text-sm font-medium text-neutral-800">{locale === "en" ? "What do you need to solve?" : "¿Qué necesitas resolver?"}</label>
-        <p className="mt-1 text-sm text-neutral-500">{locale === "en" ? "Describe the objective, expected scope and any relevant market, technology or project." : "Describe el objetivo, alcance esperado y cualquier mercado, tecnología o proyecto relevante."}</p>
+        <label htmlFor="description" className="text-sm font-medium text-neutral-800">{locale === "en" ? "What do you need to solve?" : "¿Qué necesita resolver?"}</label>
+        <p className="mt-1 text-sm text-neutral-500">{locale === "en" ? "Describe the objective, expected scope and any relevant market, technology or project." : "Describa el objetivo, el alcance esperado y cualquier mercado, tecnología o proyecto relevante."}</p>
         <textarea
           id="description"
           name="description"
@@ -62,7 +63,7 @@ export function ServiceRequestForm({ locale = "es" }: { locale?: AppLocale }) {
             <option value="as_soon_as_possible">{locale === "en" ? "As soon as possible" : "Lo antes posible"}</option>
             <option value="this_month">{locale === "en" ? "This month" : "Durante este mes"}</option>
             <option value="this_quarter">{locale === "en" ? "This quarter" : "Durante este trimestre"}</option>
-            <option value="exploratory">{locale === "en" ? "Exploratory" : "Solo estoy explorando"}</option>
+            <option value="exploratory">{locale === "en" ? "Exploratory" : "Exploratorio"}</option>
           </select>
         </div>
         <div>

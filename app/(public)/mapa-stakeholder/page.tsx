@@ -11,7 +11,7 @@ import { isAdmin } from "@/lib/auth/session";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { ModuleGuide } from "../components/ModuleGuide";
 
-export const metadata: Metadata = { title: "Empresas y relaciones" };
+export const metadata: Metadata = { title: "Stakeholders" };
 export const dynamic = "force-dynamic";
 
 export default async function MapaStakeholderPage({ searchParams }: { searchParams: Promise<{ empresa?: string }> }) {
@@ -33,9 +33,9 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
         <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative max-w-3xl">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Empresas y relaciones</h1>
+          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Stakeholders</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
-            Descubre qué grupo está detrás de cada proyecto, qué otras empresas y proyectos están relacionados y con quién conviene iniciar una conversación.
+            Conozca qué grupo está detrás de cada proyecto, qué otras empresas y proyectos están relacionados y con quién conviene iniciar una conversación.
           </p>
         </div>
       </section>
@@ -43,9 +43,9 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
       <ModuleGuide
         purpose="Pasar del nombre formal de una SPV a una visión comercial de la empresa, el grupo y la cartera que existe detrás de cada proyecto."
         deliverables={["Empresas, SPV y proyectos relacionados", "Identidad legal y relaciones societarias disponibles", "Contexto para preparar una conversación comercial"]}
-        howToUse={["Selecciona una empresa o desarrollador", "Revisa su grupo y cartera vinculada", "Lleva la cuenta prioritaria al CRM"]}
-        plan="Premium"
-        upgradeMessage="Premium conecta la inteligencia societaria con el CRM, las oportunidades y Nexo."
+        howToUse={["Seleccione una empresa o desarrollador", "Revise su grupo y proyectos vinculados", "Incorpore la cuenta prioritaria al CRM"]}
+        plan="Prime"
+        upgradeMessage="Prime conecta la inteligencia societaria con el CRM, las oportunidades y Nexo."
       />
 
       <section aria-labelledby="relationship-value-title">
@@ -58,7 +58,7 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
             {
               icon: GitBranch,
               question: "¿Quién está detrás?",
-              answer: "Identifica el grupo, empresa operativa o sociedad relacionada detrás de la SPV que aparece formalmente en el proyecto.",
+              answer: "Identifique el grupo, empresa operativa o sociedad relacionada detrás de la SPV que aparece formalmente en el proyecto.",
               color: "bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary",
             },
             {
@@ -70,7 +70,7 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
             {
               icon: ContactRound,
               question: "¿Con quién conviene hablar?",
-              answer: "Organiza contactos por función: desarrollo, ingeniería, conexión, permisos, compras, construcción y finanzas.",
+              answer: "Organice contactos por función: desarrollo, ingeniería, conexión, permisos, compras, construcción y finanzas.",
               color: "bg-brand-primary/15 text-brand-deep",
             },
           ].map(({ icon: Icon, question, answer, color }) => (
@@ -116,7 +116,7 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
       <section className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Consulta las relaciones disponibles</h2>
+            <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Consulte las relaciones disponibles</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-500 dark:text-neutral-400">
               Hoy puedes revisar empresas y relaciones construidas desde los registros ya integrados. La consolidación societaria ampliada dependerá de la prueba y contratación de un proveedor especializado.
             </p>
@@ -136,7 +136,7 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
 
       {company && <PlanGate
         locked={premiumLocked}
-        label="Disponible en plan Premium"
+        label="Disponible en plan Prime"
         variant="showcase"
         title="Entiende quién está detrás de cada proyecto"
         description="Explora una vista profesional de empresas, SPV, accionistas y relaciones para preparar conversaciones con más contexto."

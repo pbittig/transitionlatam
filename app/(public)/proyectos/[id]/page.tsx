@@ -107,7 +107,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       });
   const canInteract = admin || !isFree;
   const followed = canInteract ? await isProjectFollowed(createSupabaseServiceClient(), id) : false;
-  const alreadyInCrm = canInteract ? (await getActiveOpportunityProjectIds(createSupabaseServiceClient(), [id])).has(id) : false;
+  const alreadyInCrm = canInteract ? (await getActiveOpportunityProjectIds(admin ? createSupabaseServiceClient() : client, [id])).has(id) : false;
 
   const estimatedPhase = computeEstimatedPhase(
     project.estimatedConnectionDate,
@@ -341,7 +341,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
         <div className="mt-4">
           <PlanGate
             locked={teamLocked}
-            label={locale === "en" ? "Related portfolio available on Premium" : "Cartera relacionada disponible en Premium"}
+            label={locale === "en" ? "Related projects available on Prime" : "Proyectos relacionados disponibles en Prime"}
           >
             <RelatedProjectsPanel projects={relatedPortfolioProjects} locale={locale} />
           </PlanGate>

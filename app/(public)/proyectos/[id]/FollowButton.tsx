@@ -30,7 +30,7 @@ export function FollowButton({
       type="button"
       onClick={handleToggle}
       disabled={pending || locked}
-      title={locked ? "Disponible en plan Lite o Premium" : followed ? "Siguiendo — clic para dejar de seguir" : "Seguir este proyecto"}
+      title={locked ? "Disponible en plan Prime" : followed ? "Siguiendo — clic para dejar de seguir" : "Seguir este proyecto"}
       aria-label={followed ? "Dejar de seguir" : "Seguir"}
       className={`print:hidden flex h-9 w-9 items-center justify-center rounded-lg border disabled:opacity-50 ${
         locked

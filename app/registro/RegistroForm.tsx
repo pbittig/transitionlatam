@@ -81,7 +81,7 @@ export function RegistroForm({ locale = "es" }: { locale?: AppLocale }) {
           name="companyName"
           type="text"
           required
-          placeholder="Nombre de tu empresa"
+          placeholder="Nombre de su empresa"
           className="w-full rounded-xl border border-neutral-300 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 dark:border-neutral-700"
         />
       </div>
@@ -115,7 +115,7 @@ export function RegistroForm({ locale = "es" }: { locale?: AppLocale }) {
       </div>
       <div>
         <label htmlFor="userType" className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-          {locale === "en" ? "Which role best describes you?" : "¿Qué rol te describe mejor?"}
+          {locale === "en" ? "Which role best describes you?" : "¿Qué rol describe mejor su función?"}
         </label>
         <select
           id="userType"

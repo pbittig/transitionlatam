@@ -82,7 +82,7 @@ export function FollowNotifications({ events }: { events: WatchlistEvent[] }) {
                 <div className="px-5 py-8 text-center">
                   <Bell size={20} className="mx-auto text-brand-primary" />
                   <p className="mt-2 text-sm font-medium text-neutral-800">Sin novedades recientes</p>
-                  <p className="mt-1 text-xs text-neutral-500">Te avisaremos aquí cuando detectemos un cambio.</p>
+                  <p className="mt-1 text-xs text-neutral-500">Recibirá una notificación aquí cuando detectemos un cambio.</p>
                 </div>
               ) : events.slice(0, 6).map((event) => (
                 <Link

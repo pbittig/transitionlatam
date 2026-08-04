@@ -26,7 +26,7 @@ export default async function RestablecerClavePage() {
 
         <div className="mt-8">
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">
-            {locale === "en" ? "Set a new password" : "Define tu clave nueva"}
+            {locale === "en" ? "Set a new password" : "Defina su nueva clave"}
           </h1>
         </div>
 

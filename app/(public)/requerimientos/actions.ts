@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
+import { isAppLocale } from "@/lib/i18n";
 
 export interface ServiceRequestState {
   success?: boolean;
@@ -24,14 +25,17 @@ export async function createServiceRequest(
   _previousState: ServiceRequestState,
   formData: FormData,
 ): Promise<ServiceRequestState> {
+  const localeValue = String(formData.get("locale") ?? "es");
+  const locale = isAppLocale(localeValue) ? localeValue : "es";
+  const message = (es: string, en: string) => locale === "en" ? en : es;
   const client = await createSupabaseServerClient();
   const {
     data: { user },
   } = await client.auth.getUser();
-  if (!user) return { error: "Tu sesión expiró. Vuelve a ingresar para enviar el requerimiento." };
+  if (!user) return { error: message("Su sesión expiró. Vuelva a ingresar para enviar el requerimiento.", "Your session has expired. Please sign in again to submit the request.") };
 
   const profile = await getCurrentUserProfile(client);
-  if (!profile) return { error: "No encontramos el perfil asociado a tu cuenta." };
+  if (!profile) return { error: message("No encontramos el perfil asociado a su cuenta.", "We could not find the profile associated with your account.") };
 
   const serviceType = String(formData.get("serviceType") ?? "");
   const desiredTiming = String(formData.get("desiredTiming") ?? "");
@@ -39,10 +43,10 @@ export async function createServiceRequest(
   const description = String(formData.get("description") ?? "").trim();
 
   if (!SERVICE_TYPES.has(serviceType) || !TIMINGS.has(desiredTiming) || !CONTACT_METHODS.has(contactMethod)) {
-    return { error: "Revisa las opciones seleccionadas." };
+    return { error: message("Revise las opciones seleccionadas.", "Please review the selected options.") };
   }
-  if (description.length < 20) return { error: "Cuéntanos un poco más sobre el requerimiento." };
-  if (description.length > 4000) return { error: "El requerimiento no puede superar los 4.000 caracteres." };
+  if (description.length < 20) return { error: message("Proporcione un poco más de información sobre el requerimiento.", "Please provide additional information about the request.") };
+  if (description.length > 4000) return { error: message("El requerimiento no puede superar los 4.000 caracteres.", "The request cannot exceed 4,000 characters.") };
 
   const { error } = await client.from("service_request").insert({
     auth_user_id: user.id,
@@ -52,7 +56,7 @@ export async function createServiceRequest(
     desired_timing: desiredTiming,
     contact_method: contactMethod,
   });
-  if (error) return { error: `No pudimos enviar el requerimiento: ${error.message}` };
+  if (error) return { error: message(`No pudimos enviar el requerimiento: ${error.message}`, `We could not submit the request: ${error.message}`) };
 
   revalidatePath("/requerimientos");
   return { success: true };

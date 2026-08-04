@@ -39,7 +39,7 @@ export default async function IngresarPage() {
 
           <div className="mt-8 lg:hidden">
             <h1 className="text-2xl font-semibold leading-tight tracking-tight text-neutral-950 dark:text-white">
-              {locale === "en" ? "Find projects, companies and opportunities before your next decision." : "Encuentra proyectos, empresas y oportunidades antes de tu próxima decisión."}
+              {locale === "en" ? "Find projects, companies and opportunities before your next decision." : "Encuentre proyectos, empresas y oportunidades antes de su próxima decisión."}
             </h1>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
               {locale === "en" ? "A connected view of the power matrix, future generation, storage and data center projects, and commercial relationships." : "Una visión conectada de la matriz eléctrica, los proyectos futuros —generación, almacenamiento y data centers— y las relaciones comerciales."}
@@ -47,14 +47,14 @@ export default async function IngresarPage() {
           </div>
 
           <div className="mt-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-            <h1 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Sign in to your portal" : "Ingresa a tu portal"}</h1>
-            <p className="mt-1 mb-6 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Continue analyzing the market and your opportunities." : "Continúa analizando el mercado y tus oportunidades."}</p>
+            <h1 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Sign in to your portal" : "Ingrese a su portal"}</h1>
+            <p className="mt-1 mb-6 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Continue analyzing the market and your opportunities." : "Continúe analizando el mercado y sus oportunidades."}</p>
             <IngresarForm locale={locale} />
             <Link
               href="/recuperar-clave"
               className="mt-3 inline-block text-xs font-medium text-neutral-500 hover:text-brand-deep dark:hover:text-brand-primary"
             >
-              {locale === "en" ? "Forgot your password?" : "¿Olvidaste tu clave?"}
+              {locale === "en" ? "Forgot your password?" : "¿Olvidó su clave?"}
             </Link>
           </div>
 

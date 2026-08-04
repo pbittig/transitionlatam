@@ -11,6 +11,7 @@ export interface CurrentUserProfile {
   planCode: string | null;
   trialEndsAt: string | null;
   preferredLanguage: "es" | "en";
+  organizationId: string | null;
 }
 
 /** Perfil de la cuenta de autoservicio actualmente logueada (Supabase Auth) — distinto del admin único (cookie jose, ver lib/auth/session.ts). */
@@ -22,14 +23,14 @@ export async function getCurrentUserProfile(client: SupabaseClient): Promise<Cur
 
   const { data: localizedData, error } = await client
     .from("user_profile")
-    .select("id, email, full_name, company_name, mobile_phone, country, avatar_url, trial_ends_at, preferred_language, plan:plan_id(code)")
+    .select("id, email, full_name, company_name, mobile_phone, country, avatar_url, trial_ends_at, preferred_language, organization_id, plan:plan_id(code)")
     .eq("auth_user_id", user.id)
     .maybeSingle();
   let data = localizedData;
   if (error?.code === "42703" || error?.code === "PGRST204") {
     const { data: legacyData, error: legacyError } = await client
       .from("user_profile")
-      .select("id, email, full_name, company_name, country, avatar_url, trial_ends_at, plan:plan_id(code)")
+      .select("id, email, full_name, company_name, country, avatar_url, trial_ends_at, organization_id, plan:plan_id(code)")
       .eq("auth_user_id", user.id)
       .maybeSingle();
     if (legacyError) throw new Error(`Error obteniendo perfil de usuario: ${legacyError.message}`);
@@ -50,6 +51,7 @@ export async function getCurrentUserProfile(client: SupabaseClient): Promise<Cur
     planCode: (data.plan as unknown as { code: string } | null)?.code ?? null,
     trialEndsAt: data.trial_ends_at as string | null,
     preferredLanguage: data.preferred_language === "en" ? "en" : "es",
+    organizationId: data.organization_id as string | null,
   };
 }
 

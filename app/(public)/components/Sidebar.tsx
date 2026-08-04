@@ -14,20 +14,20 @@ import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
 function getNavItems(locale: AppLocale) {
   return locale === "en"
     ? [
-        { href: "/proyectos", label: "Projects", icon: Activity, minPlan: "free" },
-        { href: "/matriz", label: "Power matrix", icon: ChartNoAxesCombined, minPlan: "free" },
-        { href: "/empresas", label: "Companies", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Monitoring", icon: Bell, minPlan: "lite" },
+        { href: "/proyectos", label: "Future projects", icon: Activity, minPlan: "free" },
+        { href: "/matriz", label: "Projects in operation", icon: ChartNoAxesCombined, minPlan: "free" },
+        { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
+        { href: "/monitoreo", label: "Tracking", icon: Bell, minPlan: "lite" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
-        { href: "/requerimientos", label: "Requests", icon: ClipboardList, minPlan: "free" },
+        { href: "/requerimientos", label: "Services", icon: ClipboardList, minPlan: "free" },
       ]
     : [
-        { href: "/proyectos", label: "Proyectos", icon: Activity, minPlan: "free" },
-        { href: "/matriz", label: "Matriz", icon: ChartNoAxesCombined, minPlan: "free" },
-        { href: "/empresas", label: "Empresas", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Monitoreo", icon: Bell, minPlan: "lite" },
+        { href: "/proyectos", label: "Proyectos Futuros", icon: Activity, minPlan: "free" },
+        { href: "/matriz", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
+        { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
+        { href: "/monitoreo", label: "Seguimiento", icon: Bell, minPlan: "lite" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
-        { href: "/requerimientos", label: "Requerimientos", icon: ClipboardList, minPlan: "free" },
+        { href: "/requerimientos", label: "Servicios", icon: ClipboardList, minPlan: "free" },
       ];
 }
 
@@ -135,12 +135,12 @@ export function Sidebar({
             </div>
             <p className="relative mt-2 text-xs font-semibold text-[#333333]">
               {remainingTrialDays === 0
-                ? locale === "en" ? "Your Free period ended" : "Tu periodo Free terminó"
-                : locale === "en" ? "Unlock commercial intelligence" : "Desbloquea inteligencia comercial"}
+                ? locale === "en" ? "Your Free period ended" : "Su periodo Free terminó"
+                : locale === "en" ? "Unlock commercial intelligence" : "Desbloquee inteligencia comercial"}
             </p>
             {remainingTrialDays !== null && remainingTrialDays > 0 && (
               <p className="relative mt-1 text-[10px] font-medium text-neutral-600">
-                {locale === "en" ? `${remainingTrialDays} days of access left` : `Te quedan ${remainingTrialDays} ${remainingTrialDays === 1 ? "día" : "días"} de acceso`}
+                {locale === "en" ? `${remainingTrialDays} days of access left` : `Quedan ${remainingTrialDays} ${remainingTrialDays === 1 ? "día" : "días"} de acceso`}
               </p>
             )}
             <p className="mt-1 text-[10px] leading-4 text-neutral-500">{locale === "en" ? "Compare plans" : "Comparar planes"} →</p>

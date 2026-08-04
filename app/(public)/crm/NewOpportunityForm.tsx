@@ -40,7 +40,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           required
           className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
         >
-          <option value="">{locale === "en" ? "Select a verified project" : "Selecciona un proyecto verificado"}</option>
+          <option value="">{locale === "en" ? "Select a verified project" : "Seleccione un proyecto verificado"}</option>
           {projects.map((project) => (
             <option key={project.id} value={project.id}>
               {project.name}{project.company ? ` — ${project.company.name}` : ""}
@@ -57,7 +57,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           id="companyName"
           value={selectedProject?.company?.name ?? ""}
           readOnly
-          placeholder={projectId ? "Empresa pendiente de identificar" : "Selecciona primero un proyecto"}
+          placeholder={projectId ? "Empresa pendiente de identificar" : "Seleccione primero un proyecto"}
           className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
         />
       </div>
@@ -76,7 +76,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           <option value="">{selectedProject?.contacts.length ? "Seleccionar contacto (opcional)" : "Sin contactos relacionados disponibles"}</option>
           {selectedProject?.contacts.map((contact) => (
             <option key={contact.id} value={contact.id}>
-              {contact.name}{contact.role ? ` — ${contact.role}` : ""}
+              {contact.name}{contact.email ? ` (${contact.email})` : ""}
             </option>
           ))}
         </select>

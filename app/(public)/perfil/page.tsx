@@ -18,7 +18,7 @@ export default async function PerfilPage() {
     <div className="max-w-md">
       <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "My profile" : "Mi perfil"}</h1>
       <p className="mt-1 mb-8 text-sm text-neutral-500 dark:text-neutral-400">
-        {locale === "en" ? "Your name, company and photo are visible only to you and the ONIX team." : "Tu nombre, empresa y foto — visibles solo para ti y el equipo de ONIX."}
+        {locale === "en" ? "Your name, company and photo are visible only in your private profile." : "Su nombre, empresa y fotografía son visibles únicamente en su perfil privado."}
       </p>
       <ProfileForm profile={profile} locale={locale} />
     </div>

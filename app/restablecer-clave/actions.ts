@@ -26,7 +26,7 @@ export async function restablecerClave(
     data: { user },
   } = await client.auth.getUser();
   if (!user) {
-    return { error: "El link de restablecimiento ya no es válido — solicita uno nuevo." };
+    return { error: "El enlace de restablecimiento ya no es válido. Solicite uno nuevo." };
   }
 
   const { error } = await client.auth.updateUser({ password });

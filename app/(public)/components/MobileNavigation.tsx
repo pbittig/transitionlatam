@@ -26,15 +26,15 @@ import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
 
 function getItems(locale: AppLocale) {
   const primaryItems = [
-    { href: "/proyectos", label: locale === "en" ? "Projects" : "Proyectos", icon: Activity, minPlan: "free" },
-    { href: "/matriz", label: locale === "en" ? "Power matrix" : "Matriz", icon: ChartNoAxesCombined, minPlan: "free" },
-    { href: "/monitoreo", label: locale === "en" ? "Monitoring" : "Monitoreo", icon: Bell, minPlan: "lite" },
+    { href: "/proyectos", label: locale === "en" ? "Future projects" : "Proyectos Futuros", icon: Activity, minPlan: "free" },
+    { href: "/matriz", label: locale === "en" ? "Projects in operation" : "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
+    { href: "/monitoreo", label: locale === "en" ? "Tracking" : "Seguimiento", icon: Bell, minPlan: "lite" },
   ] as const;
   const secondaryItems = [
     { href: "/analisis-dinamico", label: locale === "en" ? "Dynamic analysis" : "Análisis dinámico", icon: BarChart3, minPlan: "lite" },
-    { href: "/empresas", label: locale === "en" ? "Companies and relationships" : "Empresas y relaciones", icon: Network, minPlan: "premium" },
+    { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
     { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
-    { href: "/requerimientos", label: locale === "en" ? "Requests" : "Requerimientos", icon: ClipboardList, minPlan: "free" },
+    { href: "/requerimientos", label: locale === "en" ? "Services" : "Servicios", icon: ClipboardList, minPlan: "free" },
   ] as const;
   return { primaryItems, secondaryItems };
 }
@@ -97,7 +97,7 @@ export function MobileNavigation({
               {userProfile && (
                 <Link href="/perfil" onClick={() => setOpen(false)} className="mb-2 flex min-h-12 items-center gap-3 rounded-xl px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-900">
                   <UserRound size={20} />
-                  <span className="min-w-0 flex-1"><span className="block truncate font-medium">{userProfile.fullName ?? userProfile.email}</span><span className="block text-xs text-neutral-500">{locale === "en" ? "View profile" : "Ver perfil"} · Plan {planCode}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate font-medium">{userProfile.fullName ?? userProfile.email}</span><span className="block text-xs text-neutral-500">{locale === "en" ? "View profile" : "Ver perfil"} · Plan {planCode === "free" ? "Free" : "Prime"}</span></span>
                 </Link>
               )}
               {isAdmin || userProfile ? (
