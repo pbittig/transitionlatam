@@ -20,20 +20,22 @@ export async function POST(request: Request) {
 
   const history = Array.isArray(body.history) ? body.history.slice(-16) : [];
   const question = typeof body.question === "string" ? body.question : "";
-  const result = await askTransitionAi(history, question);
-  if (!result.success) return Response.json({ error: result.error }, { status: 400 });
-
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const chunks = result.answer.match(/\S+\s*/g) ?? [result.answer];
-      for (const chunk of chunks) {
-        controller.enqueue(encoder.encode(`${JSON.stringify({ type: "delta", content: chunk })}\n`));
-        await new Promise((resolve) => setTimeout(resolve, 18));
+      try {
+        const result = await askTransitionAi(history, question, (content) => {
+          controller.enqueue(encoder.encode(`${JSON.stringify({ type: "delta", content })}\n`));
+        });
+        if (!result.success) {
+          controller.enqueue(encoder.encode(`${JSON.stringify({ type: "error", error: result.error, quota: result.quota ?? null })}\n`));
+        } else {
+          controller.enqueue(encoder.encode(`${JSON.stringify({ type: "done", quota: result.quota })}\n`));
+        }
+      } catch (error) {
+        controller.enqueue(encoder.encode(`${JSON.stringify({ type: "error", error: error instanceof Error ? error.message : "No pudimos consultar a Nexo." })}\n`));
+      } finally {
+        controller.close();
       }
-      controller.enqueue(
-        encoder.encode(`${JSON.stringify({ type: "done", remainingTokens: result.remainingTokens })}\n`),
-      );
-      controller.close();
     },
   });
 

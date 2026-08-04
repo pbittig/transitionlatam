@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { REJECTED_STATUSES } from "@/lib/data-access/projects";
+import { REJECTED_STATUSES, startOfCurrentMonthIso } from "@/lib/data-access/projects";
 import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
 import { PHASE_GROUP_LABELS, PHASE_TO_GROUP } from "@/lib/shared/projectPhaseDurations";
 
@@ -85,7 +85,7 @@ function parseArgs(raw: unknown): SearchArgs {
 
 export async function runProjectSearch(client: SupabaseClient, rawArgs: unknown): Promise<Record<string, unknown>> {
   const args = parseArgs(rawArgs);
-  const today = new Date().toISOString().slice(0, 10);
+  const currentMonthStart = startOfCurrentMonthIso();
   const developerJoin = args.developer ? "!inner" : "";
   const locationJoin = args.region ? "!inner" : "";
   const technologyJoin = "!inner";
@@ -118,7 +118,7 @@ export async function runProjectSearch(client: SupabaseClient, rawArgs: unknown)
   if (args.region) query = query.ilike("location.region.name", `%${args.region}%`);
   query = query
     .not("verified_at", "is", null)
-    .gte("estimated_connection_date", today)
+    .gte("estimated_connection_date", currentMonthStart)
     .not("status", "ilike", "%finalizad%")
     .in("technology.code", [...TECHNOLOGY_CODES]);
   if (args.technologyCode && args.technologyCode !== "all") query = query.eq("technology.code", args.technologyCode);
@@ -170,6 +170,6 @@ export async function runProjectSearch(client: SupabaseClient, rawArgs: unknown)
       };
     }),
     scope:
-      `Cartera editorial de Proyectos futuros al ${today}: solo fichas verificadas, aún en desarrollo, con conexión desde hoy y sin transmisión ni generación térmica.`,
+      `Proyectos Futuros: fichas verificadas de iniciativas identificadas aún en desarrollo, vigentes y con fecha estimada de conexión desde ${currentMonthStart}; incluye generación renovable y almacenamiento, y excluye proyectos históricos, rechazados, desistidos, transmisión y generación térmica.`,
   };
 }

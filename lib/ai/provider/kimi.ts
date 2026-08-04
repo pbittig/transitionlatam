@@ -35,6 +35,69 @@ export interface KimiChatResult {
   toolCalls?: KimiToolCall[];
 }
 
+export async function streamKimi(
+  messages: KimiChatMessage[],
+  onDelta: (content: string) => void,
+  options: KimiCompletionOptions = {},
+): Promise<KimiChatResult> {
+  const apiKey = process.env.KIMI_API_KEY;
+  if (!apiKey) throw new Error("KIMI_API_KEY no está configurada");
+  const model = options.model ?? process.env.KIMI_CHAT_MODEL ?? DEFAULT_MODEL;
+  const response = await fetch(KIMI_BASE_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: options.temperature ?? 1,
+      max_tokens: options.maxTokens ?? 700,
+      stream: true,
+      stream_options: { include_usage: true },
+    }),
+  });
+  if (!response.ok) throw new Error(`Kimi respondió ${response.status}: ${await response.text()}`);
+  if (!response.body) throw new Error("Kimi no devolvió un flujo de respuesta");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  let responseModel = model;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line.startsWith("data:") || line === "data: [DONE]") continue;
+      const payload = JSON.parse(line.slice(5).trim()) as {
+        model?: string;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+        choices?: Array<{ delta?: { content?: string | null } }>;
+      };
+      responseModel = payload.model ?? responseModel;
+      inputTokens = payload.usage?.prompt_tokens ?? inputTokens;
+      outputTokens = payload.usage?.completion_tokens ?? outputTokens;
+      const delta = payload.choices?.[0]?.delta?.content;
+      if (delta) {
+        content += delta;
+        onDelta(delta);
+      }
+    }
+    if (done) break;
+  }
+  if (!content) throw new Error("Kimi no devolvió contenido");
+  return {
+    content,
+    model: responseModel,
+    inputTokens: inputTokens || Math.ceil(JSON.stringify(messages).length / 4),
+    outputTokens: outputTokens || Math.ceil(content.length / 4),
+  };
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

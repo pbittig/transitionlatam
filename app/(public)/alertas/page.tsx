@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Activity, ArrowUpRight, Bell, BellRing, CalendarClock, FolderHeart, Sparkles } from "lucide-react";
+import { Activity, ArrowUpRight, Bell, BellRing, CalendarClock, FolderHeart } from "lucide-react";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
@@ -14,9 +14,6 @@ import { AppSettingToggle } from "../components/AppSettingToggle";
 import { FollowButton } from "../proyectos/[id]/FollowButton";
 import { PlanGate } from "../components/PlanGate";
 import { NewProjectAlertSelector } from "../components/NewProjectAlertSelector";
-import { getUpcomingScheduleInputs } from "@/lib/data-access/pipeline";
-import { computeScheduleForecast, FORECAST_PHASE_LABELS } from "@/lib/shared/scheduleForecast";
-import type { PhaseKey } from "@/lib/shared/projectPhaseDurations";
 import { getAppLocale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Seguimiento" };
@@ -36,33 +33,8 @@ const EVENT_LABEL: Record<string, string> = {
   other: "Otro",
 };
 
-const PREDICTIVE_PHASES: Array<{ key: PhaseKey; label: string }> = [
-  { key: "basica", label: "Ingeniería" },
-  { key: "compras", label: "Compras" },
-  { key: "construccion", label: "Construcción" },
-];
-
-const PREDICTIVE_TECH = [
-  { key: "all", label: "Todas" },
-  { key: "solar", label: "Solar" },
-  { key: "wind", label: "Eólico" },
-  { key: "bess", label: "BESS" },
-  { key: "hybrid", label: "Híbridos" },
-] as const;
-
-export default async function AlertasPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ fase?: string; tecnologia?: string }>;
-}) {
-  const params = await searchParams;
+export default async function AlertasPage() {
   const locale = await getAppLocale();
-  const selectedPhase = PREDICTIVE_PHASES.some((item) => item.key === params.fase)
-    ? params.fase as PhaseKey
-    : "compras";
-  const selectedTechnology = PREDICTIVE_TECH.some((item) => item.key === params.tecnologia)
-    ? params.tecnologia ?? "all"
-    : "all";
   const admin = await isAdmin();
   const serverClient = await createSupabaseServerClient();
   const profile = admin ? null : await getCurrentUserProfile(serverClient);
@@ -89,22 +61,10 @@ export default async function AlertasPage({
     ...NEW_PROJECT_ALERT_CATEGORIES.map((category) => getAppSetting(client, `notify_new_${category}`, true)),
   ]);
   const selectedCategories = NEW_PROJECT_ALERT_CATEGORIES.filter((_, index) => categorySettings[index]);
-  const [followed, events, scheduleInputs] = await Promise.all([
+  const [followed, events] = await Promise.all([
     getFollowedProjects(client),
     getWatchlistEvents(client, 50, selectedCategories.length > 0, selectedCategories),
-    getUpcomingScheduleInputs(serverClient),
   ]);
-  const predictiveInputs = scheduleInputs.filter((project) => {
-    if (selectedTechnology === "all") return true;
-    if (selectedTechnology === "bess") return project.includesStorage;
-    if (selectedTechnology === "hybrid") return project.technologyCode === "hybrid";
-    if (selectedTechnology === "solar") return project.technologyCode === "solar_pv";
-    if (selectedTechnology === "wind") return project.technologyCode === "wind";
-    return true;
-  });
-  const predictiveForecast = computeScheduleForecast(predictiveInputs, 0, 18);
-  const predictiveEntries = predictiveForecast.milestoneCalendars
-    .find((calendar) => calendar.phase === selectedPhase)?.entries.slice(0, 6) ?? [];
   const recentEvents = events.length;
   const projectsWithMovement = new Set(events.map((event) => event.projectId)).size;
 
@@ -133,86 +93,6 @@ export default async function AlertasPage({
         upgradeMessage={locale === "en" ? "Prime enables tracking, history and conversion of each signal into a CRM opportunity." : "Prime activa seguimiento e historial y permite convertir cada señal en una oportunidad dentro del CRM."}
         locale={locale}
       />
-
-      <Panel className="overflow-hidden p-0">
-        <div className="border-b border-neutral-100 px-5 py-5">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#333333] text-brand-primary">
-              <Sparkles size={16} />
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold text-neutral-950">{locale === "en" ? "Anticipate the next market window" : "Anticipa la próxima ventana del mercado"}</h2>
-              <p className="mt-1 max-w-3xl text-sm text-neutral-500">
-                {locale === "en" ? "See when projects are likely to enter Engineering, Procurement or Construction by technology." : "Observa cuándo los proyectos probablemente entrarán en Ingeniería, Compras o Construcción según tecnología."}
-              </p>
-            </div>
-          </div>
-        </div>
-        <PlanGate
-          locked={isFree}
-          variant="showcase"
-          title={locale === "en" ? "Enable predictive alerts" : "Activa alertas predictivas"}
-          description={locale === "en" ? "Anticipate engineering, procurement and construction windows before the market moves." : "Anticipa ventanas de ingeniería, compras y construcción antes de que el mercado se mueva."}
-          features={locale === "en" ? ["Stage selection", "Technology filters", "18-month estimated window", "Project count and capacity"] : ["Selección por etapa", "Filtros por tecnología", "Ventana estimada de 18 meses", "Capacidad y cantidad de proyectos"]}
-        >
-          <div className="space-y-5 p-5">
-            <div>
-              <p className="text-xs font-medium text-neutral-500">{locale === "en" ? "Stage to monitor" : "Etapa a monitorear"}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {PREDICTIVE_PHASES.map((phase) => (
-                  <Link
-                    key={phase.key}
-                    href={`/monitoreo?fase=${phase.key}&tecnologia=${selectedTechnology}`}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      selectedPhase === phase.key
-                        ? "border-[#333333] bg-[#333333] text-white"
-                        : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
-                    }`}
-                  >
-                    {locale === "en" ? (phase.key === "basica" ? "Engineering" : phase.key === "compras" ? "Procurement" : "Construction") : phase.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-neutral-500">{locale === "en" ? "Technology" : "Tecnología"}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {PREDICTIVE_TECH.map((technology) => (
-                  <Link
-                    key={technology.key}
-                    href={`/monitoreo?fase=${selectedPhase}&tecnologia=${technology.key}`}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      selectedTechnology === technology.key
-                        ? "border-brand-primary bg-brand-surface text-[#333333]"
-                        : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
-                    }`}
-                  >
-                    {locale === "en" ? (technology.key === "all" ? "All" : technology.key === "wind" ? "Wind" : technology.key === "hybrid" ? "Hybrid" : technology.label) : technology.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <div className="grid gap-px overflow-hidden rounded-xl border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-3">
-              {predictiveEntries.length === 0 ? (
-                <p className="bg-white p-5 text-sm text-neutral-500 sm:col-span-2 lg:col-span-3">{locale === "en" ? "No estimated milestones for this combination over the next 18 months." : "No hay hitos estimados para esta combinación durante los próximos 18 meses."}</p>
-              ) : predictiveEntries.map((entry) => (
-                <article key={entry.yearMonth} className="bg-white p-4">
-                  <p className="text-xs font-medium text-neutral-500">
-                    {new Date(`${entry.yearMonth}-01T12:00:00`).toLocaleDateString(locale === "en" ? "en-US" : "es-CL", { month: "long", year: "numeric" })}
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-950">{entry.count}</p>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    {locale === "en" ? "projects" : "proyectos"} · {Math.round(entry.capacityMw).toLocaleString(locale === "en" ? "en-US" : "es-CL")} MW
-                  </p>
-                </article>
-              ))}
-            </div>
-            <p className="text-[11px] leading-5 text-neutral-400">
-              {FORECAST_PHASE_LABELS[selectedPhase]} estimado mediante el modelo de cronograma de Transition Latam; no corresponde a una fecha oficial publicada.
-            </p>
-          </div>
-        </PlanGate>
-      </Panel>
 
       <section className="grid gap-4 sm:grid-cols-3" aria-label="Resumen de monitoreo">
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><FolderHeart size={15} className="text-brand-primary" /> {locale === "en" ? "Followed projects" : "Proyectos seguidos"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{followed.length}</p><p className="text-sm text-neutral-500">{locale === "en" ? "your active radar" : "radar activo"}</p></Panel>

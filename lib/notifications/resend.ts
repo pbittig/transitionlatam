@@ -21,7 +21,12 @@ export function sanitizeEmailSubjectPart(value: string): string {
   return value.replace(/[\r\n]+/g, " ").slice(0, 120);
 }
 
-export async function sendInternalNotification(params: { to: string; subject: string; html: string }): Promise<void> {
+export async function sendInternalNotification(params: {
+  to: string;
+  cc?: string[];
+  subject: string;
+  html: string;
+}): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[notifications] RESEND_API_KEY no configurada — se omite el envío.");
@@ -30,7 +35,13 @@ export async function sendInternalNotification(params: { to: string; subject: st
   const res = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: NOTIFICATIONS_FROM, to: [params.to], subject: params.subject, html: params.html }),
+    body: JSON.stringify({
+      from: NOTIFICATIONS_FROM,
+      to: [params.to],
+      ...(params.cc?.length ? { cc: params.cc } : {}),
+      subject: params.subject,
+      html: params.html,
+    }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");

@@ -9,6 +9,7 @@ import { FollowNotifications } from "./components/FollowNotifications";
 import { getAppLocale } from "@/lib/i18n";
 import { getAiChatMemory } from "@/lib/data-access/aiChat";
 import { MobileNavigation } from "./components/MobileNavigation";
+import { getAiUsageQuota } from "@/lib/ai/usageQuota";
 
 function getRemainingTrialDays(trialEndsAt: string | null | undefined): number | null {
   if (!trialEndsAt) return null;
@@ -38,12 +39,13 @@ export default async function PublicLayout({ children }: { children: React.React
       })()
     : [];
   const aiEnabled = admin || userProfile?.planCode === "premium";
-  const aiMemory = aiEnabled
-    ? await getAiChatMemory(
-        createSupabaseServiceClient(),
-        userProfile ? { profileId: userProfile.id } : { admin: true },
-      )
-    : [];
+  const aiService = aiEnabled ? createSupabaseServiceClient() : null;
+  const [aiMemory, aiQuota] = aiService
+    ? await Promise.all([
+        getAiChatMemory(aiService, userProfile ? { profileId: userProfile.id } : { admin: true }),
+        userProfile ? getAiUsageQuota(aiService, userProfile.id) : Promise.resolve(null),
+      ])
+    : [[], null];
 
   return (
     <div className="min-h-full bg-white">
@@ -59,7 +61,7 @@ export default async function PublicLayout({ children }: { children: React.React
       </div>
       <div className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 print:hidden md:right-6 md:bottom-6 md:gap-3">
         <FollowNotifications events={followEvents} />
-        <PremiumAiBar enabled={aiEnabled} initialMessages={aiMemory} locale={locale} />
+        <PremiumAiBar enabled={aiEnabled} initialMessages={aiMemory} initialQuota={aiQuota} locale={locale} />
       </div>
     </div>
   );

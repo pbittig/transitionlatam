@@ -134,7 +134,7 @@ export async function runProjectStatsQuery(client: SupabaseClient, rawArgs: unkn
       onlyActive: args.onlyActive,
       sampleSize: rows.length,
       value: computeMetric(rows, args.metric),
-      scope: "Cartera visible en Proyectos futuros",
+      scope: "Proyectos Futuros: iniciativas verificadas aún en desarrollo, vigentes, con conexión estimada desde el mes actual; generación renovable y almacenamiento únicamente.",
     };
   }
 
@@ -153,6 +153,6 @@ export async function runProjectStatsQuery(client: SupabaseClient, rawArgs: unkn
     results: [...groups.entries()]
       .map(([key, groupRows]) => ({ group: key, sampleSize: groupRows.length, value: computeMetric(groupRows, args.metric) }))
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)),
-    scope: "Cartera visible en Proyectos futuros",
+    scope: "Proyectos Futuros: iniciativas verificadas aún en desarrollo, vigentes, con conexión estimada desde el mes actual; generación renovable y almacenamiento únicamente.",
   };
 }

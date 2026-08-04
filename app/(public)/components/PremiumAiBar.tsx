@@ -6,6 +6,7 @@ import { ArrowRight, FileText, GitCompareArrows, LockKeyhole, Search, Send, Spar
 import { clearTransitionAiHistory } from "../aiActions";
 import type { AiChatMemoryMessage } from "@/lib/data-access/aiChat";
 import type { AppLocale } from "@/lib/i18n";
+import type { AiQuotaSnapshot } from "@/lib/ai/usageQuota";
 
 function renderChatText(content: string) {
   const boldSplit = (text: string) =>
@@ -84,12 +85,22 @@ function NexoOrb({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: { enabled: boolean; initialMessages?: AiChatMemoryMessage[]; locale?: AppLocale }) {
+export function PremiumAiBar({
+  enabled,
+  initialMessages = [],
+  initialQuota = null,
+  locale = "es",
+}: {
+  enabled: boolean;
+  initialMessages?: AiChatMemoryMessage[];
+  initialQuota?: AiQuotaSnapshot | null;
+  locale?: AppLocale;
+}) {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>(initialMessages);
   const [error, setError] = useState<string | null>(null);
-  const [remaining, setRemaining] = useState<number | null>(null);
+  const [quota, setQuota] = useState<AiQuotaSnapshot | null>(initialQuota);
   const [pending, setPending] = useState(false);
   const [clearPending, startClearTransition] = useTransition();
 
@@ -109,7 +120,8 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
         body: JSON.stringify({ history: previous, question: value }),
       });
       if (!response.ok || !response.body) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        const payload = (await response.json().catch(() => null)) as { error?: string; quota?: AiQuotaSnapshot | null } | null;
+        if (payload?.quota) setQuota(payload.quota);
         throw new Error(payload?.error ?? "No pudimos consultar a Nexo.");
       }
       const reader = response.body.getReader();
@@ -123,9 +135,10 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
         for (const line of lines) {
           if (!line) continue;
           const event = JSON.parse(line) as {
-            type: "delta" | "done";
+            type: "delta" | "done" | "error";
             content?: string;
-            remainingTokens?: number | null;
+            quota?: AiQuotaSnapshot | null;
+            error?: string;
           };
           if (event.type === "delta" && event.content) {
             setMessages((current) =>
@@ -134,7 +147,10 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
               ),
             );
           } else if (event.type === "done") {
-            setRemaining(event.remainingTokens ?? null);
+            setQuota(event.quota ?? null);
+          } else if (event.type === "error") {
+            if (event.quota) setQuota(event.quota);
+            throw new Error(event.error ?? (locale === "en" ? "Nexo could not complete the request." : "Nexo no pudo completar la consulta."));
           }
         }
         if (done) break;
@@ -152,7 +168,6 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
       const result = await clearTransitionAiHistory();
       if (result.success) {
         setMessages([]);
-        setRemaining(null);
         setError(null);
       }
     });
@@ -193,10 +208,15 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
             <div className="flex min-h-0 flex-1 flex-col p-4">
               {messages.length === 0 && <div className="rounded-xl bg-neutral-50 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold text-neutral-800">
-                  <Sparkles size={13} className="text-brand-primary" /> {locale === "en" ? "What do you need to analyze?" : "¿Qué necesitas analizar?"}
+                  <Sparkles size={13} className="text-brand-primary" /> {locale === "en" ? "What would you like to analyze?" : "¿Qué necesita analizar?"}
                 </div>
                 <p className="mt-1 text-xs leading-5 text-neutral-500">
                   {locale === "en" ? "Explore projects, compare market signals or prepare a synthesis." : "Consulte proyectos, compare señales del mercado o prepare una síntesis."}
+                </p>
+                <p className="mt-2 border-t border-neutral-200 pt-2 text-[10px] leading-4 text-neutral-400">
+                  {locale === "en"
+                    ? "Scope: verified, active renewable generation and storage projects still under development, with estimated connection dates from the current month onward."
+                    : "Alcance: proyectos verificados y vigentes de generación renovable y almacenamiento, aún en desarrollo y con conexión estimada desde el mes actual."}
                 </p>
               </div>}
               {messages.length > 0 && (
@@ -232,7 +252,25 @@ export function PremiumAiBar({ enabled, initialMessages = [], locale = "es" }: {
                 </button>
               </form>
               {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
-              {remaining !== null && <p className="mt-2 text-center text-[10px] text-neutral-400">{remaining.toLocaleString(locale === "en" ? "en-US" : "es-CL")} {locale === "en" ? "tokens available this month" : "tokens disponibles este mes"}</p>}
+              {quota && (
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-neutral-100 pt-3">
+                  {([
+                    ["daily", locale === "en" ? "Today" : "Hoy"],
+                    ["weekly", locale === "en" ? "Week" : "Semana"],
+                    ["monthly", locale === "en" ? "Month" : "Mes"],
+                  ] as const).map(([key, label]) => {
+                    const item = quota[key];
+                    const available = Math.round((item.remaining / item.limit) * 100);
+                    const reset = new Date(item.resetsAt).toLocaleDateString(locale === "en" ? "en-US" : "es-CL", { day: "numeric", month: "short" });
+                    return (
+                      <div key={key} title={`${item.remaining.toLocaleString()} tokens · ${locale === "en" ? "resets" : "se restablece"} ${reset}`}>
+                        <div className="flex items-center justify-between text-[9px] text-neutral-500"><span>{label}</span><span>{available}%</span></div>
+                        <div className="mt-1 h-1 overflow-hidden rounded-full bg-neutral-100"><span className="block h-full rounded-full bg-brand-primary" style={{ width: `${Math.max(0, Math.min(100, available))}%` }} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : (
             <div className="p-5 text-center">
