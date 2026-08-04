@@ -8,9 +8,16 @@ import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-cl
  * render, porque establecer la sesión requiere escribir cookies (ver
  * comentario de proxy.ts sobre esta misma restricción).
  */
+/** Solo rutas relativas propias — evita que "next" se use para un open redirect a otro dominio. */
+function safeNextPath(rawNext: string | null): string {
+  if (!rawNext) return "/restablecer-clave";
+  const isRelative = rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.startsWith("/\\");
+  return isRelative ? rawNext : "/restablecer-clave";
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const code = request.nextUrl.searchParams.get("code");
-  const next = request.nextUrl.searchParams.get("next") ?? "/restablecer-clave";
+  const next = safeNextPath(request.nextUrl.searchParams.get("next"));
 
   if (code) {
     const client = await createSupabaseServerClient();
