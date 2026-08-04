@@ -2,7 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { jwtVerify } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PAGE_PATHS = new Set(["/ingresar", "/registro", "/planes", "/admin/acceso"]);
+const PUBLIC_PAGE_PATHS = new Set([
+  "/ingresar",
+  "/registro",
+  "/planes",
+  "/admin/acceso",
+  "/recuperar-clave",
+  "/restablecer-clave",
+]);
 
 async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get("session")?.value;

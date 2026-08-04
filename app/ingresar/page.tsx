@@ -50,6 +50,12 @@ export default async function IngresarPage() {
             <h1 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Sign in to your portal" : "Ingresa a tu portal"}</h1>
             <p className="mt-1 mb-6 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Continue analyzing the market and your opportunities." : "Continúa analizando el mercado y tus oportunidades."}</p>
             <IngresarForm locale={locale} />
+            <Link
+              href="/recuperar-clave"
+              className="mt-3 inline-block text-xs font-medium text-neutral-500 hover:text-brand-deep dark:hover:text-brand-primary"
+            >
+              {locale === "en" ? "Forgot your password?" : "¿Olvidaste tu clave?"}
+            </Link>
           </div>
 
           <div className="mt-5 rounded-2xl border border-brand-primary/25 bg-brand-surface/70 p-4 dark:bg-brand-primary/5">
