@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert } from "lucide-react";
+import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert, FileSearch } from "lucide-react";
 import { countUnverifiedProjects, countNeedsReverification } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../components/Panel";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { getEditorialCounts } from "@/lib/data-access/editorialQueue";
+import { countPertinenciasPending } from "@/lib/data-access/pertinencias";
 
 export const metadata: Metadata = { title: "Admin" };
 export const dynamic = "force-dynamic";
@@ -13,17 +14,19 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   if (!(await isAdmin())) return null;
   const serviceClient = createSupabaseServiceClient();
-  const [pendingResult, editorialResult, requestResult, reverificationResult] = await Promise.allSettled([
+  const [pendingResult, editorialResult, requestResult, reverificationResult, pertinenciaResult] = await Promise.allSettled([
     countUnverifiedProjects(serviceClient),
     getEditorialCounts(serviceClient),
     serviceClient.from("service_request").select("id", { count: "exact", head: true }).eq("status", "new"),
     countNeedsReverification(serviceClient),
+    countPertinenciasPending(serviceClient),
   ]);
   const pendingCount = pendingResult.status === "fulfilled" ? pendingResult.value : null;
   const editorialCounts = editorialResult.status === "fulfilled" ? editorialResult.value : null;
   const requestCount =
     requestResult.status === "fulfilled" && !requestResult.value.error ? (requestResult.value.count ?? 0) : null;
   const reverificationCount = reverificationResult.status === "fulfilled" ? reverificationResult.value : null;
+  const pertinenciaCount = pertinenciaResult.status === "fulfilled" ? pertinenciaResult.value : null;
   const hasUnavailableMetrics = pendingCount === null || editorialCounts === null || requestCount === null;
 
   return (
@@ -104,6 +107,20 @@ export default async function AdminPage() {
                 : reverificationCount === 1
                   ? "1 proyecto verificado con un cambio sospechoso."
                   : `${reverificationCount.toLocaleString("es-CL")} proyectos verificados con cambios sospechosos.`}
+            </p>
+          </Panel>
+        </Link>
+        <Link href="/admin/pertinencias">
+          <Panel className="flex flex-col gap-2 hover:border-neutral-300 dark:hover:border-neutral-700">
+            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              <FileSearch size={18} /> Pertinencias SEA
+            </div>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              {pertinenciaCount === null
+                ? "Contador temporalmente no disponible."
+                : pertinenciaCount === 1
+                  ? "1 pertinencia por revisar."
+                  : `${pertinenciaCount.toLocaleString("es-CL")} pertinencias por revisar.`}
             </p>
           </Panel>
         </Link>

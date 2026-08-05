@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/sync-cne-capacidad",
       "schedule": "0 12 * * 1"
+    },
+    {
+      "path": "/api/cron/sync-sea-pertinencia",
+      "schedule": "45 16 * * *"
     }
   ]
 }
