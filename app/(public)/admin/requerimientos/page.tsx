@@ -2,31 +2,10 @@ import type { Metadata } from "next";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { Panel } from "../../components/Panel";
+import { SERVICE_LABELS, TIMING_LABELS, CONTACT_LABELS } from "@/lib/shared/serviceRequestLabels";
 
 export const metadata: Metadata = { title: "Requerimientos | Admin" };
 export const dynamic = "force-dynamic";
-
-const SERVICE_LABELS: Record<string, string> = {
-  market_study: "Estudio de mercado",
-  market_intelligence: "Inteligencia de mercado",
-  project_intelligence: "Inteligencia de proyectos",
-  commercial_strategy: "Estrategia comercial",
-  custom_analysis: "Análisis personalizado",
-  other: "Otro requerimiento",
-};
-
-const TIMING_LABELS: Record<string, string> = {
-  as_soon_as_possible: "Lo antes posible",
-  this_month: "Durante este mes",
-  this_quarter: "Durante este trimestre",
-  exploratory: "Exploratorio",
-};
-
-const CONTACT_LABELS: Record<string, string> = {
-  email: "Correo",
-  phone: "Teléfono",
-  meeting: "Reunión",
-};
 
 export default async function AdminRequerimientosPage() {
   if (!(await isAdmin())) return null;
