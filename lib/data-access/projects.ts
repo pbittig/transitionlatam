@@ -1113,12 +1113,19 @@ export async function getProjectsForMap(client: SupabaseClient, filters: Project
   return { regionBubbles, precisePoints };
 }
 
-export type RelatedProjectReason = "same_spv" | "same_owner" | "same_group";
+export type RelatedProjectReason = "same_spv" | "same_owner" | "same_rut" | "same_group" | "shared_contacts";
+
+const PUBLIC_EMAIL_DOMAINS = new Set([
+  "gmail.com", "hotmail.com", "outlook.com", "live.com", "yahoo.com", "icloud.com", "me.com", "proton.me", "protonmail.com",
+]);
 
 export interface RelatedPortfolioProject {
   id: string;
   name: string;
   capacityMw: number | null;
+  capacityMwh: number | null;
+  generationCapacityMw: number | null;
+  storageCapacityMw: number | null;
   estimatedConnectionDate: string | null;
   technologyCode: string | null;
   includesStorage: boolean;
@@ -1173,12 +1180,62 @@ export async function getRelatedPortfolioProjects(
       .map(normalizeForMatch),
   );
   let groupCompanyIds: string[] = [];
+  let sameRutCompanyIds: string[] = [];
   if (officialGroupNames.size > 0) {
     const { data: companies, error: companiesError } = await client.from("company").select("id, name").limit(5000);
     if (companiesError) throw new Error(`Error resolviendo empresas relacionadas: ${companiesError.message}`);
     groupCompanyIds = (companies ?? [])
       .filter((company) => officialGroupNames.has(normalizeForMatch(company.name as string)))
       .map((company) => company.id as string);
+  }
+
+  // El mismo titular puede existir duplicado con distinta grafía, pero el RUT
+  // identifica inequívocamente a la misma entidad legal.
+  if (target.developerCompanyId) {
+    const { data: currentCompany } = await client.from("company").select("rut").eq("id", target.developerCompanyId).maybeSingle();
+    if (currentCompany?.rut) {
+      const { data: sameRutCompanies } = await client.from("company").select("id").eq("rut", currentCompany.rut);
+      sameRutCompanyIds = (sameRutCompanies ?? []).map((company) => company.id as string);
+      groupCompanyIds.push(...sameRutCompanyIds);
+    }
+  }
+
+  // Una relación por personas exige dos contactos exactos compartidos. Además,
+  // sus correos deben ser corporativos; compartir sólo un dominio o un asesor
+  // aislado no basta para vincular carteras.
+  const { data: currentContactRelations } = await client
+    .from("entity_relationship")
+    .select("source_id")
+    .eq("source_type", "person")
+    .eq("target_type", "project")
+    .eq("target_id", target.id);
+  const currentPersonIds = [...new Set((currentContactRelations ?? []).map((relation) => relation.source_id as string))];
+  let contactRelatedProjectIds = new Set<string>();
+  if (currentPersonIds.length >= 2) {
+    const { data: people } = await client.from("person").select("id, email").in("id", currentPersonIds);
+    const corporateEmails = [...new Set((people ?? []).filter((person) => {
+      const domain = String(person.email ?? "").split("@")[1]?.toLowerCase();
+      return domain && !PUBLIC_EMAIL_DOMAINS.has(domain);
+    }).map((person) => String(person.email).trim().toLowerCase()))];
+    if (corporateEmails.length >= 2) {
+      const { data: matchingPeople } = await client.from("person").select("id, email").in("email", corporateEmails);
+      const emailByPersonId = new Map((matchingPeople ?? []).map((person) => [person.id as string, String(person.email).trim().toLowerCase()]));
+      const { data: sharedRelations } = await client
+        .from("entity_relationship")
+        .select("source_id, target_id")
+        .eq("source_type", "person")
+        .eq("target_type", "project")
+        .in("source_id", [...emailByPersonId.keys()])
+        .neq("target_id", target.id);
+      const emailsByProject = new Map<string, Set<string>>();
+      for (const relation of sharedRelations ?? []) {
+        const emails = emailsByProject.get(relation.target_id as string) ?? new Set<string>();
+        const email = emailByPersonId.get(relation.source_id as string);
+        if (email) emails.add(email);
+        emailsByProject.set(relation.target_id as string, emails);
+      }
+      contactRelatedProjectIds = new Set([...emailsByProject].filter(([, emails]) => emails.size >= 2).map(([projectId]) => projectId));
+    }
   }
 
   const ownerIds = Array.from(
@@ -1188,13 +1245,14 @@ export async function getRelatedPortfolioProjects(
   const relationshipFilters = [
     ownerIds.length > 0 ? `developer_company_id.in.(${ownerIds.join(",")})` : null,
     spvIds.length > 0 ? `spv_id.in.(${spvIds.join(",")})` : null,
+    contactRelatedProjectIds.size > 0 ? `id.in.(${[...contactRelatedProjectIds].join(",")})` : null,
   ].filter((filter): filter is string => Boolean(filter));
   if (relationshipFilters.length === 0) return [];
 
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, developer_company_id, spv_id, capacity_mw, estimated_connection_date, includes_storage, status, technology:technology_id(code)",
+      "id, name, developer_company_id, spv_id, capacity_mw, capacity_mwh, generation_capacity_mw, storage_capacity_mw, estimated_connection_date, includes_storage, status, technology:technology_id(code)",
     )
     .neq("id", target.id)
     .not("verified_at", "is", null)
@@ -1211,6 +1269,9 @@ export async function getRelatedPortfolioProjects(
     developer_company_id: string | null;
     spv_id: string | null;
     capacity_mw: number | null;
+    capacity_mwh: number | null;
+    generation_capacity_mw: number | null;
+    storage_capacity_mw: number | null;
     estimated_connection_date: string | null;
     includes_storage: boolean;
     status: string | null;
@@ -1222,11 +1283,18 @@ export async function getRelatedPortfolioProjects(
           ? "same_spv"
           : target.developerCompanyId && row.developer_company_id === target.developerCompanyId
             ? "same_owner"
-            : "same_group";
+            : sameRutCompanyIds.includes(row.developer_company_id ?? "")
+              ? "same_rut"
+            : ownerIds.includes(row.developer_company_id ?? "") || spvIds.includes(row.spv_id ?? "")
+              ? "same_group"
+              : "shared_contacts";
       return {
         id: row.id,
         name: row.name,
         capacityMw: row.capacity_mw,
+        capacityMwh: row.capacity_mwh,
+        generationCapacityMw: row.generation_capacity_mw,
+        storageCapacityMw: row.storage_capacity_mw,
         estimatedConnectionDate: row.estimated_connection_date,
         technologyCode: row.technology?.code ?? null,
         includesStorage: row.includes_storage,

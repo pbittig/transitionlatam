@@ -1,0 +1,35 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export interface LatestPgpProgress {
+  nup: string;
+  progressPercent: number;
+  observedAt: string;
+  sourceUrl: string;
+  expectedProgressPercent: number | null;
+  deviationPp: number | null;
+  modelVersion: string | null;
+}
+
+export async function getLatestPgpProgress(
+  client: SupabaseClient,
+  projectId: string,
+): Promise<LatestPgpProgress | null> {
+  const { data, error } = await client
+    .from("latest_pgp_project_progress")
+    .select("nup, progress_percent, expected_progress_percent, deviation_pp, model_version, observed_at, source_url")
+    .eq("project_id", projectId)
+    .maybeSingle();
+  // Allows application deployment before the additive migration is applied.
+  if (error?.code === "42P01" || error?.code === "PGRST205") return null;
+  if (error) throw new Error(`Error obteniendo avance PGP: ${error.message}`);
+  if (!data) return null;
+  return {
+    nup: data.nup as string,
+    progressPercent: Number(data.progress_percent),
+    observedAt: data.observed_at as string,
+    sourceUrl: data.source_url as string,
+    expectedProgressPercent: data.expected_progress_percent === null ? null : Number(data.expected_progress_percent),
+    deviationPp: data.deviation_pp === null ? null : Number(data.deviation_pp),
+    modelVersion: data.model_version as string | null,
+  };
+}

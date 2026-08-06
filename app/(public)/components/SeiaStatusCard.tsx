@@ -12,12 +12,6 @@ const STATUS_COLOR: Record<string, { light: string; dark: string; label: string 
   "no calificado": { light: "#898781", dark: "#898781", label: "No calificado" },
 };
 
-const CONFIDENCE_LABEL: Record<string, string> = {
-  alta: "Coincidencia de alta confianza",
-  media: "Coincidencia de confianza media — verificar",
-  baja: "Coincidencia de baja confianza — verificar",
-};
-
 export function SeiaStatusCard({ record, locale = "es" }: { record: SeiaRecordForProject; locale?: AppLocale }) {
   const key = record.status?.toLowerCase().trim() ?? "";
   const color = STATUS_COLOR[key] ?? { light: "#898781", dark: "#898781", label: record.status ?? "Sin estado" };
@@ -66,12 +60,6 @@ export function SeiaStatusCard({ record, locale = "es" }: { record: SeiaRecordFo
         >
           {locale === "en" ? "View SEIA record" : "Ver ficha en SEIA"} →
         </a>
-      )}
-      {record.matchConfidence && (
-        <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
-          {CONFIDENCE_LABEL[record.matchConfidence]} — cruce automático por nombre y región, no un dato confirmado
-          manualmente.
-        </p>
       )}
     </div>
   );

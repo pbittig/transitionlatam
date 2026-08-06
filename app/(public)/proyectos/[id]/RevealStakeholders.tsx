@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { revealStakeholders } from "./seiaActions";
 import type { ProjectStakeholder } from "@/lib/data-access/projects";
 import type { AppLocale } from "@/lib/i18n";
+import { formatPersonName, formatEmailForDisplay } from "@/lib/shared/formatContact";
 
 interface MaskedContact {
   name: string;
@@ -51,9 +52,8 @@ export function RevealStakeholders({
       <ul className="grid gap-3 sm:grid-cols-2">
         {stakeholders.map((s) => (
           <li key={s.personId} className="rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800">
-            <div className="font-medium text-neutral-900 dark:text-neutral-50">{s.name}</div>
-            {s.email && <div className="mt-1 text-neutral-600 dark:text-neutral-400">{s.email}</div>}
-            {s.phone && <div className="text-neutral-600 dark:text-neutral-400">{s.phone}</div>}
+            <div className="font-medium text-neutral-900 dark:text-neutral-50">{formatPersonName(s.name)}</div>
+            {s.email && <div className="mt-1 text-neutral-600 dark:text-neutral-400">{formatEmailForDisplay(s.email)}</div>}
           </li>
         ))}
       </ul>

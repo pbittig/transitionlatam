@@ -259,25 +259,3 @@ export function getScheduleGroup(
   if (technologyCode === "hybrid") return "HIBRIDO_GENERICO";
   return null;
 }
-
-/**
- * Ventana esperada de tramitación SEIA por tecnología (ingreso a RCA), dada
- * por el usuario — se usa cuando el proyecto todavía no tiene un expediente
- * SEIA asociado, para mostrar una expectativa en vez de un vacío.
- */
-export function getSeiaDurationRangeMonths(group: ProjectScheduleGroup): DurationRange | null {
-  switch (group) {
-    case "SOLAR_UTILITY":
-    case "SOLAR_BESS":
-      return { min: 12, likely: 15, max: 18 };
-    case "EOLICO":
-    case "EOLICO_BESS":
-      return { min: 18, likely: 21, max: 24 };
-    case "BESS_STANDALONE":
-      return { min: 8, likely: 11.5, max: 15 };
-    case "PMGD":
-      return { min: 8, likely: 11, max: 14 };
-    default:
-      return null;
-  }
-}

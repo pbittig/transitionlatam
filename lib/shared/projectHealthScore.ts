@@ -86,7 +86,10 @@ export function computeHealthScore(
   const statusMaturity = getStatusMaturity(status);
   const statusScore = statusMaturity?.order ?? null;
 
-  const isStorageProject = context.projectKind === "storage" || context.projectKind === "hybrid" || !!context.includesStorage;
+  // Un componente BESS no determina por sí solo el tratamiento ambiental.
+  // La excepción conservadora aplica sólo al almacenamiento stand-alone; un
+  // híbrido solar/eólico+BESS sigue la tipología de su proyecto y sus obras.
+  const isStandaloneBess = context.projectKind === "storage";
   const isPertinence = normalize(context.seiaSubmissionType).includes("pertinen");
   const seiaMaturity = !isPertinence && seiaStatus && !isSeiaNegativeTerminal(seiaStatus) ? getSeiaMaturity(seiaStatus) : null;
   const seiaScore = isPertinence ? pertinenceScore(seiaStatus) : (seiaMaturity?.order ?? null);
@@ -94,7 +97,7 @@ export function computeHealthScore(
     ? "pertinencia"
     : context.seiaSubmissionType
       ? "seia"
-      : isStorageProject
+      : isStandaloneBess
         ? "bess_no_automatico"
         : "sin_antecedente";
   const environmentalNote =

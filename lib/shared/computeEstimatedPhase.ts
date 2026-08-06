@@ -1,5 +1,4 @@
 import {
-  GROUP_DURATIONS,
   GROUP_LABELS,
   GROUP_PHASE_ORDER,
   PHASE_LABELS,
@@ -9,13 +8,19 @@ import {
   type PhaseKey,
   type ProjectScheduleGroup,
 } from "./projectPhaseDurations";
+import {
+  estimateProjectTimeline,
+  type PdteConnectionType,
+  type PdteEnvironmental,
+  type PdteTechnology,
+} from "./projectTimelineEstimator";
 
 export interface PhaseMilestone {
   phase: PhaseKey;
   label: string;
-  estimatedStartDate: string; // ISO date — escenario "más probable"
-  minStartDate: string; // ISO date — escenario más rápido (holgura mínima)
-  maxStartDate: string; // ISO date — escenario más lento (holgura máxima)
+  estimatedStartDate: string;
+  minStartDate: string;
+  maxStartDate: string;
   confidence: ConfidenceLevel;
   reached: boolean;
 }
@@ -24,27 +29,58 @@ export interface EstimatedPhaseResult {
   group: ProjectScheduleGroup;
   groupLabel: string;
   milestones: PhaseMilestone[];
-  currentPhase: PhaseKey | null; // null = aún no debería haber iniciado ni la primera etapa
-  pastConnectionDate: boolean; // ya pasó el POC — debería estar en operación
-  totalDurationMonths: number; // suma de duraciones "probable" — no necesariamente el tiempo real por superposición entre etapas
+  currentPhase: PhaseKey | null;
+  pastConnectionDate: boolean;
+  totalDurationMonths: number;
+}
+
+/** Optional facts are additive so existing callers remain source-compatible. */
+export interface EstimatedPhaseOptions {
+  storageMwh?: number | null;
+  connectionType?: PdteConnectionType;
+  voltageLevelKv?: number | null;
+  environmental?: PdteEnvironmental;
+  newSubstation?: boolean;
+  newTransmissionLine?: boolean;
+  lineLengthKm?: number | null;
+  developer?: string | null;
+  region?: string | null;
 }
 
 function subtractMonths(date: Date, months: number): Date {
   const result = new Date(date);
-  const wholeMonths = Math.trunc(months);
-  const fractionDays = (months - wholeMonths) * 30.44;
-  result.setUTCMonth(result.getUTCMonth() - wholeMonths);
-  result.setUTCDate(result.getUTCDate() - Math.round(fractionDays));
+  const whole = Math.trunc(months);
+  result.setUTCMonth(result.getUTCMonth() - whole);
+  result.setUTCDate(result.getUTCDate() - Math.round((months - whole) * 30.44));
   return result;
 }
 
+function technologyFor(group: ProjectScheduleGroup, includesStorage: boolean): PdteTechnology {
+  if (group === "PMGD") return "PMGD";
+  if (group === "SOLAR_UTILITY") return "Solar";
+  if (group === "BESS_STANDALONE") return "BESS";
+  if (group === "SOLAR_BESS") return "Solar+BESS";
+  if (group === "EOLICO") return "Wind";
+  if (group === "EOLICO_BESS") return "Wind+BESS";
+  return includesStorage ? "Solar+BESS" : "Solar";
+}
+
+const STAGE_BY_PHASE: Partial<Record<PhaseKey, string[]>> = {
+  campana_viento: ["campana_viento"],
+  desarrollo: ["prospeccion"],
+  conceptual: ["prefactibilidad", "conceptual"],
+  basica: ["basica", "acceso_abierto"],
+  detalle: ["detalle"],
+  compras: ["compras"],
+  construccion: ["construccion"],
+  comisionamiento: ["comisionamiento"],
+  factibilidad: ["factibilidad"],
+  pruebas: ["pruebas"],
+};
+
 /**
- * Reconstruye probabilísticamente el cronograma completo del proyecto por
- * ingeniería reversa desde la fecha estimada de conexión (POC/COD), usando el
- * modelo de duraciones por etapa de projectPhaseDurations.ts. Para cada etapa
- * entrega fecha mínima, más probable y máxima — nunca una fecha única. Es una
- * estimación de mercado, no un dato confirmado del proyecto (ver
- * docs/04-modelo-datos.md §4.3).
+ * Backwards-compatible projection of the detailed PDTE into the seven/eight
+ * broad phases consumed by the current UI and aggregate forecast.
  */
 export function computeEstimatedPhase(
   estimatedConnectionDate: string | null,
@@ -52,64 +88,55 @@ export function computeEstimatedPhase(
   includesStorage: boolean,
   capacityMw: number | null,
   today: Date = new Date(),
+  options: EstimatedPhaseOptions = {},
 ): EstimatedPhaseResult | null {
   if (!estimatedConnectionDate) return null;
   const group = getScheduleGroup(technologyCode, includesStorage, capacityMw);
   if (!group) return null;
-
   const poc = new Date(estimatedConnectionDate);
-  const phaseOrder = GROUP_PHASE_ORDER[group];
-  const durations = GROUP_DURATIONS[group];
+  if (Number.isNaN(poc.getTime())) return null;
 
-  // Se acumula desde la última etapa (COD) hacia la primera: el offset de
-  // cada etapa es la suma de su propia duración más la de todas las etapas
-  // posteriores — así el orden queda siempre no decreciente por construcción
-  // (a diferencia del modelo anterior, no hace falta forzarlo al dibujar).
-  let likelyAcc = 0;
-  let minAcc = 0;
-  let maxAcc = 0;
-  let totalDurationMonths = 0;
-  const offsets = new Map<PhaseKey, { likely: number; min: number; max: number }>();
+  const estimate = estimateProjectTimeline({
+    technology: technologyFor(group, includesStorage),
+    codDate: estimatedConnectionDate,
+    installedPowerMw: capacityMw,
+    storageMwh: options.storageMwh,
+    connectionType: options.connectionType,
+    voltageLevelKv: options.voltageLevelKv,
+    environmental: options.environmental ?? "None",
+    newSubstation: options.newSubstation,
+    newTransmissionLine: options.newTransmissionLine,
+    lineLengthKm: options.lineLengthKm,
+    developer: options.developer,
+    region: options.region,
+  });
+  if (!estimate) return null;
 
-  for (let i = phaseOrder.length - 1; i >= 0; i--) {
-    const phase = phaseOrder[i];
-    const d = durations[phase];
-    if (!d) continue;
-    likelyAcc += d.likely;
-    minAcc += d.min;
-    maxAcc += d.max;
-    totalDurationMonths += d.likely;
-    // offset mínimo (escenario rápido) usa duraciones mínimas -> fecha más
-    // cercana al POC; offset máximo (escenario lento) usa duraciones máximas
-    // -> fecha más lejana al POC.
-    offsets.set(phase, { likely: likelyAcc, min: minAcc, max: maxAcc });
-  }
+  const milestones: PhaseMilestone[] = GROUP_PHASE_ORDER[group].flatMap((phase) => {
+    const keys = STAGE_BY_PHASE[phase] ?? [];
+    const candidates = estimate.timeline.filter((stage) => keys.includes(stage.key));
+    if (!candidates.length) return [];
+    const likelyDate = new Date(candidates[0].estimatedStart);
+    const monthsToCod = Math.max(0, (poc.getTime() - likelyDate.getTime()) / (30.44 * 86400000));
+    const uncertainty = Math.max(1, monthsToCod * 0.14);
+    return [{
+      phase,
+      label: PHASE_LABELS[phase],
+      estimatedStartDate: likelyDate.toISOString().slice(0, 10),
+      minStartDate: subtractMonths(likelyDate, -uncertainty).toISOString().slice(0, 10),
+      maxStartDate: subtractMonths(likelyDate, uncertainty).toISOString().slice(0, 10),
+      confidence: getPhaseConfidence(phase),
+      reached: today >= likelyDate,
+    }];
+  });
 
-  const milestones: PhaseMilestone[] = phaseOrder
-    .filter((phase) => offsets.has(phase))
-    .map((phase) => {
-      const o = offsets.get(phase)!;
-      const likelyDate = subtractMonths(poc, o.likely);
-      return {
-        phase,
-        label: PHASE_LABELS[phase],
-        estimatedStartDate: likelyDate.toISOString().slice(0, 10),
-        minStartDate: subtractMonths(poc, o.min).toISOString().slice(0, 10),
-        maxStartDate: subtractMonths(poc, o.max).toISOString().slice(0, 10),
-        confidence: getPhaseConfidence(phase),
-        reached: today >= likelyDate,
-      };
-    });
-
-  const reachedMilestones = milestones.filter((m) => m.reached);
-  const currentPhase = reachedMilestones.length > 0 ? reachedMilestones[reachedMilestones.length - 1].phase : null;
-
+  const reached = milestones.filter((milestone) => milestone.reached);
   return {
     group,
     groupLabel: GROUP_LABELS[group],
     milestones,
-    currentPhase,
+    currentPhase: reached.length ? reached[reached.length - 1].phase : null,
     pastConnectionDate: today >= poc,
-    totalDurationMonths,
+    totalDurationMonths: estimate.totalDuration,
   };
 }

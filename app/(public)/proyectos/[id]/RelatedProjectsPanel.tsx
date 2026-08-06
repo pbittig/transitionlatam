@@ -8,12 +8,16 @@ const relationshipLabels: Record<AppLocale, Record<RelatedProjectReason, string>
   es: {
     same_spv: "Mismo SPV / propietario",
     same_owner: "Mismo desarrollador",
+    same_rut: "Mismo RUT",
     same_group: "Mismo grupo empresarial",
+    shared_contacts: "Dos o más contactos compartidos",
   },
   en: {
     same_spv: "Same SPV / owner",
     same_owner: "Same developer",
+    same_rut: "Same RUT",
     same_group: "Same corporate group",
+    shared_contacts: "Two or more shared contacts",
   },
 };
 
@@ -37,6 +41,25 @@ function stageFor(project: RelatedPortfolioProject, locale: AppLocale): string {
   if (!estimate.currentPhase) return locale === "en" ? "Pre-development" : "Pre-desarrollo";
   const group = PHASE_TO_GROUP[estimate.currentPhase];
   return locale === "en" ? phaseLabelsEn[group] : PHASE_GROUP_LABELS[group];
+}
+
+function powerBreakdown(project: RelatedPortfolioProject, locale: AppLocale): string | null {
+  const storageMw = project.storageCapacityMw ?? (project.technologyCode === "bess" ? project.capacityMw : null);
+  const storage = [storageMw !== null ? `${storageMw} MW` : null, project.capacityMwh !== null ? `${project.capacityMwh} MWh` : null]
+    .filter(Boolean)
+    .join(" / ");
+
+  if (project.technologyCode === "bess") return storage ? `BESS · ${storage}` : project.capacityMw !== null ? `BESS · ${project.capacityMw} MW` : null;
+  if (!project.includesStorage) return project.capacityMw !== null ? `${project.capacityMw} MW` : null;
+
+  const generationMw = project.generationCapacityMw ?? project.capacityMw;
+  const generationType = project.technologyCode === "solar_pv"
+    ? "Solar"
+    : project.technologyCode === "wind"
+      ? locale === "en" ? "Wind" : "Eólico"
+      : locale === "en" ? "Generation" : "Generación";
+  const generation = generationMw !== null ? `${generationMw} MW ${generationType}` : generationType;
+  return storage ? `${generation} + ${storage} BESS` : generation;
 }
 
 export function RelatedProjectsPanel({
@@ -70,7 +93,7 @@ export function RelatedProjectsPanel({
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
               {[
                 relationshipLabels[locale][project.reason],
-                project.capacityMw !== null ? `${project.capacityMw} MW` : null,
+                powerBreakdown(project, locale),
                 project.estimatedConnectionDate
                   ? new Date(project.estimatedConnectionDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL")
                   : null,

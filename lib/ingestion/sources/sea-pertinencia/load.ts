@@ -51,7 +51,7 @@ export async function loadPertinencias(client: SupabaseClient, rows: NormalizedP
       summary.updated += 1;
 
       if (existing.match_status === "pending") {
-        const candidate = suggestProjectMatch(row.name, projectCandidates);
+        const candidate = suggestProjectMatch(row.name, projectCandidates, row.titularRut);
         if (candidate) {
           await client
             .from("pertinencia_consulta")

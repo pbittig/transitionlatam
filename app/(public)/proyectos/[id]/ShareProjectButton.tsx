@@ -40,7 +40,7 @@ export function ShareProjectButton({ projectName, locale = "es" }: { projectName
       onClick={handleShare}
       aria-label={label}
       title={label}
-      className="grid size-9 shrink-0 place-items-center rounded-lg border border-neutral-200 text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:bg-neutral-900 dark:hover:text-white"
+      className="grid size-9 shrink-0 place-items-center rounded-lg border border-brand-primary bg-brand-primary text-[#173c38] shadow-sm transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
     >
       {copied ? <Check size={17} aria-hidden="true" /> : <Share2 size={17} aria-hidden="true" />}
     </button>
