@@ -61,7 +61,7 @@ export function AddToCrmButton({
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Link
               href="/crm"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-900 bg-neutral-900 px-3 py-2 text-xs font-semibold text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-brand-deep bg-brand-primary px-3 py-2 text-xs font-semibold text-[#173c38] shadow-sm"
             >
               <CircleCheck size={15} /> Ver en CRM
             </Link>
@@ -106,7 +106,7 @@ export function AddToCrmButton({
         className={
           compact
             ? "inline-flex h-7 w-7 items-center justify-center rounded-md text-brand-primary hover:bg-neutral-100 dark:hover:bg-neutral-800"
-            : "print:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+            : "print:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-brand-deep bg-brand-primary text-[#173c38] shadow-sm ring-1 ring-brand-deep/20"
         }
       >
         <CircleCheck size={compact ? 15 : 16} strokeWidth={2} />
@@ -131,7 +131,7 @@ export function AddToCrmButton({
       className={
         compact
           ? "inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-neutral-800"
-          : "print:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          : "print:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-[#173c38] shadow-sm hover:brightness-95 disabled:opacity-50"
       }
     >
       <ContactRound size={compact ? 15 : 16} strokeWidth={2} />

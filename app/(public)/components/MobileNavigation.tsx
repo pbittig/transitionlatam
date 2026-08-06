@@ -22,19 +22,20 @@ import { useState } from "react";
 import { logout } from "@/app/ingresar/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import type { AppLocale } from "@/lib/i18n";
+import { localizedRoute } from "@/lib/localizedRoutes";
 import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
 
 function getItems(locale: AppLocale) {
   const primaryItems = [
-    { href: "/proyectos", label: locale === "en" ? "Future projects" : "Proyectos Futuros", icon: Activity, minPlan: "free" },
-    { href: "/matriz", label: locale === "en" ? "Projects in operation" : "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
-    { href: "/monitoreo", label: locale === "en" ? "Tracking" : "Seguimiento", icon: Eye, minPlan: "premium" },
+    { href: localizedRoute("projects", locale), label: locale === "en" ? "Future projects" : "Proyectos Futuros", icon: Activity, minPlan: "premium" },
+    { href: localizedRoute("operations", locale), label: locale === "en" ? "Projects in operation" : "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
+    { href: localizedRoute("tracking", locale), label: locale === "en" ? "Tracking" : "Seguimiento", icon: Eye, minPlan: "premium" },
   ] as const;
   const secondaryItems = [
-    { href: "/analisis-dinamico", label: locale === "en" ? "Dynamic analysis" : "Análisis dinámico", icon: BarChart3, minPlan: "premium" },
-    { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
+    { href: localizedRoute("analysis", locale), label: locale === "en" ? "Dynamic analysis" : "Análisis dinámico", icon: BarChart3, minPlan: "premium" },
+    { href: localizedRoute("owners", locale), label: locale === "en" ? "Owners" : "Propietarios", icon: Network, minPlan: "premium" },
     { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
-    { href: "/requerimientos", label: locale === "en" ? "Services" : "Servicios", icon: ClipboardList, minPlan: "free" },
+    { href: localizedRoute("services", locale), label: locale === "en" ? "Additional services" : "Servicios adicionales", icon: ClipboardList, minPlan: "free" },
   ] as const;
   return { primaryItems, secondaryItems };
 }
@@ -76,9 +77,10 @@ export function MobileNavigation({
               {secondaryItems.map((item) => {
                 const Icon = item.icon;
                 const locked = isLocked(item.minPlan);
+                const isAdditionalService = item.href === localizedRoute("services", locale);
                 return (
-                  <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="flex min-h-14 items-center gap-3 rounded-2xl border border-neutral-100 px-4 py-3 dark:border-neutral-800">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100 text-neutral-800"><Icon size={20} /></span>
+                  <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={`flex min-h-14 items-center gap-3 rounded-2xl border px-4 py-3 ${isAdditionalService ? "mt-2 border-neutral-200 bg-neutral-100 font-semibold text-brand-deep shadow-sm" : "border-neutral-100 dark:border-neutral-800"}`}>
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${isAdditionalService ? "bg-white text-brand-deep" : "bg-neutral-100 text-neutral-800"}`}><Icon size={20} /></span>
                     <span className="flex-1 font-medium">{item.label}</span>
                     {locked && <LockKeyhole size={16} className="text-neutral-400" />}
                   </Link>

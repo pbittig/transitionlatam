@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { FormEvent } from "react";
+import { useId, type FormEvent } from "react";
 import type { AppLocale } from "@/lib/i18n";
 
 /** Buscador de texto — preserva el resto de filtros activos (chips, estado, tab) vía inputs ocultos. */
@@ -13,6 +13,7 @@ export function SearchBar({
   placeholder = "Buscar por nombre...",
   children,
   locale = "es",
+  suggestions = [],
 }: {
   basePath: string;
   value: string | undefined;
@@ -21,8 +22,10 @@ export function SearchBar({
   /** Controles extra (ej. un <select> de estado) que se envían junto con la búsqueda, en el mismo form. */
   children?: React.ReactNode;
   locale?: AppLocale;
+  suggestions?: string[];
 }) {
   const router = useRouter();
+  const suggestionListId = useId();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,8 +50,15 @@ export function SearchBar({
         name="q"
         defaultValue={value ?? ""}
         placeholder={placeholder}
+        list={suggestions.length ? suggestionListId : undefined}
+        autoComplete="off"
         className="min-w-0 flex-1 rounded-xl border border-neutral-300 bg-transparent px-3 py-2.5 text-base sm:min-w-[240px] sm:py-2 sm:text-sm dark:border-neutral-700"
       />
+      {suggestions.length > 0 && (
+        <datalist id={suggestionListId}>
+          {suggestions.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+        </datalist>
+      )}
       {children}
       <button
         type="submit"

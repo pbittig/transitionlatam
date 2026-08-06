@@ -307,7 +307,10 @@ export async function loadNormalizedProjects(
 
     if (existingProject) {
       // 1. Compute all diffs from the already-fetched state before mutating anything.
-      const statusChanged = existingProject.status !== row.statusLabel;
+      // La fuente cambia ocasionalmente mayúsculas, acentos o espaciado sin que
+      // exista una transición real. Conservamos el texto más reciente, pero no
+      // generamos eventos ni reverificación por diferencias sólo tipográficas.
+      const statusChanged = normalizeForMatch(existingProject.status ?? "") !== normalizeForMatch(row.statusLabel);
       const dateChanged = existingProject.estimated_connection_date !== row.estimatedConnectionDate;
 
       // Una vez verificado a mano en /admin/verificador, el sync ya no debe pisar la

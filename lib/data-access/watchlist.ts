@@ -46,25 +46,47 @@ export interface FollowedProject {
   projectId: string;
   projectName: string;
   status: string | null;
+  capacityMw: number | null;
   followedAt: string;
 }
 
 export async function getFollowedProjects(client: SupabaseClient): Promise<FollowedProject[]> {
   const { data, error } = await client
     .from("followed_project")
-    .select("project_id, created_at, project:project_id(name, status)")
+    .select("project_id, created_at, project:project_id(name, status, capacity_mw)")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Error obteniendo lista de seguimiento: ${error.message}`);
 
   return (data ?? []).map((r) => {
-    const project = r.project as unknown as { name: string; status: string | null } | null;
+    const project = r.project as unknown as { name: string; status: string | null; capacity_mw: number | null } | null;
     return {
       projectId: r.project_id as string,
       projectName: project?.name ?? "Proyecto eliminado",
       status: project?.status ?? null,
+      capacityMw: project?.capacity_mw ?? null,
       followedAt: r.created_at as string,
     };
   }).filter((project) => !isTerminalNegativeStatus(project.status));
+}
+
+export async function getLatestEventsForProjects(
+  client: SupabaseClient,
+  projectIds: string[],
+): Promise<Map<string, WatchlistEvent>> {
+  if (projectIds.length === 0) return new Map();
+  const { data, error } = await client
+    .from("project_event")
+    .select("id, project_id, event_type, occurred_at, description, project:project_id(name)")
+    .in("project_id", projectIds)
+    .order("occurred_at", { ascending: false });
+  if (error) throw new Error(`Error obteniendo últimos movimientos: ${error.message}`);
+
+  const latestByProject = new Map<string, WatchlistEvent>();
+  for (const row of data ?? []) {
+    const event = mapWatchlistEvent(row as Record<string, unknown>);
+    if (!latestByProject.has(event.projectId)) latestByProject.set(event.projectId, event);
+  }
+  return latestByProject;
 }
 
 function mapWatchlistEvent(r: Record<string, unknown>): WatchlistEvent {

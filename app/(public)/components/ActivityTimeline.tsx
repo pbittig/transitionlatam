@@ -61,7 +61,7 @@ export function ActivityTimeline({ events }: { events: RecentEvent[] }) {
       </ol>
       {onlyAnnounced && (
         <p className="mt-2 text-[11px] text-neutral-400 dark:text-neutral-500">
-          Por ahora solo registramos "nueva solicitud" — cuando tengamos una segunda sincronización del listado con
+          Por ahora solo registramos &quot;nueva solicitud&quot; — cuando tengamos una segunda sincronización del listado con
           diff de estados, este timeline también mostrará cambios de estado y hitos SEIA.
         </p>
       )}

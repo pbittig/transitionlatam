@@ -6,6 +6,7 @@ import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, Contac
 import { logout } from "@/app/ingresar/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import type { AppLocale } from "@/lib/i18n";
+import { localizedRoute } from "@/lib/localizedRoutes";
 import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
 
 // `gated: true` = la página ya maneja su propio candado para plan Free (ver
@@ -14,20 +15,20 @@ import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
 function getNavItems(locale: AppLocale) {
   return locale === "en"
     ? [
-        { href: "/proyectos", label: "Future projects", icon: Activity, minPlan: "free" },
-        { href: "/matriz", label: "Projects in operation", icon: ChartNoAxesCombined, minPlan: "free" },
-        { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Tracking", icon: Eye, minPlan: "premium" },
+        { href: localizedRoute("projects", locale), label: "Future projects", icon: Activity, minPlan: "premium" },
+        { href: localizedRoute("operations", locale), label: "Projects in operation", icon: ChartNoAxesCombined, minPlan: "free" },
+        { href: localizedRoute("owners", locale), label: "Owners", icon: Network, minPlan: "premium" },
+        { href: localizedRoute("tracking", locale), label: "Tracking", icon: Eye, minPlan: "premium" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
-        { href: "/requerimientos", label: "Services", icon: ClipboardList, minPlan: "free" },
+        { href: localizedRoute("services", locale), label: "Additional services", icon: ClipboardList, minPlan: "free" },
       ]
     : [
-        { href: "/proyectos", label: "Proyectos Futuros", icon: Activity, minPlan: "free" },
-        { href: "/matriz", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
-        { href: "/empresas", label: "Stakeholders", icon: Network, minPlan: "premium" },
-        { href: "/monitoreo", label: "Seguimiento", icon: Eye, minPlan: "premium" },
+        { href: "/proyectos", label: "Proyectos Futuros", icon: Activity, minPlan: "premium" },
+        { href: "/operacion", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
+        { href: "/propietarios", label: "Propietarios", icon: Network, minPlan: "premium" },
+        { href: "/seguimiento", label: "Seguimiento", icon: Eye, minPlan: "premium" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
-        { href: "/requerimientos", label: "Servicios", icon: ClipboardList, minPlan: "free" },
+        { href: localizedRoute("services", locale), label: "Servicios adicionales", icon: ClipboardList, minPlan: "free" },
       ];
 }
 
@@ -50,11 +51,18 @@ export function Sidebar({
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r border-neutral-200 bg-white/95 backdrop-blur-xl md:flex print:hidden">
-      <Link href="/" className="flex items-center justify-center px-3 pt-6 pb-5 md:justify-start md:px-5">
+      <Link href="/" className="flex flex-col items-center px-3 pt-6 pb-5 md:items-start md:px-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/tl-logo.png" alt="Transition LATAM" className="hidden h-9 w-auto md:block" />
         <span className="bg-brand-primary flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold text-white md:hidden">
           T
+        </span>
+        <span className="mt-3 hidden items-center gap-2 md:flex" aria-label={locale === "en" ? "TOS active" : "TOS activo"}>
+          <span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-neutral-200" aria-hidden>
+            <span className="system-activity-scan-a absolute inset-y-0 -left-full w-full" />
+            <span className="system-activity-scan-b absolute inset-y-0 -left-full w-full" />
+          </span>
+          <span className="text-[10px] font-semibold text-neutral-600 dark:text-neutral-300">{locale === "en" ? "TOS active" : "TOS activo"}</span>
         </span>
       </Link>
 
@@ -80,6 +88,7 @@ export function Sidebar({
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
           const locked = !isAdmin && item.minPlan === "premium" && planCode !== "premium";
+          const isAdditionalService = item.href === localizedRoute("services", locale);
 
           return (
             <Link
@@ -87,7 +96,9 @@ export function Sidebar({
               href={item.href}
               title={locked ? `${item.label} — ${locale === "en" ? "available on a higher plan" : "disponible en un plan superior"}` : undefined}
               className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                active
+                isAdditionalService
+                  ? `mt-3 border border-neutral-200 bg-neutral-100 font-semibold text-brand-deep shadow-sm hover:bg-neutral-200 ${active ? "ring-2 ring-brand-primary/35" : ""}`
+                : active
                   ? "bg-neutral-100 font-semibold text-neutral-950"
                   : locked
                     ? "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
@@ -111,7 +122,7 @@ export function Sidebar({
       {isFree && userProfile && (
         <div className="hidden px-3 pb-3 md:block">
           <Link
-            href="/planes"
+            href={localizedRoute("plans", locale)}
             className="block rounded-xl border border-neutral-300 bg-neutral-50 p-3 transition hover:border-neutral-500 hover:bg-white"
           >
             <div className="relative flex items-center justify-between gap-2">

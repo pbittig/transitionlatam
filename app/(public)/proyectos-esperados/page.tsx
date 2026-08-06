@@ -49,8 +49,9 @@ import { PlanGate } from "../components/PlanGate";
 import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { recordAndCheckRate } from "@/lib/security/rateLimit";
-import { Activity, BatteryCharging, FolderKanban } from "lucide-react";
 import { getAppLocale } from "@/lib/i18n";
+import { FreeFeaturePreview } from "../components/FreeFeaturePreview";
+import { FutureProjectProfilePreview } from "./FutureProjectProfilePreview";
 
 export const metadata: Metadata = { title: "Proyectos Futuros" };
 export const dynamic = "force-dynamic";
@@ -211,14 +212,14 @@ export default async function ProyectosEsperadosPage({
     recentSolicitudes7d: solicitudes7d,
   });
   const marketNarrative = computeMarketNarrative({ byTechnology: pipelineByTechnology, byRegion: pipelineByRegion, nextWaveYear });
-  const filteredCapacityMw = filteredScheduleInputs.reduce((sum, project) => sum + (project.capacityMw ?? 0), 0);
   // No usar pipelineByTechnology acá: esa agrupación clasifica cada proyecto por una
   // sola tecnología canónica (para poder cruzar Pipeline/Construcción/Operación en un
   // mismo heatmap — ver marketTechCategories.ts), así que un híbrido "Solar con
   // Baterías" cae en "Híbrido", no en "BESS", y este contador quedaba muy por debajo
   // de lo que el buscador encuentra por nombre. includesStorage sí marca cualquier
   // proyecto con batería sin importar su tecnología principal.
-  const bessCount = filteredScheduleInputs.filter((i) => i.includesStorage).length;
+  const projectNameSuggestions = [...new Set(scheduleInputs.map((project) => project.name).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, locale === "en" ? "en" : "es"));
   const activeFilterLabels = [
     ...TECH_CHIPS.filter((chip) => selectedKeys.includes(chip.key)).map((chip) => chip.label),
     search ? `“${search}”` : undefined,
@@ -233,10 +234,6 @@ export default async function ProyectosEsperadosPage({
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Future projects" : "Proyectos Futuros"}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
-              {locale === "en" ? "Projects under development, their regulatory signals and pathway to connection. Source: Open Access. Separate from " : "Proyectos en desarrollo, sus señales regulatorias y la ruta hacia su conexión. Fuente: Acceso Abierto. Distinto de "}
-              <Link href="/matriz" className="font-medium text-white underline underline-offset-2">{locale === "en" ? "Infrastructure" : "Infraestructura"}</Link>{locale === "en" ? " (power plants already in operation)." : " (centrales ya operativas)."}
-            </p>
           </div>
         </div>
       </section>
@@ -249,29 +246,6 @@ export default async function ProyectosEsperadosPage({
         upgradeMessage={locale === "en" ? "Free lets you explore identified projects; Prime unlocks full profiles, dynamic analysis and continuous tracking." : "Free permite explorar los proyectos identificados; Prime desbloquea fichas completas, análisis dinámico y seguimiento continuo."}
         locale={locale}
       />
-
-      <section aria-labelledby="pipeline-summary-title">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 id="pipeline-summary-title" className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Identified projects" : "Proyectos identificados"}</h2>
-          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Indicators follow the technology filter where applicable." : "Los indicadores respetan el filtro tecnológico cuando corresponde."}</p>
-        </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[
-            { icon: FolderKanban, label: locale === "en" ? "Monitored projects" : "Proyectos monitoreados", value: pipelineTotals.count.toLocaleString(locale === "en" ? "en-US" : "es-CL"), detail: undefined, iconClass: "bg-brand-surface text-brand-deep" },
-            { icon: Activity, label: locale === "en" ? "Projects with connection requests" : "Proyectos con solicitud de conexión", value: `${(filteredCapacityMw / 1000).toLocaleString(locale === "en" ? "en-US" : "es-CL", { maximumFractionDigits: 1 })} GW`, detail: undefined, iconClass: "bg-brand-surface text-brand-deep" },
-            { icon: BatteryCharging, label: locale === "en" ? "Projects with BESS" : "Proyectos con BESS", value: bessCount.toLocaleString(locale === "en" ? "en-US" : "es-CL"), detail: locale === "en" ? "include battery storage" : "incluyen almacenamiento en baterías", iconClass: "bg-brand-surface text-brand-deep" },
-          ].map(({ icon: Icon, label, value, detail, iconClass }) => (
-            <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">{label}</p>
-                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClass}`}><Icon size={15} /></span>
-              </div>
-              <p className="mt-4 text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">{value}</p>
-              {detail && <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{detail}</p>}
-            </article>
-          ))}
-        </div>
-      </section>
 
       <div className="flex gap-1 rounded-xl border border-neutral-200 bg-white px-2 pt-1 dark:border-neutral-800 dark:bg-neutral-950">
         {TABS.map((t) => {
@@ -309,10 +283,6 @@ export default async function ProyectosEsperadosPage({
       )}
 
       <section id="lista-proyectos" className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
-          <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Identified projects" : "Proyectos identificados"}</h2>
-          <span className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString(locale === "en" ? "en-US" : "es-CL")} {locale === "en" ? "requests in this view" : "solicitudes en la vista"}</span>
-        </div>
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Filter projects" : "Filtre los proyectos"}</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Combine technologies and search to find relevant projects or opportunities." : "Combine tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante."}</p></div>{(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">{locale === "en" ? "Reset filters" : "Restablecer filtros"}</Link>}</div>
         <SearchBar
@@ -321,12 +291,24 @@ export default async function ProyectosEsperadosPage({
           otherParams={{ tab: tab === "esperados" ? undefined : tab, tech: params.tech }}
           placeholder={locale === "en" ? "Search by project name..." : "Buscar por nombre de proyecto..."}
           locale={locale}
+          suggestions={projectNameSuggestions}
         />
         <TechSelectFilter basePath="/proyectos" selectedKeys={selectedKeys} excludeKeys={["termica", "transmision"]} locale={locale} />
         {tab === "esperados" && <EtapaFilter basePath="/proyectos" locale={locale} />}
-        {activeFilterLabels.length > 0 ? <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">{locale === "en" ? "Current view:" : "Vista actual:"}</span> {activeFilterLabels.join(" · ")}</p> : <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">{locale === "en" ? "Filters also narrow the maturity, milestones and future demand analysis." : "Los filtros también acotan el análisis de madurez, hitos y demanda futura."}</p>}
+        {activeFilterLabels.length > 0 && <p className="border-t border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"><span className="font-medium">{locale === "en" ? "Current view:" : "Vista actual:"}</span> {activeFilterLabels.join(" · ")}</p>}
         </Panel>
       </section>
+
+      {isFree && (
+        <FreeFeaturePreview
+          locale={locale}
+          wide
+          title={locale === "en" ? "See the detail available for each future project" : "Así se presenta cada proyecto futuro"}
+          description={locale === "en" ? "Prime brings together technical capacity, connection progress, environmental status and commercial context in one profile." : "Prime reúne capacidad técnica, avance de conexión, estado ambiental y contexto comercial en una sola ficha."}
+        >
+          <FutureProjectProfilePreview locale={locale} />
+        </FreeFeaturePreview>
+      )}
 
       <Panel className="flex flex-col gap-4 overflow-hidden p-0">
         <div><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} crmProjectIds={crmProjectIds} isFree={isFree} locale={locale} /></div>
@@ -360,6 +342,7 @@ export default async function ProyectosEsperadosPage({
             value={search}
             otherParams={{ tab: tab === "esperados" ? undefined : tab, tech: params.tech }}
             placeholder="Buscar proyecto para analizar..."
+            suggestions={projectNameSuggestions}
           />
           <div className="flex flex-wrap gap-4">
             <TechSelectFilter basePath="/proyectos" selectedKeys={selectedKeys} excludeKeys={["termica", "transmision"]} />

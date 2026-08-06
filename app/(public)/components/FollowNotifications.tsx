@@ -121,7 +121,7 @@ export function FollowNotifications({ events, locale = "es" }: { events: Watchli
                 </Link>
               ))}
             </div>
-            <Link href="/monitoreo" onClick={() => setOpen(false)} className="block bg-neutral-50 px-4 py-3 text-center text-xs font-semibold text-brand-deep hover:underline dark:bg-neutral-900 dark:text-brand-primary">
+            <Link href="/seguimiento" onClick={() => setOpen(false)} className="block bg-neutral-50 px-4 py-3 text-center text-xs font-semibold text-brand-deep hover:underline dark:bg-neutral-900 dark:text-brand-primary">
               {locale === "en" ? "View full history" : "Ver todo el historial"}
             </Link>
           </div>

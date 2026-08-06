@@ -5,6 +5,7 @@ import type { OpportunityBoardItem, OpportunityProjectOption } from "@/lib/data-
 import { OPPORTUNITY_STAGES, opportunityStageLabel } from "@/lib/shared/opportunityStages";
 import { addOpportunityActivity, updateOpportunity } from "./actions";
 import type { AppLocale } from "@/lib/i18n";
+import { formatPersonName, formatEmailForDisplay } from "@/lib/shared/formatContact";
 
 const ACTIVITY_LABELS = {
   es: { note: "Nota", call: "Llamada", meeting: "Reunión", email: "Correo", stage_change: "Cambio de etapa" },
@@ -25,7 +26,7 @@ export function OpportunityCard({ item, contacts, today, locale }: {
         {overdue && <span title={locale === "en" ? "Next action overdue" : "Próxima acción vencida"} className="mt-0.5 text-amber-600"><CircleAlert size={15} /></span>}
       </div>
       {item.company?.name && <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500"><Building2 size={12} /> {item.company.name}</p>}
-      {item.person?.name && <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500"><UserRound size={12} /> {item.person.name}</p>}
+      {item.person?.name && <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500"><UserRound size={12} /> {formatPersonName(item.person.name)}</p>}
       {item.description && <p className="mt-2 line-clamp-3 text-xs leading-5 text-neutral-500">{item.description}</p>}
       {item.nextStep && (
         <div className={`mt-3 rounded-lg p-2.5 text-xs ${overdue ? "bg-amber-50 text-amber-900" : "bg-neutral-50 text-neutral-700"}`}>
@@ -46,7 +47,7 @@ export function OpportunityCard({ item, contacts, today, locale }: {
           <input name="ownerName" defaultValue={item.ownerName ?? ""} placeholder={locale === "en" ? "Owner" : "Responsable"} className="rounded-lg border border-neutral-300 px-2 py-2 text-xs" />
           <select name="personId" defaultValue={item.person?.id ?? ""} className="rounded-lg border border-neutral-300 bg-white px-2 py-2 text-xs">
             <option value="">{locale === "en" ? "No contact" : "Sin contacto"}</option>
-            {contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.email ? ` (${contact.email})` : ""}</option>)}
+            {contacts.map((contact) => <option key={contact.id} value={contact.id}>{formatPersonName(contact.name)}{contact.email ? ` (${formatEmailForDisplay(contact.email)})` : ""}</option>)}
           </select>
           <input name="nextStep" defaultValue={item.nextStep ?? ""} placeholder={locale === "en" ? "Next action" : "Próxima acción"} className="rounded-lg border border-neutral-300 px-2 py-2 text-xs" />
           <input name="nextStepAt" type="date" defaultValue={item.nextStepAt ?? ""} aria-label={locale === "en" ? "Target date" : "Fecha compromiso"} className="rounded-lg border border-neutral-300 px-2 py-2 text-xs" />

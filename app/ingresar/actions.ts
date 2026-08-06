@@ -24,6 +24,9 @@ export async function ingresar(_prevState: IngresarState | undefined, formData: 
     return { error: "Correo o clave incorrectos." };
   }
 
+  // Una sesión admin previa no debe elevar los permisos de la cuenta cliente
+  // que acaba de autenticarse en el mismo navegador.
+  await deleteSession();
   redirect("/proyectos");
 }
 

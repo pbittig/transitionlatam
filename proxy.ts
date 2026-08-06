@@ -6,6 +6,7 @@ const PUBLIC_PAGE_PATHS = new Set([
   "/ingresar",
   "/registro",
   "/planes",
+  "/plans",
   "/admin/acceso",
   "/recuperar-clave",
   "/restablecer-clave",
@@ -39,11 +40,20 @@ async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
  * .../16-proxy.md).
  */
 export default async function proxy(request: NextRequest) {
+  const englishPaths = ["/projects", "/operations", "/owners", "/tracking", "/dynamic-analysis", "/services", "/plans", "/subscribe-prime"];
+  const spanishPaths = ["/proyectos", "/operacion", "/propietarios", "/seguimiento", "/analisis-dinamico", "/servicios", "/planes", "/contratar-prime"];
+  const requestedLocale = englishPaths.some((path) => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`))
+    ? "en"
+    : spanishPaths.some((path) => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`))
+      ? "es"
+      : null;
+  if (requestedLocale) request.cookies.set("transition-locale", requestedLocale);
+
   const legacyRoutes: Record<string, string> = {
     "/proyectos-esperados": "/proyectos",
-    "/mercado": "/matriz",
-    "/mapa-stakeholder": "/empresas",
-    "/alertas": "/monitoreo",
+    "/mercado": "/operacion",
+    "/mapa-stakeholder": "/propietarios",
+    "/alertas": "/seguimiento",
   };
   const canonicalPath = legacyRoutes[request.nextUrl.pathname];
   if (canonicalPath) {
@@ -98,6 +108,9 @@ export default async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
+  if (requestedLocale) {
+    supabaseResponse.cookies.set("transition-locale", requestedLocale, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  }
   return supabaseResponse;
 }
 

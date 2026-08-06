@@ -17,6 +17,7 @@ import {
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
+import { FreeFeaturePreview } from "../components/FreeFeaturePreview";
 import { ModuleGuide } from "../components/ModuleGuide";
 import { getOpportunityBoard, getOpportunityProjectOptions } from "@/lib/data-access/opportunities";
 import { OpportunityBoard } from "./OpportunityBoard";
@@ -24,6 +25,7 @@ import { Panel } from "../components/Panel";
 import { NewOpportunityForm } from "./NewOpportunityForm";
 import { PlanGate } from "../components/PlanGate";
 import { getAppLocale } from "@/lib/i18n";
+import { CrmPreview } from "./CrmPreview";
 
 export const metadata: Metadata = { title: "CRM" };
 export const dynamic = "force-dynamic";
@@ -73,10 +75,7 @@ export default async function CrmPage() {
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/20 blur-2xl" aria-hidden />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-3xl">
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">CRM</h1>
-            <p className="mt-3 text-sm leading-6 text-white/75 md:text-base">
-              {locale === "en" ? "Turn an identified project into an actionable opportunity: understand the context, identify the right company and contact, assign an owner and never lose the next step." : "Convierta un proyecto identificado en una oportunidad accionable: comprenda el contexto, identifique la empresa y el contacto correctos, defina un responsable y mantenga siempre un próximo paso."}
-            </p>
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Customer Relationship Management (CRM)</h1>
           </div>
           <Link href="/proyectos" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink shadow-sm transition hover:-translate-y-0.5">
             {locale === "en" ? "Find projects" : "Buscar proyectos"} <ArrowUpRight size={16} />
@@ -120,13 +119,24 @@ export default async function CrmPage() {
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Handshake size={15} className="text-brand-primary" /> {locale === "en" ? "Won" : "Ganadas"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{won}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities converted into results" : "oportunidades convertidas en resultado"}</p></Panel>
       </section>
 
+      {premiumLocked && (
+        <FreeFeaturePreview
+          locale={locale}
+          wide
+          title={locale === "en" ? "See how an opportunity is organized" : "Así se organiza una oportunidad"}
+          description={locale === "en" ? "The CRM connects the project, account owner, commercial stage and next action in one card." : "El CRM conecta el proyecto, responsable, etapa comercial y próxima acción en una sola ficha."}
+        >
+          <CrmPreview locale={locale} />
+        </FreeFeaturePreview>
+      )}
+
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Prioritize conversations and next steps" : "Prioriza conversaciones y próximos pasos"}</h2>
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Each card should show the opportunity, its owner and what happens next." : "Cada tarjeta debe responder: qué oportunidad es, quién la lidera y qué ocurrirá después."}</p>
           </div>
-          <Link href="/empresas" className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-200">
+          <Link href="/propietarios" className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-brand-primary dark:text-neutral-200">
             {locale === "en" ? "View relationships" : "Ver relaciones"} <ArrowUpRight size={15} />
           </Link>
         </div>
@@ -159,7 +169,7 @@ export default async function CrmPage() {
           <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">{locale === "en" ? "Research the company behind the project" : "Investiga la empresa detrás del proyecto"}</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">{locale === "en" ? "Review the corporate group, related entities and portfolio before preparing a meeting, proposal or commercial approach." : "Revise el grupo empresarial, las sociedades relacionadas y sus proyectos antes de preparar una reunión, propuesta o acercamiento comercial."}</p>
         </div>
-        <Link href="/empresas" className="inline-flex w-fit items-center gap-2 rounded-xl bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-ink">
+        <Link href="/propietarios" className="inline-flex w-fit items-center gap-2 rounded-xl bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-ink">
           {locale === "en" ? "View companies and relationships" : "Ver empresas y relaciones"} <ArrowUpRight size={15} />
         </Link>
       </section>

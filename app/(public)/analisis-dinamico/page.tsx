@@ -131,9 +131,6 @@ export default async function AnalisisDinamicoPage({
         <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Análisis dinámico</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
-              Explora la cartera futura con filtros combinables y recalcula al instante su escala, perfil de riesgo y calendario de hitos.
-            </p>
           </div>
           <Link
             href="/proyectos"
@@ -275,9 +272,6 @@ function LockedAnalysisPage() {
         <div className="pointer-events-none absolute -top-24 right-0 size-72 rounded-full border border-white/10 bg-white/5" />
         <div className="relative max-w-3xl">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Análisis dinámico</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
-            Análisis dinámico cruza tecnologías y etapas para entregar una visión enfocada del tamaño, riesgo y calendario probable de los proyectos renovables y BESS.
-          </p>
           <Link href="/planes" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink shadow-sm transition hover:-translate-y-0.5">
             Ver planes con acceso
             <ArrowUpRight size={16} />

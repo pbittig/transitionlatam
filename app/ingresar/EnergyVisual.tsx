@@ -5,25 +5,25 @@ export function EnergyVisual({ locale = "es" }: { locale?: AppLocale }) {
   const content = locale === "en"
     ? {
         alt: "Renewable energy projects in Latin America",
-        title: "From data to project intelligence.",
+        title: "From data to project knowledge.",
         description: "Transition LATAM integrates key information about Chile's energy ecosystem to turn scattered data into actionable intelligence: discover opportunities, prioritize accounts, track each project's environmental and grid connection progress, and anticipate upcoming milestones.",
         features: [
-          { icon: ChartNoAxesCombined, title: "Understand the power matrix", text: "Installed capacity, construction and pipeline in a single view." },
-          { icon: FolderKanban, title: "Identify projects", text: "Find future initiatives by technology, stage, region and date." },
-          { icon: Network, title: "Know who is behind them", text: "Connect projects with owners, business groups and relevant contacts." },
-          { icon: BellRing, title: "Act at the right time", text: "Track key changes and turn signals into commercial opportunities." },
+          { icon: ChartNoAxesCombined, title: "Understand today's power matrix", text: "Review installed capacity, projects under construction and the current technology mix." },
+          { icon: FolderKanban, title: "Discover future projects", text: "Explore initiatives by technology, stage, region and date." },
+          { icon: Network, title: "Identify owners", text: "Connect projects with business groups and relevant contacts." },
+          { icon: BellRing, title: "Track projects in real time", text: "Monitor their progress and key changes." },
         ],
         audiences: ["IPPs and developers", "EPCs and suppliers", "Investors and advisors"],
       }
     : {
         alt: "Proyectos de energía renovable en Latinoamérica",
-        title: "De los datos a la inteligencia de proyectos.",
+        title: "De datos al conocimiento de los proyectos.",
         description: "Transition LATAM integra información clave sobre el ecosistema energético chileno para convertir datos dispersos en inteligencia accionable: descubrir oportunidades, priorizar cuentas, seguir el avance ambiental y de conexión de cada proyecto, y anticipar sus próximos hitos.",
         features: [
-          { icon: ChartNoAxesCombined, title: "Entiende la matriz", text: "Capacidad instalada, construcción y pipeline en una misma lectura." },
-          { icon: FolderKanban, title: "Detecte proyectos", text: "Encuentre iniciativas futuras por tecnología, etapa, región y fecha." },
-          { icon: Network, title: "Conoce quién está detrás", text: "Relaciona proyecto, empresa titular, grupo y contactos relevantes." },
-          { icon: BellRing, title: "Actúe en el momento correcto", text: "Siga cambios clave y transforme señales en oportunidades comerciales." },
+          { icon: ChartNoAxesCombined, title: "Entienda la matriz actual", text: "Revise la capacidad instalada, los proyectos en construcción y la composición tecnológica actual." },
+          { icon: FolderKanban, title: "Conozca los proyectos futuros", text: "Explore iniciativas por tecnología, etapa, región y fecha." },
+          { icon: Network, title: "Identifique a los propietarios", text: "Conecte proyectos con grupos empresariales y contactos relevantes." },
+          { icon: BellRing, title: "Siga los proyectos en tiempo real", text: "Monitoree su avance y sus cambios clave." },
         ],
         audiences: ["IPP y desarrolladores", "EPC y proveedores", "Inversionistas y asesores"],
       };

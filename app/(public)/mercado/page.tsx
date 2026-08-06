@@ -33,7 +33,7 @@ function buildHref(params: Record<string, string | undefined>, overrides: Record
     if (value) qs.set(key, value);
   }
   const query = qs.toString();
-  return query ? `/matriz?${query}` : "/matriz";
+  return query ? `/operacion?${query}` : "/operacion";
 }
 
 export default async function MercadoPage({
@@ -91,9 +91,6 @@ export default async function MercadoPage({
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative">
           <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Proyectos en Operación</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75 md:text-base">
-          Revise la capacidad operativa del sistema, las obras en construcción y su composición tecnológica. Fuentes: CNE y Coordinador Eléctrico Nacional.
-          </p>
         </div>
       </section>
 
@@ -177,7 +174,7 @@ export default async function MercadoPage({
       {operatingPlantsMap.length > 0 && (
         <section className="flex flex-col gap-4" aria-labelledby="operating-map-title">
           <div>
-            <h2 id="operating-map-title" className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Mapa de proyectos en operación</h2>
+            <h2 id="operating-map-title" className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Mapa de proyectos</h2>
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
               Ubicación de {operatingPlantsMap.length.toLocaleString("es-CL")} centrales operativas con coordenadas disponibles. Seleccione un punto para revisar su tecnología, capacidad y propietario.
             </p>
@@ -200,8 +197,8 @@ export default async function MercadoPage({
         </div>
 
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtre la infraestructura</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combine tecnología, condición operativa y búsqueda por central o propietario.</p></div>{hasFilter && <Link href="/matriz" className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
-          <SearchBar basePath="/matriz" value={search} otherParams={{ tech: params.tech }} placeholder="Buscar por nombre de central o propietario...">
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Filtre la infraestructura</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Combine tecnología, condición operativa y búsqueda por central o propietario.</p></div>{hasFilter && <Link href="/operacion" className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">Restablecer filtros</Link>}</div>
+          <SearchBar basePath="/operacion" value={search} otherParams={{ tech: params.tech }} placeholder="Buscar por nombre de central o propietario...">
             <select
               name="estado"
               defaultValue={params.estado ?? ""}
@@ -216,7 +213,7 @@ export default async function MercadoPage({
             </select>
           </SearchBar>
           <TechChipFilter
-            basePath="/matriz"
+            basePath="/operacion"
             selectedKeys={selectedKeys}
             otherParams={{ estado: params.estado, q: search }}
             excludeKeys={["data-center", "transmision", "bess", "hibridos"]}

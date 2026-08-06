@@ -2,19 +2,21 @@
 
 import { useTransition } from "react";
 import { Languages } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { AppLocale } from "@/lib/i18n";
+import { equivalentLocalePath } from "@/lib/localizedRoutes";
 import { setLanguage } from "../languageActions";
 
 export function LanguageSwitcher({ locale, compact = false }: { locale: AppLocale; compact?: boolean }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const pathname = usePathname();
 
   function changeLocale(next: AppLocale) {
     if (next === locale) return;
     startTransition(async () => {
       const result = await setLanguage(next);
-      if (result.success) router.refresh();
+      if (result.success) router.replace(equivalentLocalePath(pathname, next));
     });
   }
 

@@ -56,7 +56,9 @@ export async function saveSeiaMatch(
 
   // Event diffing: registrar cambios en el estado SEIA del proyecto
   const isFirstMatch = !previous;
-  const sameRecordStatusChanged = previous?.seia_id === candidate.EXPEDIENTE_ID && previous.status !== candidate.ESTADO_PROYECTO;
+  const sameRecordStatusChanged =
+    previous?.seia_id === candidate.EXPEDIENTE_ID &&
+    normalizeForMatch(previous.status ?? "") !== normalizeForMatch(candidate.ESTADO_PROYECTO ?? "");
   if (isFirstMatch || sameRecordStatusChanged) {
     // Event recording is a non-fatal side-effect: the seia_record upsert above already
     // succeeded, so a failure here (data_source lookup or the insert itself) must never

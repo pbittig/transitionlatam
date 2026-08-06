@@ -46,7 +46,7 @@ export function ModuleGuide({
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/15 text-brand-primary">
             <Compass size={16} />
           </span>
-          {locale === "en" ? "How to use this section" : "Cómo aprovechar esta sección"}
+          {locale === "en" ? "How to get the most out of this section" : "Cómo sacarle provecho a esta sección"}
         </span>
         <ChevronDown size={17} className="text-brand-primary transition group-open:rotate-180" />
       </summary>

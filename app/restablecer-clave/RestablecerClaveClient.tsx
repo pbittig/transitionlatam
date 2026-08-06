@@ -19,26 +19,33 @@ export function RestablecerClaveClient({ locale = "es" }: { locale?: AppLocale }
   const [status, setStatus] = useState<Status>("checking");
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash.includes("access_token")) {
-      setStatus("invalid");
-      return;
-    }
-    const params = new URLSearchParams(hash.slice(1));
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
-    if (!accessToken || !refreshToken) {
-      setStatus("invalid");
-      return;
-    }
+    let active = true;
+    const initializeSession = async () => {
+      await Promise.resolve();
+      const hash = window.location.hash;
+      if (!hash.includes("access_token")) {
+        if (active) setStatus("invalid");
+        return;
+      }
+      const params = new URLSearchParams(hash.slice(1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      if (!accessToken || !refreshToken) {
+        if (active) setStatus("invalid");
+        return;
+      }
 
-    const client = createSupabaseBrowserClient();
-    client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+      const client = createSupabaseBrowserClient();
+      const { error } = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
       // Limpia el fragmento de la URL apenas se usa — no debe quedar visible
       // en el historial del navegador.
       window.history.replaceState(null, "", window.location.pathname);
-      setStatus(error ? "invalid" : "ready");
-    });
+      if (active) setStatus(error ? "invalid" : "ready");
+    };
+    void initializeSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (status === "checking") {

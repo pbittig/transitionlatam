@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { OpportunityProjectOption } from "@/lib/data-access/opportunities";
 import { createOpportunity, type CreateOpportunityState } from "./actions";
 import type { AppLocale } from "@/lib/i18n";
+import { formatPersonName, formatEmailForDisplay } from "@/lib/shared/formatContact";
 
 const initialState: CreateOpportunityState = {};
 
@@ -76,7 +77,7 @@ export function NewOpportunityForm({ projects, locale = "es" }: { projects: Oppo
           <option value="">{selectedProject?.contacts.length ? (locale === "en" ? "Select contact (optional)" : "Seleccionar contacto (opcional)") : (locale === "en" ? "No related contacts available" : "Sin contactos relacionados disponibles")}</option>
           {selectedProject?.contacts.map((contact) => (
             <option key={contact.id} value={contact.id}>
-              {contact.name}{contact.email ? ` (${contact.email})` : ""}
+              {formatPersonName(contact.name)}{contact.email ? ` (${formatEmailForDisplay(contact.email)})` : ""}
             </option>
           ))}
         </select>

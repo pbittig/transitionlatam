@@ -39,7 +39,7 @@ export default async function IngresarPage() {
 
           <div className="mt-8 lg:hidden">
             <h1 className="text-2xl font-semibold leading-tight tracking-tight text-neutral-950 dark:text-white">
-              {locale === "en" ? "Find projects, companies and opportunities before your next decision." : "Encuentre proyectos, empresas y oportunidades antes de su próxima decisión."}
+              {locale === "en" ? "From data to project knowledge." : "De datos al conocimiento de los proyectos."}
             </h1>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
               {locale === "en" ? "A connected view of the power matrix, future generation, storage and data center projects, and commercial relationships." : "Una visión conectada de la matriz eléctrica, los proyectos futuros —generación, almacenamiento y data centers— y las relaciones comerciales."}

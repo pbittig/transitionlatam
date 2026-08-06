@@ -12,7 +12,9 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.7",
+    "@types/d3-force": "^3.0.10",
     "adm-zip": "^0.6.0",
+    "d3-force": "^3.0.0",
     "exceljs": "^4.4.0",
     "jose": "^6.2.4",
     "lucide-react": "^1.25.0",
