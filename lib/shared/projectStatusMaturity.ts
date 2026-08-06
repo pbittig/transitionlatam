@@ -60,7 +60,10 @@ const STAGE_ORDER: Array<{ statuses: string[]; order: number; band: StatusBand }
     order: 78,
     band: "avanzado",
   },
-  { statuses: ["proyecto declarado en construccion", "clasificado como obra menor"], order: 92, band: "construccion" },
+  // Hito terminal del proceso de solicitud/conexión. No implica 100% de avance
+  // físico: ese dato se registra por separado desde PGP.
+  { statuses: ["clasificado como obra menor"], order: 92, band: "avanzado" },
+  { statuses: ["proyecto declarado en construccion"], order: 100, band: "construccion" },
   { statuses: ["proyecto finalizado"], order: 100, band: "finalizado" },
 ];
 
