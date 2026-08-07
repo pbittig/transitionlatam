@@ -542,8 +542,27 @@ export async function loadNormalizedProjects(
     });
   }
 
+  // "No vigente" (rechazado/desistido) solo debe impedir CREAR un proyecto
+  // nuevo — nunca bloquear la actualización de uno que ya rastreamos. Sin este
+  // chequeo de existencia, un proyecto que pasa a "Rechazada" después de
+  // haber sido vigente queda congelado para siempre en su último estado
+  // conocido, porque su fila se filtra fuera del pipeline por completo.
+  // Hallazgo real (2026-08-08): BESS Talasa pasó a Rechazada y nunca se
+  // reflejó, incluso corriendo el sync manual completo.
+  const existingExternalReferences = new Set<string>();
+  for (let offset = 0; ; offset += 1000) {
+    const { data: page, error } = await client
+      .from("project")
+      .select("external_reference")
+      .not("external_reference", "is", null)
+      .range(offset, offset + 999);
+    if (error) throw new Error(`No se pudo verificar proyectos existentes: ${error.message}`);
+    for (const p of page ?? []) existingExternalReferences.add(p.external_reference as string);
+    if (!page || page.length < 1000) break;
+  }
+
   const vigenteRows = rows.filter((row) => {
-    if (isVigenteRow(row)) return true;
+    if (isVigenteRow(row) || existingExternalReferences.has(row.externalId)) return true;
     summary.skippedNotVigente += 1;
     return false;
   });

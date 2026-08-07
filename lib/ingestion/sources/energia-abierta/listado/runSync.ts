@@ -53,7 +53,10 @@ export async function runListadoSync(client?: SupabaseClient): Promise<LoadSumma
   const supabase = client ?? createSupabaseServiceClient();
   const rawRows = await fetchSolicitudesFromApi();
   await checkRawFetchSanity(supabase, rawRows.length);
-  const normalized = rawRows.map(normalizeApiRow).filter((row) => isVigenteRow(row) && isRenewableOrBessProject(row));
+  // No filtramos por isVigenteRow acá — loadNormalizedProjects ya distingue
+  // crear (bloqueado si no es vigente) de actualizar un proyecto existente
+  // (siempre permitido, incluida una transición a rechazado/desistido).
+  const normalized = rawRows.map(normalizeApiRow).filter((row) => isRenewableOrBessProject(row));
   const summary = await loadNormalizedProjects(supabase, normalized);
   await recordPipelineSync(supabase);
   await clearPipelineSyncCursor(supabase);
@@ -114,14 +117,14 @@ export async function runListadoSyncBatch(
 
   const rawRows = await fetchSolicitudesFromApi();
   await checkRawFetchSanity(supabase, rawRows.length);
-  const eligibleRows = rawRows
-    .map(normalizeApiRow)
-    .filter((row) => isVigenteRow(row) && isRenewableOrBessProject(row))
-    .sort((a, b) => compareExternalIds(a.externalId, b.externalId));
 
-  // Primera prioridad de cada despertar: solicitudes nuevas que todavía no
-  // existen en nuestra base. Se recalculan contra la fuente en cada corrida,
-  // por lo que no dependen del cursor de actualización de la cartera.
+  // Calculado antes de eligibleRows a propósito: un proyecto ya rastreado
+  // necesita que sus actualizaciones sigan llegando aunque su estado actual
+  // ya no sea "vigente" (ej. pasó a Rechazada) — si no, queda congelado para
+  // siempre en el último estado que vimos. "No vigente" solo debe impedir
+  // CREAR un proyecto nuevo (ver priorityNewRows más abajo, que sigue
+  // exigiendo vigente vía eligibleRows), nunca bloquear la actualización de
+  // uno que ya existe.
   const existingExternalIds = new Set<string>();
   for (let offset = 0; ; offset += 1000) {
     const { data: page, error } = await supabase
@@ -133,6 +136,15 @@ export async function runListadoSyncBatch(
     for (const project of page ?? []) existingExternalIds.add(project.external_reference as string);
     if (!page || page.length < 1000) break;
   }
+
+  const eligibleRows = rawRows
+    .map(normalizeApiRow)
+    .filter((row) => isRenewableOrBessProject(row) && (isVigenteRow(row) || existingExternalIds.has(row.externalId)))
+    .sort((a, b) => compareExternalIds(a.externalId, b.externalId));
+
+  // Primera prioridad de cada despertar: solicitudes nuevas que todavía no
+  // existen en nuestra base. Se recalculan contra la fuente en cada corrida,
+  // por lo que no dependen del cursor de actualización de la cartera.
   const seenExternalIds = await getPipelineSeenExternalIds(supabase);
   const priorityNewRows = eligibleRows.filter(
     (row) => !existingExternalIds.has(row.externalId) && !seenExternalIds.has(row.externalId),

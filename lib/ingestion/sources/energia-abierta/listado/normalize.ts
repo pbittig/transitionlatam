@@ -124,14 +124,29 @@ export function parseSpanishDate(input: string | null): string | null {
   return iso.toISOString();
 }
 
+/**
+ * TECHNOLOGY_MAP y PROJECT_KIND_MAP arriba están escritos con tildes (texto
+ * natural en español, más fácil de mantener), pero la búsqueda es contra
+ * normalizeForMatch(raw), que las saca. Sin este paso ninguna clave acentuada
+ * (eólico, híbrido, hidroeléctrica, baterías...) matcheaba nunca — hallazgo
+ * real (2026-08-08): 325 solicitudes vigentes de tecnología renovable/BESS
+ * quedaban excluidas del alcance editorial solo por esto.
+ */
+function buildNormalizedLookup<T>(map: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(Object.entries(map).map(([key, value]) => [normalizeForMatch(key), value]));
+}
+
+const NORMALIZED_TECHNOLOGY_MAP = buildNormalizedLookup(TECHNOLOGY_MAP);
+const NORMALIZED_PROJECT_KIND_MAP = buildNormalizedLookup(PROJECT_KIND_MAP);
+
 export function normalizeTechnology(raw: string | null): string | null {
   if (!raw) return null;
-  return TECHNOLOGY_MAP[normalizeForMatch(raw)] ?? null;
+  return NORMALIZED_TECHNOLOGY_MAP[normalizeForMatch(raw)] ?? null;
 }
 
 export function normalizeProjectKind(raw: string | null): NormalizedProject["projectKind"] {
   if (!raw) return null;
-  return PROJECT_KIND_MAP[normalizeForMatch(raw)] ?? null;
+  return NORMALIZED_PROJECT_KIND_MAP[normalizeForMatch(raw)] ?? null;
 }
 
 /**
