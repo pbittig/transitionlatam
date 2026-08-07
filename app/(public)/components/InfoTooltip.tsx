@@ -31,7 +31,11 @@ export function InfoTooltip({ text, locale }: { text: string; locale: AppLocale 
     <span ref={containerRef} className="relative inline-flex">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        // Not a toggle: a real mouse click always fires pointerenter (open) immediately
+        // before click, so toggling here would close the tooltip it just opened. Touch
+        // taps rely on this same handler since they have no hover — always-open covers
+        // both without the race. Dismissal is via mouseleave, outside click, or Escape.
+        onClick={() => setOpen(true)}
         onPointerEnter={(event) => { if (event.pointerType === "mouse") setOpen(true); }}
         onPointerLeave={(event) => { if (event.pointerType === "mouse") setOpen(false); }}
         onFocus={() => setOpen(true)}
