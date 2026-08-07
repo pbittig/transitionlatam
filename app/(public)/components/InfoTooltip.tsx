@@ -32,11 +32,10 @@ export function InfoTooltip({ text, locale }: { text: string; locale: AppLocale 
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
+        onPointerEnter={(event) => { if (event.pointerType === "mouse") setOpen(true); }}
+        onPointerLeave={(event) => { if (event.pointerType === "mouse") setOpen(false); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        aria-expanded={open}
         aria-describedby={open ? tooltipId : undefined}
         aria-label={locale === "en" ? "More information" : "Más información"}
         className="flex h-4 w-4 items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
@@ -47,7 +46,7 @@ export function InfoTooltip({ text, locale }: { text: string; locale: AppLocale 
         <span
           id={tooltipId}
           role="tooltip"
-          className="absolute bottom-full left-1/2 z-20 mb-2 w-64 max-w-[80vw] -translate-x-1/2 rounded-lg border border-neutral-200 bg-white p-2.5 text-xs leading-5 text-neutral-600 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+          className="absolute bottom-full left-0 z-20 mb-2 w-64 max-w-[80vw] translate-x-0 rounded-lg border border-neutral-200 bg-white p-2.5 text-xs leading-5 text-neutral-600 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 sm:left-1/2 sm:-translate-x-1/2"
         >
           {text}
         </span>
