@@ -115,6 +115,9 @@ export function ProjectTable({
               projectKind: p.projectKind,
               includesStorage: p.includesStorage,
               seiaSubmissionType: seia?.submissionType,
+              generationCapacityMw: p.generationCapacityMw ?? p.capacityMw,
+              // No hay voltaje de conexión por fila en esta lista — el umbral de
+              // BESS (>23kV) solo se evalúa hoy en la ficha, donde sí se carga.
             });
             return (
               <tr

@@ -10,6 +10,7 @@
 
 import { getStatusMaturity, isRejectedStatus, type StatusBand } from "./projectStatusMaturity";
 import { getSeiaMaturity, isSeiaNegativeTerminal } from "./seiaStatusMaturity";
+import { parseVoltageKv, requiresEnvironmentalReview } from "./environmentalReviewRules";
 
 export type HealthBand = "alto" | "medio" | "bajo" | "no_aplica";
 
@@ -19,7 +20,7 @@ export interface HealthScoreResult {
   statusScore: number | null;
   seiaScore: number | null;
   overdue: boolean;
-  environmentalTreatment: "seia" | "pertinencia" | "bess_no_automatico" | "sin_antecedente";
+  environmentalTreatment: "seia" | "pertinencia" | "bess_no_automatico" | "requerido_pendiente" | "sin_antecedente";
   environmentalNote: string;
 }
 
@@ -27,6 +28,10 @@ export interface HealthScoreContext {
   projectKind?: string | null;
   includesStorage?: boolean;
   seiaSubmissionType?: string | null;
+  /** Capacidad de generación en MW — para el umbral de ingreso SEIA obligatorio (ver environmentalReviewRules.ts). */
+  generationCapacityMw?: number | null;
+  /** Voltaje de conexión (ej. "23", "220 kV") — para el umbral de BESS standalone. */
+  voltageLevel?: string | null;
 }
 
 export const HEALTH_BAND_LABEL: Record<HealthBand, string> = {
@@ -92,14 +97,33 @@ export function computeHealthScore(
   const isStandaloneBess = context.projectKind === "storage";
   const isPertinence = normalize(context.seiaSubmissionType).includes("pertinen");
   const seiaMaturity = !isPertinence && seiaStatus && !isSeiaNegativeTerminal(seiaStatus) ? getSeiaMaturity(seiaStatus) : null;
-  const seiaScore = isPertinence ? pertinenceScore(seiaStatus) : (seiaMaturity?.order ?? null);
+  const hasEnvironmentalRecord = isPertinence || !!context.seiaSubmissionType;
+  // Sin antecedente todavía, pero según tamaño/voltaje la ley debería exigirlo
+  // (ver environmentalReviewRules.ts) — a diferencia de "sin_antecedente", esto
+  // sí penaliza: no es que no aplique, es que falta un paso obligatorio.
+  const environmentallyRequired =
+    !hasEnvironmentalRecord &&
+    requiresEnvironmentalReview({
+      isStandaloneBess,
+      generationCapacityMw: context.generationCapacityMw ?? null,
+      voltageLevelKv: parseVoltageKv(context.voltageLevel),
+    });
+  const seiaScore = isPertinence
+    ? pertinenceScore(seiaStatus)
+    : seiaMaturity
+      ? seiaMaturity.order
+      : environmentallyRequired
+        ? 15 // mismo valor que "requiere ingreso" en pertinenceScore — misma situación: se sabe que corresponde y aún no hay antecedente.
+        : null;
   const environmentalTreatment = isPertinence
     ? "pertinencia"
     : context.seiaSubmissionType
       ? "seia"
-      : isStandaloneBess
-        ? "bess_no_automatico"
-        : "sin_antecedente";
+      : environmentallyRequired
+        ? "requerido_pendiente"
+        : isStandaloneBess
+          ? "bess_no_automatico"
+          : "sin_antecedente";
   const environmentalNote =
     environmentalTreatment === "pertinencia"
       ? "Se considera la consulta de pertinencia como antecedente ambiental del BESS."
@@ -107,7 +131,9 @@ export function computeHealthScore(
         ? "La falta de DIA/EIA no penaliza: un BESS no tiene ingreso automático al SEIA; deben revisarse sus obras asociadas."
         : environmentalTreatment === "seia"
           ? "Se considera el avance del expediente DIA/EIA asociado."
-          : "No se encontró un antecedente ambiental asociado.";
+          : environmentalTreatment === "requerido_pendiente"
+            ? "El proyecto debería tener un antecedente ambiental (DIA/EIA) según su tamaño o voltaje de conexión, pero no se encontró ninguno."
+            : "No se encontró un antecedente ambiental asociado.";
 
   let score: number;
   if (statusScore !== null && seiaScore !== null) {

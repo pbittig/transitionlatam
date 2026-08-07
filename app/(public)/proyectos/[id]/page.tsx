@@ -167,6 +167,8 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     projectKind: project.projectKind,
     includesStorage: project.includesStorage,
     seiaSubmissionType: seiaRecord?.submissionType,
+    generationCapacityMw: project.generationCapacityMw ?? project.capacityMw,
+    voltageLevel: project.voltageLevel,
   });
   const synthesis = computeProjectSynthesis(estimatedPhase, project.estimatedConnectionDate);
   const nextMilestone = computeNextMilestone(estimatedPhase);
