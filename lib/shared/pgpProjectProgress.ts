@@ -34,6 +34,31 @@ export function expectedConstructionProgress(
   return Math.round(sCurve * 1000) / 10;
 }
 
+/**
+ * Inverse of the smoothstep S-curve above: given a real (PGP-observed)
+ * progress percent, finds the date within [constructionStartDate, codDate]
+ * where the theoretical model would have expected that percent. Lets a real
+ * percentage be plotted on the same date axis as the theoretical schedule —
+ * "how far behind" reads as a calendar gap, not just a percentage gap.
+ * Smoothstep is monotonic on [0,1], so bisection is exact enough in a few
+ * iterations without needing the closed-form cubic inverse.
+ */
+export function dateForExpectedProgress(constructionStartDate: string, codDate: string, targetPercent: number): string | null {
+  const start = new Date(constructionStartDate).getTime();
+  const finish = new Date(codDate).getTime();
+  if (![start, finish].every(Number.isFinite) || finish <= start) return null;
+  const target = Math.max(0, Math.min(100, targetPercent)) / 100;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    const value = 3 * mid ** 2 - 2 * mid ** 3;
+    if (value < target) lo = mid;
+    else hi = mid;
+  }
+  return new Date(start + ((lo + hi) / 2) * (finish - start)).toISOString().slice(0, 10);
+}
+
 export function interpretPgpProgress(percent: number): PgpProgressReading | null {
   if (!Number.isFinite(percent) || percent < 0 || percent > 100) return null;
   if (percent === 0) {

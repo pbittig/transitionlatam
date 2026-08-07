@@ -42,7 +42,7 @@ import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import { getCodSlippageCalibration } from "@/lib/data-access/scheduleCalibration";
-import { hasConstructionStartGap, interpretPgpProgress } from "@/lib/shared/pgpProjectProgress";
+import { dateForExpectedProgress, hasConstructionStartGap, interpretPgpProgress } from "@/lib/shared/pgpProjectProgress";
 
 export const dynamic = "force-dynamic";
 
@@ -156,6 +156,13 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     project.includesStorage,
     project.capacityMw,
   );
+  // Where the real (PGP) progress percent would fall if plotted on the same
+  // theoretical date axis — lets the timeline show "how far behind" as a
+  // calendar gap, not just a percentage gap.
+  const constructionPhaseStart = estimatedPhase?.milestones.find((milestone) => milestone.phase === "construccion")?.estimatedStartDate ?? null;
+  const realProgressDate = pgpProgress && constructionPhaseStart && adjustedConnectionDate
+    ? dateForExpectedProgress(constructionPhaseStart, adjustedConnectionDate, pgpProgress.progressPercent)
+    : null;
   const health = computeHealthScore(project.status, seiaRecord?.status ?? null, project.estimatedConnectionDate, new Date(), {
     projectKind: project.projectKind,
     includesStorage: project.includesStorage,
@@ -509,6 +516,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
                   ? { theoreticalPercent: pgpProgress.expectedProgressPercent, realPercent: pgpProgress.progressPercent }
                   : undefined
               }
+              realProgressDate={realProgressDate ?? undefined}
               locale={locale}
             />
           </PlanGate>

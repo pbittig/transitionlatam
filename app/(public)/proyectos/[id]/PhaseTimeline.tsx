@@ -32,6 +32,7 @@ export function PhaseTimeline({
   connectionDate,
   pgpMilestones = [],
   constructionProgress,
+  realProgressDate,
   today = new Date(),
   locale = "es",
 }: {
@@ -40,6 +41,8 @@ export function PhaseTimeline({
   pgpMilestones?: PgpTimelineMilestone[];
   /** Theoretical vs PGP-observed physical progress, shown only on the "construcción" row. */
   constructionProgress?: { theoreticalPercent: number; realPercent: number };
+  /** Where the real (PGP) percent would fall on the theoretical date axis — see dateForExpectedProgress. */
+  realProgressDate?: string;
   today?: Date;
   locale?: AppLocale;
 }) {
@@ -52,6 +55,9 @@ export function PhaseTimeline({
   const pct = (date: Date) => Math.min(100, Math.max(0, ((date.getTime() - minDate.getTime()) / span) * 100));
   const todayPct = pct(today);
   const todayInRange = today >= minDate && today <= maxDate;
+  const realDate = realProgressDate ? new Date(realProgressDate) : null;
+  const realPct = realDate ? pct(realDate) : null;
+  const realInRange = realDate ? realDate >= minDate && realDate <= maxDate : false;
   const midpoint = new Date(minDate.getTime() + span / 2);
 
   const rows = milestones.map((milestone, index) => {
@@ -82,7 +88,18 @@ export function PhaseTimeline({
               aria-hidden="true"
             >
               <span className="absolute -top-1 -translate-x-1/2 -translate-y-full bg-white px-1 text-[10px] font-semibold text-[#d95926] dark:bg-neutral-950">
-                {locale === "en" ? "Today" : "Hoy"}
+                {locale === "en" ? "Theoretical · Today" : "Teórico · Hoy"}
+              </span>
+            </div>
+          )}
+          {realInRange && realPct !== null && (
+            <div
+              className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-rose-600"
+              style={{ left: `calc(196px + (100% - 196px) * ${realPct / 100})` }}
+              aria-hidden="true"
+            >
+              <span className="absolute -bottom-1 -translate-x-1/2 translate-y-full bg-white px-1 text-[10px] font-semibold text-rose-700 dark:bg-neutral-950 dark:text-rose-400">
+                {locale === "en" ? "Real (PGP)" : "Real (PGP)"}
               </span>
             </div>
           )}
@@ -197,6 +214,14 @@ export function PhaseTimeline({
             <span className="flex items-center gap-1.5">
               <span className="size-2 rotate-45 bg-neutral-700 dark:bg-neutral-300" />
               {locale === "en" ? "Milestone confirmed by the Coordinador (PGP)" : "Hito confirmado por el Coordinador (PGP)"}
+            </span>
+          )}
+          {realInRange && (
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-0.5 bg-rose-600" />
+              {locale === "en"
+                ? "Where real (PGP) progress places the project on the theoretical timeline"
+                : "Dónde ubica el avance real (PGP) al proyecto en el cronograma teórico"}
             </span>
           )}
         </div>
