@@ -69,8 +69,8 @@ export async function saveSeiaMatch(
         project_id: projectId,
         event_type: "seia_milestone",
         occurred_at: new Date().toISOString(),
-        previous_value: previous ? JSON.stringify({ status: previous.status }) : null,
-        new_value: JSON.stringify({ status: candidate.ESTADO_PROYECTO, expediente: candidate.EXPEDIENTE_NOMBRE }),
+        previous_value: previous ? { status: previous.status } : null,
+        new_value: { status: candidate.ESTADO_PROYECTO, expediente: candidate.EXPEDIENTE_NOMBRE },
         data_source_id: dataSourceId,
         confidence_level: "PUBLICO",
         description: isFirstMatch

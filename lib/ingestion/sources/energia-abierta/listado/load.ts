@@ -373,8 +373,8 @@ export async function loadNormalizedProjects(
         const { error: statusEventError } = await client.from("project_event").insert({
           project_id: existingProject.id, event_type: "status_change",
           occurred_at: new Date().toISOString(),
-          previous_value: JSON.stringify({ status: existingProject.status }),
-          new_value: JSON.stringify({ status: row.statusLabel }),
+          previous_value: { status: existingProject.status },
+          new_value: { status: row.statusLabel },
           data_source_id: dataSourceId, confidence_level: CONFIDENCE_PUBLIC,
           description: `Cambió el estado de la solicitud: "${existingProject.status}" → "${row.statusLabel}"`,
         });
@@ -389,8 +389,8 @@ export async function loadNormalizedProjects(
         const { error: dateEventError } = await client.from("project_event").insert({
           project_id: existingProject.id, event_type: "connection_date_change",
           occurred_at: new Date().toISOString(),
-          previous_value: JSON.stringify({ estimatedConnectionDate: existingProject.estimated_connection_date }),
-          new_value: JSON.stringify({ estimatedConnectionDate: row.estimatedConnectionDate }),
+          previous_value: { estimatedConnectionDate: existingProject.estimated_connection_date },
+          new_value: { estimatedConnectionDate: row.estimatedConnectionDate },
           data_source_id: dataSourceId, confidence_level: CONFIDENCE_PUBLIC,
           description: `Cambió la fecha estimada de conexión`,
         });
@@ -405,8 +405,8 @@ export async function loadNormalizedProjects(
         const { error: pointEventError } = await client.from("project_event").insert({
           project_id: existingProject.id, event_type: "connection_point_change",
           occurred_at: new Date().toISOString(),
-          previous_value: JSON.stringify({ connectionPoint: existingConnection.connection_point, substationBay: existingConnection.substation_bay }),
-          new_value: JSON.stringify({ connectionPoint: row.connectionPoint, substationBay: row.substationBay }),
+          previous_value: { connectionPoint: existingConnection.connection_point, substationBay: existingConnection.substation_bay },
+          new_value: { connectionPoint: row.connectionPoint, substationBay: row.substationBay },
           data_source_id: dataSourceId, confidence_level: CONFIDENCE_PUBLIC,
           description: `Cambió el punto de conexión`,
         });
@@ -467,8 +467,8 @@ export async function loadNormalizedProjects(
         project_id: sibling.id,
         event_type: "status_change",
         occurred_at: new Date().toISOString(),
-        previous_value: JSON.stringify({ status: sibling.status }),
-        new_value: JSON.stringify({ status: row.statusLabel, externalReference: row.externalId }),
+        previous_value: { status: sibling.status },
+        new_value: { status: row.statusLabel, externalReference: row.externalId },
         data_source_id: dataSourceId,
         confidence_level: CONFIDENCE_PUBLIC,
         description: `Nueva solicitud ${row.externalId} (${row.requestType ?? "sin tipo"}) reemplaza a la anterior para el mismo proyecto`,
@@ -535,7 +535,7 @@ export async function loadNormalizedProjects(
       project_id: projectId,
       event_type: "announced",
       occurred_at: row.receivedAt ?? new Date().toISOString(),
-      new_value: JSON.stringify({ status: row.statusLabel, requestType: row.requestType }),
+      new_value: { status: row.statusLabel, requestType: row.requestType },
       data_source_id: dataSourceId,
       confidence_level: CONFIDENCE_PUBLIC,
       description: `Solicitud ${row.externalId} (${row.requestType ?? "sin tipo"}) ingresada a Acceso Abierto`,

@@ -41,6 +41,7 @@ import { InfoTooltip } from "../../components/InfoTooltip";
 import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
+import { getCodSlippageCalibration } from "@/lib/data-access/scheduleCalibration";
 import { hasConstructionStartGap, interpretPgpProgress } from "@/lib/shared/pgpProjectProgress";
 
 export const dynamic = "force-dynamic";
@@ -88,13 +89,14 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   if (!project) notFound();
   void logProjectView(client, project.id);
 
-  const [relatedCompanies, seiaRecord, confirmedPertinencia, admin, profile, pgpProgress] = await Promise.all([
+  const [relatedCompanies, seiaRecord, confirmedPertinencia, admin, profile, pgpProgress, scheduleCalibration] = await Promise.all([
     getRelatedCompaniesByName(client, project.developerCompany),
     getSeiaRecordForProject(client, id),
     getConfirmedPertinenciaForProject(createSupabaseServiceClient(), id),
     isAdmin(),
     getCurrentUserProfile(client),
     getLatestPgpProgress(client, id),
+    getCodSlippageCalibration(createSupabaseServiceClient(), project.developerCompanyId),
   ]);
   const pgpReading = pgpProgress ? interpretPgpProgress(pgpProgress.progressPercent) : null;
   const constructionStartGap = hasConstructionStartGap(project.status, pgpProgress?.progressPercent ?? null);
@@ -139,8 +141,17 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     ? await getProjectOwnershipMap(createSupabaseServiceClient(), project.id)
     : null;
 
+  // Nudges the COD used for the backward schedule calculation using observed
+  // slippage for this developer (or the sector, with enough samples) — see
+  // lib/analytics/scheduleCalibration.ts. projectPhaseDurations.ts itself is
+  // never touched; this only shifts which date the model counts back from.
+  const adjustedConnectionDate = scheduleCalibration && project.estimatedConnectionDate
+    ? new Date(new Date(project.estimatedConnectionDate).getTime() + scheduleCalibration.codSlippageDaysAvg * 86_400_000)
+        .toISOString()
+        .slice(0, 10)
+    : project.estimatedConnectionDate;
   const estimatedPhase = computeEstimatedPhase(
-    project.estimatedConnectionDate,
+    adjustedConnectionDate,
     project.technologyCode,
     project.includesStorage,
     project.capacityMw,
@@ -462,6 +473,13 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
                 {estimatedPhase.groupLabel === "PMGD" ? `PMGD · ${technologyLabel}` : estimatedPhase.groupLabel}
               </span>
             </div>
+            {scheduleCalibration && (
+              <p className="mt-2 text-[11px] text-neutral-400">
+                {locale === "en"
+                  ? `Schedule shifted ${scheduleCalibration.codSlippageDaysAvg > 0 ? "+" : ""}${Math.round(scheduleCalibration.codSlippageDaysAvg)} days based on observed connection-date changes for ${scheduleCalibration.scope === "developer" ? "this developer" : "the sector"} (n=${scheduleCalibration.sampleSize}).`
+                  : `Cronograma ajustado ${scheduleCalibration.codSlippageDaysAvg > 0 ? "+" : ""}${Math.round(scheduleCalibration.codSlippageDaysAvg)} días según el historial de cambios de fecha de conexión de ${scheduleCalibration.scope === "developer" ? "esta empresa" : "el sector"} (n=${scheduleCalibration.sampleSize}).`}
+              </p>
+            )}
             <p className="mt-3 mb-4 text-sm text-neutral-600 dark:text-neutral-400">
               {locale === "en" ? (
                 estimatedPhase.pastConnectionDate
@@ -484,8 +502,13 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
             </p>
             <PhaseTimeline
               milestones={estimatedPhase.milestones}
-              connectionDate={project.estimatedConnectionDate!}
+              connectionDate={adjustedConnectionDate!}
               pgpMilestones={pgpTimelineMilestones}
+              constructionProgress={
+                pgpProgress && pgpProgress.expectedProgressPercent !== null
+                  ? { theoreticalPercent: pgpProgress.expectedProgressPercent, realPercent: pgpProgress.progressPercent }
+                  : undefined
+              }
               locale={locale}
             />
           </PlanGate>

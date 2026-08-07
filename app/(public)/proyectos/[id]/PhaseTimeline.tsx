@@ -31,12 +31,15 @@ export function PhaseTimeline({
   milestones,
   connectionDate,
   pgpMilestones = [],
+  constructionProgress,
   today = new Date(),
   locale = "es",
 }: {
   milestones: PhaseMilestone[];
   connectionDate: string;
   pgpMilestones?: PgpTimelineMilestone[];
+  /** Theoretical vs PGP-observed physical progress, shown only on the "construcción" row. */
+  constructionProgress?: { theoreticalPercent: number; realPercent: number };
   today?: Date;
   locale?: AppLocale;
 }) {
@@ -110,6 +113,23 @@ export function PhaseTimeline({
                     <p className={`mt-1 pl-4 text-[10px] ${current ? "font-semibold text-brand-deep dark:text-brand-primary" : "text-neutral-400"}`}>
                       {status} · {locale === "en" ? "Confidence" : "Confianza"} {CONFIDENCE_LABEL[locale][milestone.confidence].toLowerCase()}
                     </p>
+                    {milestone.phase === "construccion" && constructionProgress && (
+                      <p className="mt-1 pl-4 text-[10px]">
+                        <span className="font-medium text-neutral-500 dark:text-neutral-400">
+                          {locale === "en" ? "Theoretical" : "Teórico"} {constructionProgress.theoreticalPercent}%
+                        </span>
+                        {" · "}
+                        <span
+                          className={`font-semibold ${
+                            constructionProgress.realPercent < constructionProgress.theoreticalPercent - 10
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-emerald-700 dark:text-emerald-400"
+                          }`}
+                        >
+                          {locale === "en" ? "Actual (PGP)" : "Real (PGP)"} {constructionProgress.realPercent}%
+                        </span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="relative h-9 border-x border-neutral-100 dark:border-neutral-800">
