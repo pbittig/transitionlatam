@@ -544,13 +544,19 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
         </section>
       )}
 
-      {ownershipMap && (
+      {project.verifiedAt && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900" aria-labelledby="ownership-title">
           <div className="flex flex-wrap items-center gap-2">
             <h2 id="ownership-title" className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-              {locale === "en" ? "Ownership and corporate group" : "Propiedad y grupo empresarial"}
+              {locale === "en" ? "Ownership" : "Propiedad"}
             </h2>
-            <span className="rounded-full bg-brand-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-deep">Prime</span>
+            {ownershipMap && (
+              <span className="rounded-full bg-brand-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-deep">Prime</span>
+            )}
+            <InfoTooltip
+              text={locale === "en" ? "Manually verified corporate chain: who owns the project's SPV and who the ultimate controller is." : "Cadena societaria verificada manualmente: quién es dueño de la SPV del proyecto y quién controla en última instancia."}
+              locale={locale}
+            />
           </div>
           <p className="mt-2 mb-4 max-w-3xl text-sm text-neutral-600 dark:text-neutral-400">
             {locale === "en"

@@ -1,4 +1,4 @@
-import { Building2, LockKeyhole, UserRound } from "lucide-react";
+import { Building2, Clock, LockKeyhole, UserRound } from "lucide-react";
 import Link from "next/link";
 import type { AppLocale } from "@/lib/i18n";
 import type { OwnershipEntity, ProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
@@ -89,7 +89,24 @@ function OwnershipPreview({ locale }: { locale: AppLocale }) {
   );
 }
 
-export function ProjectOwnershipSection({ map, projectName, locked, locale }: { map: ProjectOwnershipMap; projectName: string; locked: boolean; locale: AppLocale }) {
+function OwnershipInProcess({ locale }: { locale: AppLocale }) {
+  return (
+    <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50/70 p-8 text-center dark:border-neutral-700 dark:bg-neutral-900/50">
+      <Clock size={20} className="text-neutral-400" />
+      <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+        {locale === "en" ? "Ownership mapping in progress" : "Mapeo societario en proceso"}
+      </p>
+      <p className="max-w-sm text-xs text-neutral-500 dark:text-neutral-400">
+        {locale === "en"
+          ? "We are still building this project's corporate ownership chain. Check back soon."
+          : "Todavía estamos construyendo la cadena societaria de este proyecto. Vuelve pronto."}
+      </p>
+    </div>
+  );
+}
+
+export function ProjectOwnershipSection({ map, projectName, locked, locale }: { map: ProjectOwnershipMap | null; projectName: string; locked: boolean; locale: AppLocale }) {
+  if (!map) return <OwnershipInProcess locale={locale} />;
   if (locked) return <OwnershipPreview locale={locale} />;
   const spv = map.entities.find((entity) => entity.id === map.spvEntityId);
   const controllers = map.entities.filter((entity) => !map.relations.some((relation) => relation.ownedEntityId === entity.id));
