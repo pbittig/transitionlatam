@@ -167,8 +167,6 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     projectKind: project.projectKind,
     includesStorage: project.includesStorage,
     seiaSubmissionType: seiaRecord?.submissionType,
-    pgpProgressPercent: pgpProgress?.progressPercent ?? null,
-    pgpDeviationPp: pgpProgress?.deviationPp ?? null,
   });
   const synthesis = computeProjectSynthesis(estimatedPhase, project.estimatedConnectionDate);
   const nextMilestone = computeNextMilestone(estimatedPhase);
@@ -345,11 +343,9 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
                   {health.seiaScore !== null
                     ? locale === "en" ? " (60%) and SEIA environmental progress (40%)" : " (60%) y del trámite ambiental SEIA (40%)"
                     : locale === "en" ? " (100%, with no linked SEIA filing)" : " (100%, sin expediente SEIA asociado)"}
-                  {health.overdueReason === "fecha_pasada"
+                  {health.overdue
                     ? locale === "en" ? "; penalized because the estimated connection date has passed without reaching construction" : "; penalizado porque la fecha estimada de conexión ya pasó sin llegar a construcción"
-                    : health.overdueReason === "pgp_estancado"
-                      ? locale === "en" ? "; penalized because PGP shows the project stalled well behind its own theoretical schedule" : "; penalizado porque el PGP muestra al proyecto estancado, muy por detrás de su propio cronograma teórico"
-                      : ""}
+                    : ""}
                   .
                 </p>
                 <ul className="mt-2 flex flex-col gap-1">
@@ -369,9 +365,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
                   </li>
                   {health.overdue && (
                     <li className="text-amber-700 dark:text-amber-400">
-                      {health.overdueReason === "pgp_estancado"
-                        ? locale === "en" ? "Overdue penalty: −20 points (PGP shows the project stalled behind schedule)" : "Penalización por atraso: −20 puntos (el PGP muestra al proyecto estancado, detrás de su cronograma)"
-                        : locale === "en" ? "Overdue penalty: −20 points (estimated connection date already passed)" : "Penalización por atraso: −20 puntos (la fecha estimada de conexión ya pasó)"}
+                      {locale === "en" ? "Overdue penalty: −20 points (estimated connection date already passed)" : "Penalización por atraso: −20 puntos (la fecha estimada de conexión ya pasó)"}
                     </li>
                   )}
                 </ul>
