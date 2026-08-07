@@ -123,6 +123,8 @@ export async function runPgpProgressSync(client: SupabaseClient, batchSize = 20)
       expected_progress_percent: expectedProgress,
       deviation_pp: expectedProgress === null ? null : Math.round((reading.progressPercent - expectedProgress) * 100) / 100,
       model_version: expectedProgress === null ? null : PDTE_PROGRESS_MODEL_VERSION,
+      service_estimate_date: reading.serviceEstimateDate,
+      operative_estimate_date: reading.operativeEstimateDate,
       source_url: reading.sourceUrl,
       source_payload: reading.raw,
     });

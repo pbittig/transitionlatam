@@ -22,24 +22,33 @@ function fmt(date: Date, locale: AppLocale, withYear = true) {
   });
 }
 
+export interface PgpTimelineMilestone {
+  label: string;
+  date: string;
+}
+
 export function PhaseTimeline({
   milestones,
   connectionDate,
+  pgpMilestones = [],
   today = new Date(),
   locale = "es",
 }: {
   milestones: PhaseMilestone[];
   connectionDate: string;
+  pgpMilestones?: PgpTimelineMilestone[];
   today?: Date;
   locale?: AppLocale;
 }) {
   const poc = new Date(connectionDate);
   const likelyStarts = milestones.map((milestone) => new Date(milestone.estimatedStartDate));
+  const pgpDates = pgpMilestones.map((milestone) => new Date(milestone.date));
   const minDate = new Date(Math.min(...milestones.map((milestone) => new Date(milestone.maxStartDate).getTime())));
-  const span = Math.max(poc.getTime() - minDate.getTime(), 1);
+  const maxDate = new Date(Math.max(poc.getTime(), ...pgpDates.map((date) => date.getTime())));
+  const span = Math.max(maxDate.getTime() - minDate.getTime(), 1);
   const pct = (date: Date) => Math.min(100, Math.max(0, ((date.getTime() - minDate.getTime()) / span) * 100));
   const todayPct = pct(today);
-  const todayInRange = today >= minDate && today <= poc;
+  const todayInRange = today >= minDate && today <= maxDate;
   const midpoint = new Date(minDate.getTime() + span / 2);
 
   const rows = milestones.map((milestone, index) => {
@@ -126,12 +135,50 @@ export function PhaseTimeline({
                 </div>
               );
             })}
+
+            {pgpMilestones.map((milestone, index) => {
+              const date = pgpDates[index];
+              const left = pct(date);
+              return (
+                <div
+                  key={`pgp-${milestone.label}`}
+                  className="grid min-h-14 grid-cols-[180px_minmax(480px,1fr)] items-center gap-x-4 rounded-md px-2 hover:bg-neutral-50 dark:hover:bg-neutral-900/60"
+                >
+                  <div className="min-w-0 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="size-2 shrink-0 rotate-45 bg-neutral-700 dark:bg-neutral-300" />
+                      <span className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-100">{milestone.label}</span>
+                    </div>
+                    <p className="mt-1 pl-4 text-[10px] text-neutral-400">
+                      {locale === "en" ? "Confirmed by PGP" : "Confirmado por PGP"}
+                    </p>
+                  </div>
+
+                  <div className="relative h-9 border-x border-neutral-100 dark:border-neutral-800">
+                    <div
+                      className="absolute top-3.5 size-2.5 -translate-x-1/2 rotate-45 bg-neutral-700 dark:bg-neutral-300"
+                      style={{ left: `${left}%` }}
+                      title={`${milestone.label}: ${fmt(date, locale)}`}
+                    />
+                    <span className="absolute top-7 -translate-x-1/2 text-[9px] text-neutral-400" style={{ left: `${left}%` }}>
+                      {fmt(date, locale, false)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-neutral-100 pt-3 text-[10px] text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
           <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm bg-neutral-400/40" />{locale === "en" ? "Estimated duration" : "Duración estimada"}</span>
           <span className="flex items-center gap-1.5"><span className="h-3 w-5 bg-[repeating-linear-gradient(45deg,rgba(38,38,38,.3)_0_3px,transparent_3px_7px)]" />{locale === "en" ? "Start uncertainty" : "Incertidumbre de inicio"}</span>
+          {pgpMilestones.length > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rotate-45 bg-neutral-700 dark:bg-neutral-300" />
+              {locale === "en" ? "Milestone confirmed by the Coordinador (PGP)" : "Hito confirmado por el Coordinador (PGP)"}
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -8,6 +8,8 @@ export interface LatestPgpProgress {
   expectedProgressPercent: number | null;
   deviationPp: number | null;
   modelVersion: string | null;
+  serviceEstimateDate: string | null;
+  operativeEstimateDate: string | null;
 }
 
 export async function getLatestPgpProgress(
@@ -16,7 +18,9 @@ export async function getLatestPgpProgress(
 ): Promise<LatestPgpProgress | null> {
   const { data, error } = await client
     .from("latest_pgp_project_progress")
-    .select("nup, progress_percent, expected_progress_percent, deviation_pp, model_version, observed_at, source_url")
+    .select(
+      "nup, progress_percent, expected_progress_percent, deviation_pp, model_version, service_estimate_date, operative_estimate_date, observed_at, source_url",
+    )
     .eq("project_id", projectId)
     .maybeSingle();
   // Allows application deployment before the additive migration is applied.
@@ -31,5 +35,7 @@ export async function getLatestPgpProgress(
     expectedProgressPercent: data.expected_progress_percent === null ? null : Number(data.expected_progress_percent),
     deviationPp: data.deviation_pp === null ? null : Number(data.deviation_pp),
     modelVersion: data.model_version as string | null,
+    serviceEstimateDate: data.service_estimate_date as string | null,
+    operativeEstimateDate: data.operative_estimate_date as string | null,
   };
 }

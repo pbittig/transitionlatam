@@ -16,6 +16,8 @@ export interface PgpProjectProgress {
   nup: string;
   projectName: string | null;
   progressPercent: number;
+  serviceEstimateDate: string | null;
+  operativeEstimateDate: string | null;
   sourceUrl: string;
   raw: RawPgpRequest;
 }
@@ -63,7 +65,20 @@ async function fetchPgpRows(queryNup: string): Promise<RawPgpRequest[]> {
  * `request_completition: e.requests.ireq.completition_status`, poblado por
  * este POST). Devuelve null en caso de error para no tumbar el resto del lote.
  */
-async function fetchAccurateCompletion(pgpRequestId: string): Promise<{ completitionStatus: number; completitionPes: number } | null> {
+/** "2026-12-15T00:00:00" -> "2026-12-15"; null on anything unparseable. */
+function toDateOnly(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+async function fetchAccurateCompletion(pgpRequestId: string): Promise<{
+  completitionStatus: number;
+  completitionPes: number;
+  serviceEstimateDate: string | null;
+  operativeEstimateDate: string | null;
+} | null> {
   try {
     const response = await fetch(`${PGP_BASE_URL}/api/request/get_request_info`, {
       method: "POST",
@@ -77,11 +92,21 @@ async function fetchAccurateCompletion(pgpRequestId: string): Promise<{ completi
       cache: "no-store",
     });
     if (!response.ok) return null;
-    const payload = await response.json() as { completition_status?: unknown; completition_pes?: unknown };
+    const payload = await response.json() as {
+      completition_status?: unknown;
+      completition_pes?: unknown;
+      service_estimate_date?: unknown;
+      operative_estimate_date?: unknown;
+    };
     const completitionStatus = Number(payload.completition_status);
     const completitionPes = Number(payload.completition_pes);
     if (!Number.isFinite(completitionStatus) || completitionStatus < 0 || completitionStatus > 100) return null;
-    return { completitionStatus, completitionPes: Number.isFinite(completitionPes) ? completitionPes : 0 };
+    return {
+      completitionStatus,
+      completitionPes: Number.isFinite(completitionPes) ? completitionPes : 0,
+      serviceEstimateDate: toDateOnly(payload.service_estimate_date),
+      operativeEstimateDate: toDateOnly(payload.operative_estimate_date),
+    };
   } catch {
     return null;
   }
@@ -112,6 +137,8 @@ export async function fetchPgpProjectProgress(nups: string[]): Promise<PgpProjec
       nup,
       projectName: row.name ?? null,
       progressPercent: progress,
+      serviceEstimateDate: null,
+      operativeEstimateDate: null,
       sourceUrl: `${PGP_BASE_URL}/irequests/${id}`,
       raw: row,
     }];
@@ -135,7 +162,11 @@ export async function fetchPgpProjectProgress(nups: string[]): Promise<PgpProjec
     const accurate = await Promise.all(batch.map((item) => fetchAccurateCompletion(item.pgpId)));
     batch.forEach((item, i) => {
       const result = accurate[i];
-      if (result) item.progressPercent = result.completitionStatus;
+      if (result) {
+        item.progressPercent = result.completitionStatus;
+        item.serviceEstimateDate = result.serviceEstimateDate;
+        item.operativeEstimateDate = result.operativeEstimateDate;
+      }
     });
   }
 

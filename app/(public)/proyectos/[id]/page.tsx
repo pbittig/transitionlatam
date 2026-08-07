@@ -17,7 +17,7 @@ import {
   computeNextMilestone,
   computeProjectSynthesis,
 } from "@/lib/shared/projectIntelligence";
-import { PhaseTimeline } from "./PhaseTimeline";
+import { PhaseTimeline, type PgpTimelineMilestone } from "./PhaseTimeline";
 import { ProjectStatusSynthesis } from "./ProjectStatusSynthesis";
 import { ProjectProcessProgress } from "./ProjectProcessProgress";
 import { RelatedProjectsPanel } from "./RelatedProjectsPanel";
@@ -98,6 +98,16 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   ]);
   const pgpReading = pgpProgress ? interpretPgpProgress(pgpProgress.progressPercent) : null;
   const constructionStartGap = hasConstructionStartGap(project.status, pgpProgress?.progressPercent ?? null);
+  const pgpTimelineMilestones: PgpTimelineMilestone[] = pgpProgress
+    ? [
+        pgpProgress.serviceEstimateDate
+          ? { label: locale === "en" ? "Entry into Service" : "Puesta en Servicio", date: pgpProgress.serviceEstimateDate }
+          : null,
+        pgpProgress.operativeEstimateDate
+          ? { label: locale === "en" ? "Commercial Operation" : "Entrada en Operación", date: pgpProgress.operativeEstimateDate }
+          : null,
+      ].filter((milestone): milestone is PgpTimelineMilestone => milestone !== null)
+    : [];
   const isFree = !admin && profile?.planCode !== "premium";
   const teamLocked = !admin && profile?.planCode !== "premium";
   // Solo el nombre/correo enmascarado llega al cliente cuando está bloqueado —
@@ -383,6 +393,26 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
                   </div>
                 </div>
               )}
+              {(pgpProgress.serviceEstimateDate || pgpProgress.operativeEstimateDate) && (
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs sm:max-w-md">
+                  <div className="rounded-md bg-neutral-50 p-3 dark:bg-neutral-900">
+                    <p className="text-neutral-500">{locale === "en" ? "Entry into Service" : "Puesta en Servicio"}</p>
+                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">
+                      {locale === "en" ? "Estimated" : "Estimada"}:{" "}
+                      {pgpProgress.serviceEstimateDate ? new Date(pgpProgress.serviceEstimateDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL") : "—"}
+                    </p>
+                    <p className="mt-0.5 text-neutral-500">{locale === "en" ? "Actual" : "Real"}: —</p>
+                  </div>
+                  <div className="rounded-md bg-neutral-50 p-3 dark:bg-neutral-900">
+                    <p className="text-neutral-500">{locale === "en" ? "Commercial Operation" : "Entrada en Operación"}</p>
+                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">
+                      {locale === "en" ? "Estimated" : "Estimada"}:{" "}
+                      {pgpProgress.operativeEstimateDate ? new Date(pgpProgress.operativeEstimateDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL") : "—"}
+                    </p>
+                    <p className="mt-0.5 text-neutral-500">{locale === "en" ? "Actual" : "Real"}: —</p>
+                  </div>
+                </div>
+              )}
               {constructionStartGap && (
                 <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-400">
                   {locale === "en"
@@ -452,7 +482,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
               rayadas muestran el rango real (no un ± fijo) de cada etapa, y la confianza de cada una baja mientras
               más lejos está del COD.</>}
             </p>
-            <PhaseTimeline milestones={estimatedPhase.milestones} connectionDate={project.estimatedConnectionDate!} locale={locale} />
+            <PhaseTimeline
+              milestones={estimatedPhase.milestones}
+              connectionDate={project.estimatedConnectionDate!}
+              pgpMilestones={pgpTimelineMilestones}
+              locale={locale}
+            />
           </PlanGate>
         </section>
       )}
