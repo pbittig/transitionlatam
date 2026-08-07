@@ -19,6 +19,7 @@ export interface HealthScoreResult {
   statusScore: number | null;
   seiaScore: number | null;
   overdue: boolean;
+  overdueReason: "fecha_pasada" | "pgp_estancado" | null;
   environmentalTreatment: "seia" | "pertinencia" | "bess_no_automatico" | "sin_antecedente";
   environmentalNote: string;
 }
@@ -27,6 +28,10 @@ export interface HealthScoreContext {
   projectKind?: string | null;
   includesStorage?: boolean;
   seiaSubmissionType?: string | null;
+  /** Avance físico real reportado en PGP, cuando el proyecto está trackeado — ver lib/shared/pgpProjectProgress.ts. */
+  pgpProgressPercent?: number | null;
+  /** Desviación real vs. esperado en puntos porcentuales (mismo valor que ya se muestra en la ficha). */
+  pgpDeviationPp?: number | null;
 }
 
 export const HEALTH_BAND_LABEL: Record<HealthBand, string> = {
@@ -78,6 +83,7 @@ export function computeHealthScore(
       statusScore: null,
       seiaScore: null,
       overdue: false,
+      overdueReason: null,
       environmentalTreatment: "sin_antecedente",
       environmentalNote: "Proyecto rechazado o desistido.",
     };
@@ -122,7 +128,22 @@ export function computeHealthScore(
 
   const advancedBands: StatusBand[] = ["construccion", "finalizado"];
   const band = statusMaturity?.band ?? "inicial";
-  const overdue = !!estimatedConnectionDate && new Date(estimatedConnectionDate) < today && !advancedBands.includes(band);
+  const dateOverdue = !!estimatedConnectionDate && new Date(estimatedConnectionDate) < today && !advancedBands.includes(band);
+
+  // "Declarado en construcción" normally exempts a project from the date check
+  // above — but that's an administrative label, and PGP is real evidence. When
+  // it's tracked and shows the project stalled or clearly behind its own
+  // theoretical curve, that outweighs the band exemption: same penalty, but it
+  // now applies even inside "construcción".
+  const pgpStalled =
+    context.pgpProgressPercent !== undefined && context.pgpProgressPercent !== null
+      ? context.pgpDeviationPp !== undefined && context.pgpDeviationPp !== null
+        ? context.pgpDeviationPp < -10
+        : context.pgpProgressPercent === 0
+      : false;
+
+  const overdue = dateOverdue || pgpStalled;
+  const overdueReason = dateOverdue ? "fecha_pasada" : pgpStalled ? "pgp_estancado" : null;
 
   const finalScore = Math.max(0, overdue ? score - OVERDUE_PENALTY : score);
 
@@ -132,6 +153,7 @@ export function computeHealthScore(
     statusScore,
     seiaScore,
     overdue,
+    overdueReason,
     environmentalTreatment,
     environmentalNote,
   };
