@@ -55,6 +55,38 @@ async function fetchPgpRows(queryNup: string): Promise<RawPgpRequest[]> {
   return rows;
 }
 
+/**
+ * El listado /api/request/irs devuelve completition_status desactualizado para
+ * solicitudes con árbol de fases grande (todo lo que no sea un trámite MNR
+ * trivial de una fase) — confirmado comparando contra la página pública, que
+ * en cambio llama a este endpoint (interceptado desde el bundle del frontend:
+ * `request_completition: e.requests.ireq.completition_status`, poblado por
+ * este POST). Devuelve null en caso de error para no tumbar el resto del lote.
+ */
+async function fetchAccurateCompletion(pgpRequestId: string): Promise<{ completitionStatus: number; completitionPes: number } | null> {
+  try {
+    const response = await fetch(`${PGP_BASE_URL}/api/request/get_request_info`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json;charset=UTF-8",
+        "User-Agent": "Transition-Latam-PGP-Sync/1.0",
+      },
+      body: JSON.stringify({ ir: pgpRequestId }),
+      signal: AbortSignal.timeout(30_000),
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as { completition_status?: unknown; completition_pes?: unknown };
+    const completitionStatus = Number(payload.completition_status);
+    const completitionPes = Number(payload.completition_pes);
+    if (!Number.isFinite(completitionStatus) || completitionStatus < 0 || completitionStatus > 100) return null;
+    return { completitionStatus, completitionPes: Number.isFinite(completitionPes) ? completitionPes : 0 };
+  } catch {
+    return null;
+  }
+}
+
 function normalizeNup(value: string): string {
   return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
@@ -95,5 +127,17 @@ export async function fetchPgpProjectProgress(nups: string[]): Promise<PgpProjec
     const currentDate = current ? Date.parse(current.raw.updated_at ?? current.raw.created_at ?? "") || 0 : -1;
     if (!current || rowDate > currentDate) latestByNup.set(key, row);
   }
-  return [...latestByNup.values()];
+
+  // El listado ya sirvió para resolver nup -> pgpId; el % real se confirma acá.
+  const deduped = [...latestByNup.values()];
+  for (let index = 0; index < deduped.length; index += concurrency) {
+    const batch = deduped.slice(index, index + concurrency);
+    const accurate = await Promise.all(batch.map((item) => fetchAccurateCompletion(item.pgpId)));
+    batch.forEach((item, i) => {
+      const result = accurate[i];
+      if (result) item.progressPercent = result.completitionStatus;
+    });
+  }
+
+  return deduped;
 }
