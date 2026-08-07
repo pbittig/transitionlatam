@@ -34,9 +34,10 @@ import { AddToCrmButton } from "../../components/AddToCrmButton";
 import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
 import { chipLabelForProject } from "../../components/techChips";
 import { PlanGate } from "../../components/PlanGate";
-import { getAppLocale } from "@/lib/i18n";
+import { getAppLocale, type AppLocale } from "@/lib/i18n";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { ShareProjectButton } from "./ShareProjectButton";
+import { InfoTooltip } from "../../components/InfoTooltip";
 import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
@@ -57,11 +58,18 @@ function Field({ label, value, locked = false }: { label: string; value: string 
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
+function SectionLabel({ children, info, locale }: { children: React.ReactNode; info?: string; locale: AppLocale }) {
+  const heading = (
     <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
       {children}
     </h2>
+  );
+  if (!info) return heading;
+  return (
+    <div className="flex items-center gap-1.5">
+      {heading}
+      <InfoTooltip text={info} locale={locale} />
+    </div>
   );
 }
 
@@ -256,15 +264,26 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       </div>
 
       <section className="border-b border-neutral-100 pb-8 dark:border-neutral-900" aria-labelledby="project-description-title">
-        <h2 id="project-description-title" className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-          {locale === "en" ? "Description" : "Descripción"}
-        </h2>
+        <div className="flex items-center gap-1.5">
+          <h2 id="project-description-title" className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+            {locale === "en" ? "Description" : "Descripción"}
+          </h2>
+          <InfoTooltip
+            text={locale === "en" ? "Automatically generated summary based on the project's technical and location data." : "Resumen generado automáticamente a partir de los datos técnicos y de ubicación del proyecto."}
+            locale={locale}
+          />
+        </div>
         <p className="mt-2 max-w-4xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">{projectDescription}</p>
       </section>
 
       {synthesis && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel>{locale === "en" ? "Theoretical project status" : "Estado teórico del Proyecto"}</SectionLabel>
+          <SectionLabel
+            info={locale === "en" ? "Our own estimate of what stage the project should be at today, based on its declared connection date." : "Estimación propia de en qué etapa debería estar el proyecto hoy, según su fecha de conexión declarada."}
+            locale={locale}
+          >
+            {locale === "en" ? "Theoretical project status" : "Estado teórico del Proyecto"}
+          </SectionLabel>
           <div className="mt-3">
             <PlanGate locked={isFree}>
               <ProjectStatusSynthesis
@@ -281,7 +300,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
 
       {health.score !== null && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel>Health Score</SectionLabel>
+          <SectionLabel
+            info={locale === "en" ? "Our own score (0–100) combining connection permitting progress and SEIA environmental progress; not an official figure." : "Puntaje propio (0–100) que combina el avance del trámite de conexión y el avance ambiental SEIA; no es un dato oficial."}
+            locale={locale}
+          >
+            Health Score
+          </SectionLabel>
           <PlanGate locked={isFree}>
             <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <HealthScoreBadge health={health} />
@@ -325,7 +349,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
 
       {pgpProgress && pgpReading && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel>{locale === "en" ? "Reported physical construction" : "Construcción física reportada"}</SectionLabel>
+          <SectionLabel
+            info={locale === "en" ? "Physical construction progress officially reported in the National Electricity Coordinator's Major Projects Program (PGP)." : "Porcentaje de avance físico de obra reportado oficialmente en el Programa de Grandes Proyectos (PGP) del Coordinador Eléctrico Nacional."}
+            locale={locale}
+          >
+            {locale === "en" ? "Reported physical construction" : "Construcción física reportada"}
+          </SectionLabel>
           <PlanGate locked={isFree}>
             <div className="mt-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
               <div className="flex items-end justify-between gap-4">
@@ -370,7 +399,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       )}
 
       <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-        <SectionLabel>{locale === "en" ? "Permitting progress" : "Avance de tramitación"}</SectionLabel>
+        <SectionLabel
+          info={locale === "en" ? "Current status of the grid connection process and, if applicable, the environmental process (SEIA/Pertinencia)." : "Estado actual del trámite de conexión al sistema eléctrico y, si aplica, del trámite ambiental (SEIA/Pertinencia)."}
+          locale={locale}
+        >
+          {locale === "en" ? "Permitting progress" : "Avance de tramitación"}
+        </SectionLabel>
         <div className="mt-3">
           <PlanGate locked={isFree}>
             <ProjectProcessProgress
@@ -385,7 +419,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
 
       {estimatedPhase && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel>{locale === "en" ? "Estimated development stage" : "Etapa estimada de desarrollo"}</SectionLabel>
+          <SectionLabel
+            info={locale === "en" ? "Probabilistic model that works backward from the estimated connection date to place the project in a typical market development stage." : "Modelo probabilístico que calcula hacia atrás desde la fecha de conexión estimada para ubicar al proyecto en una etapa de desarrollo típica de mercado."}
+            locale={locale}
+          >
+            {locale === "en" ? "Estimated development stage" : "Etapa estimada de desarrollo"}
+          </SectionLabel>
           <PlanGate locked={isFree}>
             <div className="mt-3 flex items-center gap-2">
               <span className="rounded-full bg-brand-surface px-2 py-0.5 text-xs font-medium text-brand-deep">
@@ -419,7 +458,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       )}
 
       <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-        <SectionLabel>{locale === "en" ? "Contact" : "Contacto"}</SectionLabel>
+        <SectionLabel
+          info={locale === "en" ? "Contact details for people linked to the project or the developer company." : "Datos de contacto de las personas vinculadas al proyecto o a la empresa desarrolladora."}
+          locale={locale}
+        >
+          {locale === "en" ? "Contact" : "Contacto"}
+        </SectionLabel>
         <div className="mt-4">
           <RevealStakeholders
             projectId={project.id}
@@ -434,7 +478,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
 
       <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
         <div className="flex items-center justify-between">
-          <SectionLabel>{locale === "en" ? "Environmental status" : "Estado ambiental"}</SectionLabel>
+          <SectionLabel
+            info={locale === "en" ? "Status of the project's environmental filing with the SEIA, including pertinencia filings when applicable." : "Estado del expediente ambiental del proyecto en el SEIA, incluyendo pertinencias cuando corresponde."}
+            locale={locale}
+          >
+            {locale === "en" ? "Environmental status" : "Estado ambiental"}
+          </SectionLabel>
           {admin && (
             <div className="flex items-center gap-3">
               <SeiaMatchModal
@@ -469,7 +518,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       {relatedCompanies && (
         <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
           <div className="flex items-center gap-2">
-            <SectionLabel>{locale === "en" ? "Related companies" : "Empresas relacionadas"}</SectionLabel>
+            <SectionLabel
+              info={locale === "en" ? "Other companies the National Electricity Coordinator groups with the developer under the same corporate group." : "Otras empresas que el Coordinador Eléctrico Nacional agrupa junto al desarrollador bajo el mismo grupo corporativo."}
+              locale={locale}
+            >
+              {locale === "en" ? "Related companies" : "Empresas relacionadas"}
+            </SectionLabel>
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
               Coordinador Eléctrico Nacional
             </span>
@@ -508,7 +562,12 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       )}
 
       <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-        <SectionLabel>{locale === "en" ? "Related projects" : "Proyectos relacionados"}</SectionLabel>
+        <SectionLabel
+          info={locale === "en" ? "Other active projects linked by the same RUT, SPV, corporate group, or shared corporate contacts." : "Otros proyectos activos vinculados por mismo RUT, SPV, grupo empresarial o contactos corporativos compartidos."}
+          locale={locale}
+        >
+          {locale === "en" ? "Related projects" : "Proyectos relacionados"}
+        </SectionLabel>
         <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
           {locale === "en"
             ? "Other verified active projects linked through the same RUT, SPV, corporate group or at least two shared corporate contacts, with their estimated development stage."
