@@ -1,12 +1,11 @@
 import Link from "next/link";
 import type { ProjectListItem } from "@/lib/data-access/projects";
 import type { SeiaRecordForProject } from "@/lib/data-access/seia";
-import { computeHealthScore } from "@/lib/shared/projectHealthScore";
+import type { LatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import { ThermalStatusBar } from "./ThermalStatusBar";
 import { SeiaStatusBar } from "./SeiaStatusBar";
-import { HealthScoreBadge } from "./HealthScoreBadge";
-import { AddToCrmButton } from "./AddToCrmButton";
-import { BatteryCharging, ContactRound, Droplets, Leaf, LockKeyhole, Sun, Wind } from "lucide-react";
+import { ConstructionProgressBar } from "./ConstructionProgressBar";
+import { BatteryCharging, Droplets, Leaf, LockKeyhole, Sun, Wind } from "lucide-react";
 import type { AppLocale } from "@/lib/i18n";
 
 export function ProjectTechnologyIcon({ project, locale }: { project: ProjectListItem; locale: AppLocale }) {
@@ -76,13 +75,13 @@ function LockedColumnHeader({ children, locked }: { children: React.ReactNode; l
 export function ProjectTable({
   items,
   seiaByProjectId,
-  crmProjectIds,
+  pgpProgressByProjectId,
   isFree = false,
   locale = "es",
 }: {
   items: ProjectListItem[];
   seiaByProjectId?: Map<string, SeiaRecordForProject>;
-  crmProjectIds: Set<string>;
+  pgpProgressByProjectId?: Map<string, LatestPgpProgress>;
   isFree?: boolean;
   locale?: AppLocale;
 }) {
@@ -102,23 +101,16 @@ export function ProjectTable({
             {seiaByProjectId && <th className="px-3 py-3 font-medium"><LockedColumnHeader locked={isFree}>{locale === "en" ? "Environmental status" : "Estado ambiental"}</LockedColumnHeader></th>}
             <th className="px-3 py-3 font-medium"><LockedColumnHeader locked={isFree}>{locale === "en" ? "Connection progress" : "Avance de conexión"}</LockedColumnHeader></th>
             <th className="px-3 py-3 font-medium">{locale === "en" ? "Estimated connection" : "Conexión estimada"}</th>
-            <th className="w-20 px-3 py-3 font-medium" title="Health Score estimado según avance, estado ambiental y fecha — no es un dato oficial">
-              <LockedColumnHeader locked={isFree}><span className="leading-tight">Health<br />Score</span></LockedColumnHeader>
+            <th className="px-3 py-3 font-medium" title="Avance físico de obra reportado oficialmente en el PGP del Coordinador Eléctrico Nacional">
+              <LockedColumnHeader locked={isFree}>{locale === "en" ? "Construction progress" : "Avance de construcción"}</LockedColumnHeader>
             </th>
-            <th className="w-20 px-3 py-3 font-medium"><LockedColumnHeader locked={isFree}>CRM</LockedColumnHeader></th>
+            <th className="px-3 py-3 font-medium">{locale === "en" ? "Real connection (PGP)" : "Conexión real (PGP)"}</th>
           </tr>
         </thead>
         <tbody>
           {items.map((p) => {
             const seia = seiaByProjectId?.get(p.id);
-            const health = computeHealthScore(p.status, seia?.status ?? null, p.estimatedConnectionDate, new Date(), {
-              projectKind: p.projectKind,
-              includesStorage: p.includesStorage,
-              seiaSubmissionType: seia?.submissionType,
-              generationCapacityMw: p.generationCapacityMw ?? p.capacityMw,
-              // No hay voltaje de conexión por fila en esta lista — el umbral de
-              // BESS (>23kV) solo se evalúa hoy en la ficha, donde sí se carga.
-            });
+            const pgp = pgpProgressByProjectId?.get(p.id) ?? null;
             return (
               <tr
                 key={p.id}
@@ -211,28 +203,30 @@ export function ProjectTable({
                     );
                   })() : "—"}
                 </td>
-                <td className="w-20 px-3 py-3">
+                <td className="px-3 py-3">
                   {isFree ? (
-                    <TablePlanGate label={locale === "en" ? "Health Score available on Prime" : "Health Score disponible en Prime"} narrow>
-                      <HealthScoreBadge health={health} compact />
+                    <TablePlanGate label={locale === "en" ? "Construction progress available on Prime" : "Avance de construcción disponible en Prime"}>
+                      <ConstructionProgressBar progressPercent={pgp?.progressPercent ?? null} />
                     </TablePlanGate>
                   ) : (
-                    <HealthScoreBadge health={health} compact />
+                    <ConstructionProgressBar progressPercent={pgp?.progressPercent ?? null} />
                   )}
                 </td>
-                <td className="w-20 px-3 py-3">
-                  {isFree ? (
-                    <TablePlanGate label={locale === "en" ? "CRM available on Prime" : "CRM disponible en Prime"} narrow>
-                      <ContactRound size={16} className="text-neutral-500" />
-                    </TablePlanGate>
-                  ) : (
-                    <AddToCrmButton
-                      projectId={p.id}
-                      projectName={p.name}
-                      developerCompanyId={p.developerCompanyId}
-                      initiallyInCrm={crmProjectIds.has(p.id)}
-                      compact
-                    />
+                <td className="px-3 py-3 text-neutral-600">
+                  {pgp && pgp.progressPercent > 0 && pgp.operativeEstimateDate ? (() => {
+                    const date = new Date(pgp.operativeEstimateDate!);
+                    return (
+                      <time dateTime={pgp.operativeEstimateDate!} className="inline-flex min-w-14 flex-col leading-none">
+                        <span className="text-base font-semibold tracking-tight tabular-nums text-neutral-900">
+                          {date.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit" })}
+                        </span>
+                        <span className="mt-1 text-[10px] font-medium tracking-[0.12em] tabular-nums text-neutral-400">
+                          {date.getFullYear()}
+                        </span>
+                      </time>
+                    );
+                  })() : (
+                    <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
                   )}
                 </td>
               </tr>

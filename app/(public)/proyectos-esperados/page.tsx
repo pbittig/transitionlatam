@@ -1,11 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
-import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { getProjectsForMap, listProjects } from "@/lib/data-access/projects";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
+import { getLatestPgpProgressForProjects } from "@/lib/data-access/pgpProgress";
 import { isAdmin } from "@/lib/auth/session";
-import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
 import {
   getConnectionCalendar,
   getPipelineFunnel,
@@ -167,9 +166,10 @@ export default async function ProyectosEsperadosPage({
     client,
     result.items.map((p) => p.id),
   );
-  const crmProjectIds = admin || !isFree
-    ? await getActiveOpportunityProjectIds(admin ? createSupabaseServiceClient() : client, result.items.map((p) => p.id))
-    : new Set<string>();
+  const pgpProgressByProjectId = await getLatestPgpProgressForProjects(
+    client,
+    result.items.map((p) => p.id),
+  );
 
   // Los mismos chips de tecnología que ya filtran la tabla/mapa de arriba
   // también acotan el embudo de madurez, el calendario de hitos y la demanda
@@ -311,7 +311,7 @@ export default async function ProyectosEsperadosPage({
       )}
 
       <Panel className="flex flex-col gap-4 overflow-hidden p-0">
-        <div><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} crmProjectIds={crmProjectIds} isFree={isFree} locale={locale} /></div>
+        <div><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} pgpProgressByProjectId={pgpProgressByProjectId} isFree={isFree} locale={locale} /></div>
         <div className="px-5 pb-5"><Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} /></div>
       </Panel>
 
