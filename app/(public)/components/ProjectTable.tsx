@@ -134,7 +134,8 @@ export function ProjectTable({
                     // muestra nada de generación para no confundirla con la de la otra
                     // columna. Para híbridos, generation_capacity_mw es el dato correcto;
                     // capacityMw queda de respaldo por si un proyecto viejo no lo tiene.
-                    const generationMw = p.projectKind === "storage" ? null : (p.generationCapacityMw ?? p.capacityMw);
+                    if (p.projectKind === "storage") return <span className="text-sm text-neutral-400 dark:text-neutral-500">N/A</span>;
+                    const generationMw = p.generationCapacityMw ?? p.capacityMw;
                     return generationMw !== null ? (
                       <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium tabular-nums text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                         {Math.round(generationMw).toLocaleString("es-CL")}
@@ -146,7 +147,7 @@ export function ProjectTable({
                 </td>
                 <td className="px-3 py-3">
                   {(() => {
-                    if (!p.includesStorage) return <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>;
+                    if (!p.includesStorage) return <span className="text-sm text-neutral-400 dark:text-neutral-500">N/A</span>;
                     // Un BESS puro no tiene generation_capacity_mw, así que su capacityMw
                     // es la potencia de almacenamiento (ver computeHeadlineCapacity) —
                     // se usa como respaldo si storage_capacity_mw todavía no está poblado.
