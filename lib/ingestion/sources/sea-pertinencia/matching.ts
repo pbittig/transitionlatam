@@ -19,12 +19,29 @@ export function normalizeRutDigits(rut: string | null | undefined): string | nul
  * Palabras genéricas del dominio energético — quitarlas deja solo la parte
  * distintiva del nombre (ej. "BESS Santa Ana de Maipo" -> {santa, ana, maipo}),
  * si no, dos proyectos BESS cualquiera matchearían solo por compartir "bess".
+ *
+ * "modificacion" y afines (hallazgo real, 2026-08-08): un porcentaje enorme de
+ * las pertinencias son literalmente "Modificación de <proyecto>" — sin esta
+ * palabra en stopwords, cualquier proyecto cuyo propio nombre contuviera
+ * "modificación" (ej. "Modificación conexión MCH Llauquereo") terminaba como
+ * el candidato de mayor Jaccard para cientos de pertinencias sin relación real
+ * (109 sugerencias falsas solo para ese proyecto). Mismo problema con otros
+ * prefijos genéricos de trámites de modificación.
  */
 const STOPWORDS = new Set([
   "proyecto", "parque", "central", "sistema", "de", "del", "la", "el", "los", "las",
   "energia", "energía", "almacenamiento", "bess", "fotovoltaico", "fotovoltaica",
   "solar", "eolico", "eólico", "cdp", "consulta", "pertinencia", "planta", "etapa",
+  "modificacion", "modificaciones", "aumento", "ampliacion", "disminucion", "reduccion",
 ]);
+
+/**
+ * Piso mínimo de Jaccard para aceptar un match por nombre — sin esto, un solo
+ * token genérico compartido por accidente (fuera de la lista de stopwords)
+ * igual "gana" como mejor candidato aunque el resto de los nombres no tenga
+ * nada en común. No aplica al match por RUT (score 100, siempre confiable).
+ */
+const MIN_NAME_MATCH_SCORE = 20;
 
 function tokenize(name: string): Set<string> {
   return new Set(normalizeForMatch(name).split(" ").filter((w) => w.length > 2 && !STOPWORDS.has(w)));
@@ -93,7 +110,7 @@ export function suggestProjectMatch(
   let best: MatchCandidate | null = null;
   for (const project of candidates) {
     const score = jaccardScore(targetTokens, tokenize(project.name));
-    if (score > 0 && (!best || score > best.score)) {
+    if (score >= MIN_NAME_MATCH_SCORE && (!best || score > best.score)) {
       best = { projectId: project.id, projectName: project.name, score, matchedBy: "name" };
     }
   }
