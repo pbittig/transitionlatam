@@ -11,14 +11,7 @@ import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-
 import { isAdmin } from "@/lib/auth/session";
 import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
 import { computeHealthScore } from "@/lib/shared/projectHealthScore";
-import {
-  computeCodOutlook,
-  computeCommercialWindow,
-  computeNextMilestone,
-  computeProjectSynthesis,
-} from "@/lib/shared/projectIntelligence";
 import { PhaseTimeline, type PgpTimelineMilestone } from "./PhaseTimeline";
-import { ProjectStatusSynthesis } from "./ProjectStatusSynthesis";
 import { ProjectProcessProgress } from "./ProjectProcessProgress";
 import { RelatedProjectsPanel } from "./RelatedProjectsPanel";
 import { SeiaStatusCard } from "../../components/SeiaStatusCard";
@@ -33,6 +26,7 @@ import { FollowButton } from "./FollowButton";
 import { AddToCrmButton } from "../../components/AddToCrmButton";
 import { getActiveOpportunityProjectIds } from "@/lib/data-access/crmOpportunities";
 import { chipLabelForProject } from "../../components/techChips";
+import { ProjectTechnologyIcon } from "../../components/ProjectTable";
 import { PlanGate } from "../../components/PlanGate";
 import { getAppLocale, type AppLocale } from "@/lib/i18n";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
@@ -43,6 +37,8 @@ import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import { getCodSlippageCalibration } from "@/lib/data-access/scheduleCalibration";
 import { dateForExpectedProgress, hasConstructionStartGap, interpretPgpProgress } from "@/lib/shared/pgpProjectProgress";
+import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
+import { FEHACIENTE_AWAITING_SUCTD_MARKER } from "@/lib/ingestion/sources/energia-abierta/listado/load";
 
 export const dynamic = "force-dynamic";
 
@@ -100,13 +96,14 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   ]);
   const pgpReading = pgpProgress ? interpretPgpProgress(pgpProgress.progressPercent) : null;
   const constructionStartGap = hasConstructionStartGap(project.status, pgpProgress?.progressPercent ?? null);
+  const showSuctdSearch = admin && !!project.status && normalizeForMatch(project.status).includes(normalizeForMatch(FEHACIENTE_AWAITING_SUCTD_MARKER));
   const pgpTimelineMilestones: PgpTimelineMilestone[] = pgpProgress
     ? [
         pgpProgress.serviceEstimateDate
-          ? { label: locale === "en" ? "Entry into Service" : "Puesta en Servicio", date: pgpProgress.serviceEstimateDate }
+          ? { label: locale === "en" ? "PES (PGP)" : "PES (PGP)", date: pgpProgress.serviceEstimateDate }
           : null,
         pgpProgress.operativeEstimateDate
-          ? { label: locale === "en" ? "Commercial Operation" : "Entrada en Operación", date: pgpProgress.operativeEstimateDate }
+          ? { label: locale === "en" ? "EO (PGP)" : "EO (PGP)", date: pgpProgress.operativeEstimateDate }
           : null,
       ].filter((milestone): milestone is PgpTimelineMilestone => milestone !== null)
     : [];
@@ -150,11 +147,21 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
         .toISOString()
         .slice(0, 10)
     : project.estimatedConnectionDate;
+  // capacity_mw a veces queda en 0 para proyectos de almacenamiento (bug de
+  // ingesta real, visto en "BESS Algarrobal 200 MW": capacity_mw=0 pero
+  // storage_capacity_mw=200) — un 0 ahí dispara por error el umbral PMGD
+  // (≤9 MW) y le arma un cronograma con las etapas equivocadas (aparece
+  // "Estudios de Factibilidad / Conexión" en vez de "Compras"). Se usa la
+  // mejor capacidad conocida, no el campo crudo, para clasificar el grupo.
+  const bestKnownCapacityMw =
+    project.capacityMw && project.capacityMw > 0
+      ? project.capacityMw
+      : (project.generationCapacityMw ?? project.storageCapacityMw ?? null);
   const estimatedPhase = computeEstimatedPhase(
     adjustedConnectionDate,
     project.technologyCode,
     project.includesStorage,
-    project.capacityMw,
+    bestKnownCapacityMw,
   );
   // Where the real (PGP) progress percent would fall if plotted on the same
   // theoretical date axis — lets the timeline show "how far behind" as a
@@ -170,10 +177,6 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     generationCapacityMw: project.generationCapacityMw ?? project.capacityMw,
     voltageLevel: project.voltageLevel,
   });
-  const synthesis = computeProjectSynthesis(estimatedPhase, project.estimatedConnectionDate);
-  const nextMilestone = computeNextMilestone(estimatedPhase);
-  const commercialWindow = computeCommercialWindow(estimatedPhase);
-  const codOutlook = computeCodOutlook(project.status, seiaRecord?.status ?? null, project.estimatedConnectionDate);
 
   const baseTechLabel = chipLabelForProject(project.technologyCode, project.name);
   const technologyLabel =
@@ -240,14 +243,30 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   const descriptionIndex = [...project.id].reduce((sum, character) => sum + character.charCodeAt(0), 0) % descriptionVariants.length;
   const projectDescription = descriptionVariants[descriptionIndex];
 
+  const environmentalDetailExtra = (seiaRecord || confirmedPertinencia || admin) && (
+    <div className="mt-3 flex flex-col gap-4">
+      {seiaRecord && <SeiaStatusCard record={seiaRecord} locale={locale} />}
+      {confirmedPertinencia && <PertinenciaStatusCard record={confirmedPertinencia} locale={locale} />}
+      {admin && (
+        <div className="flex items-center gap-3">
+          <SeiaMatchModal projectId={project.id} projectName={project.name} hasExistingMatch={!!seiaRecord} isAdmin />
+          <PertinenciaMatchModal projectId={project.id} projectName={project.name} hasExistingMatch={!!confirmedPertinencia} isAdmin />
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-12">
       <div className="border-b border-neutral-100 pb-8 dark:border-neutral-900">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
           <div className="min-w-0">
-            <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">
-              {project.name}
-            </h1>
+            <div className="flex items-center gap-3">
+              <ProjectTechnologyIcon project={project} locale={locale} />
+              <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl dark:text-neutral-50">
+                {project.name}
+              </h1>
+            </div>
             <p className="mt-1 text-sm text-neutral-400 dark:text-neutral-500">{project.internalCode}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -294,173 +313,66 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
       </div>
 
       <section className="border-b border-neutral-100 pb-8 dark:border-neutral-900" aria-labelledby="project-description-title">
-        <div className="flex items-center gap-1.5">
-          <h2 id="project-description-title" className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-            {locale === "en" ? "Description" : "Descripción"}
-          </h2>
-          <InfoTooltip
-            text={locale === "en" ? "Automatically generated summary based on the project's technical and location data." : "Resumen generado automáticamente a partir de los datos técnicos y de ubicación del proyecto."}
-            locale={locale}
-          />
-        </div>
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">{projectDescription}</p>
-      </section>
-
-      {synthesis && (
-        <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel
-            info={locale === "en" ? "Our own estimate of what stage the project should be at today, based on its declared connection date." : "Estimación propia de en qué etapa debería estar el proyecto hoy, según su fecha de conexión declarada."}
-            locale={locale}
-          >
-            {locale === "en" ? "Theoretical project status" : "Estado teórico del Proyecto"}
-          </SectionLabel>
-          <div className="mt-3">
-            <PlanGate locked={isFree}>
-              <ProjectStatusSynthesis
-                synthesis={synthesis}
-                nextMilestone={nextMilestone}
-                commercialWindow={commercialWindow}
-                codOutlook={codOutlook}
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h2 id="project-description-title" className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                {locale === "en" ? "Description" : "Descripción"}
+              </h2>
+              <InfoTooltip
+                text={locale === "en" ? "Automatically generated summary based on the project's technical and location data." : "Resumen generado automáticamente a partir de los datos técnicos y de ubicación del proyecto."}
                 locale={locale}
               />
-            </PlanGate>
+            </div>
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">{projectDescription}</p>
           </div>
-        </section>
-      )}
-
-      {health.score !== null && (
-        <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel
-            info={locale === "en" ? "Our own score (0–100) combining connection permitting progress and SEIA environmental progress; not an official figure." : "Puntaje propio (0–100) que combina el avance del trámite de conexión y el avance ambiental SEIA; no es un dato oficial."}
-            locale={locale}
-          >
-            Health Score
-          </SectionLabel>
-          <PlanGate locked={isFree}>
-            <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <HealthScoreBadge health={health} />
-              <div className="max-w-xl text-xs text-neutral-500 dark:text-neutral-400">
-                <p>
-                  {locale === "en" ? "Transition LATAM assessment combining project progress; this is not official data. It weighs connection progress" : "Lectura propia combinada del avance del proyecto — no es un dato oficial. Pondera el avance del trámite de conexión"}
+          {health.score !== null && (
+            <PlanGate locked={isFree}>
+              <div className="shrink-0 sm:border-l sm:border-neutral-100 sm:pl-6 dark:sm:border-neutral-900">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Health Score</span>
+                  <InfoTooltip
+                    text={locale === "en" ? "Our own score (0–100) combining connection permitting progress and SEIA environmental progress; not an official figure." : "Puntaje propio (0–100) que combina el avance del trámite de conexión y el avance ambiental SEIA; no es un dato oficial."}
+                    locale={locale}
+                  />
+                </div>
+                <div className="mt-1.5">
+                  <HealthScoreBadge health={health} />
+                </div>
+                <p className="mt-1.5 max-w-[220px] text-[11px] text-neutral-500 dark:text-neutral-400">
                   {health.seiaScore !== null
-                    ? locale === "en" ? " (60%) and SEIA environmental progress (40%)" : " (60%) y del trámite ambiental SEIA (40%)"
-                    : locale === "en" ? " (100%, with no linked SEIA filing)" : " (100%, sin expediente SEIA asociado)"}
-                  {health.overdue
-                    ? locale === "en" ? "; penalized because the estimated connection date has passed without reaching construction" : "; penalizado porque la fecha estimada de conexión ya pasó sin llegar a construcción"
-                    : ""}
-                  .
+                    ? locale === "en" ? "60% connection / 40% environmental" : "60% conexión / 40% ambiental"
+                    : locale === "en" ? "100%, no linked SEIA filing" : "100%, sin expediente SEIA asociado"}
+                  {health.overdue && (locale === "en" ? " · penalized (past connection date)" : " · penalizado (fecha de conexión ya pasó)")}
                 </p>
-                <ul className="mt-2 flex flex-col gap-1">
-                  <li>
-                    {locale === "en" ? "Connection progress:" : "Avance de conexión:"}{" "}
-                    <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                      {health.statusScore !== null ? `${health.statusScore}/100` : locale === "en" ? "not calculable" : "no calculable"}
-                    </span>
-                  </li>
-                  <li>
-                    {locale === "en" ? "Environmental progress:" : "Avance ambiental:"}{" "}
-                    <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                      {health.seiaScore !== null ? `${health.seiaScore}/100` : locale === "en" ? "not calculable" : "no calculable"}
-                    </span>
-                    {" — "}
-                    {health.environmentalNote}
-                  </li>
-                  {health.overdue && (
-                    <li className="text-amber-700 dark:text-amber-400">
-                      {locale === "en" ? "Overdue penalty: −20 points (estimated connection date already passed)" : "Penalización por atraso: −20 puntos (la fecha estimada de conexión ya pasó)"}
-                    </li>
-                  )}
-                </ul>
               </div>
-            </div>
-          </PlanGate>
-        </section>
-      )}
-
-      {pgpProgress && pgpReading && (
-        <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel
-            info={locale === "en" ? "Physical construction progress officially reported in the National Electricity Coordinator's Major Projects Program (PGP)." : "Porcentaje de avance físico de obra reportado oficialmente en el Programa de Grandes Proyectos (PGP) del Coordinador Eléctrico Nacional."}
-            locale={locale}
-          >
-            {locale === "en" ? "Reported physical construction" : "Construcción física reportada"}
-          </SectionLabel>
-          <PlanGate locked={isFree}>
-            <div className="mt-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-3xl font-semibold text-neutral-950 dark:text-white">{pgpReading.percent}%</p>
-                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">{pgpReading.label}</p>
-                </div>
-                <a className="text-xs font-medium text-brand-deep underline" href={pgpProgress.sourceUrl} target="_blank" rel="noreferrer">
-                  PGP · NUP {pgpProgress.nup}
-                </a>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-                <div className="h-full rounded-full bg-brand-primary" style={{ width: `${pgpReading.percent}%` }} />
-              </div>
-              {pgpProgress.expectedProgressPercent !== null && pgpProgress.deviationPp !== null && (
-                <div className="mt-3 grid grid-cols-2 gap-3 text-xs sm:max-w-md">
-                  <div className="rounded-md bg-neutral-50 p-3 dark:bg-neutral-900">
-                    <p className="text-neutral-500">{locale === "en" ? "Expected progress" : "Avance esperado"}</p>
-                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">{pgpProgress.expectedProgressPercent}%</p>
-                  </div>
-                  <div className="rounded-md bg-neutral-50 p-3 dark:bg-neutral-900">
-                    <p className="text-neutral-500">{locale === "en" ? "Schedule deviation" : "Desviación de cronograma"}</p>
-                    <p className={`mt-1 font-semibold ${pgpProgress.deviationPp < -10 ? "text-amber-700 dark:text-amber-400" : "text-neutral-900 dark:text-white"}`}>
-                      {pgpProgress.deviationPp > 0 ? "+" : ""}{pgpProgress.deviationPp} pp
-                    </p>
-                  </div>
-                </div>
-              )}
-              {(pgpProgress.serviceEstimateDate || pgpProgress.operativeEstimateDate) && (
-                <div className="mt-3 grid grid-cols-2 gap-3 text-xs sm:max-w-md">
-                  <div className="rounded-md bg-neutral-50 p-3 dark:bg-neutral-900">
-                    <p className="text-neutral-500">{locale === "en" ? "Entry into Service" : "Puesta en Servicio"}</p>
-                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">
-                      {locale === "en" ? "Estimated" : "Estimada"}:{" "}
-                      {pgpProgress.serviceEstimateDate ? new Date(pgpProgress.serviceEstimateDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL") : "—"}
-                    </p>
-                    <p className="mt-0.5 text-neutral-500">{locale === "en" ? "Actual" : "Real"}: —</p>
-                  </div>
-                  <div className="rounded-md bg-neutral-50 p-3 dark:bg-neutral-900">
-                    <p className="text-neutral-500">{locale === "en" ? "Commercial Operation" : "Entrada en Operación"}</p>
-                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">
-                      {locale === "en" ? "Estimated" : "Estimada"}:{" "}
-                      {pgpProgress.operativeEstimateDate ? new Date(pgpProgress.operativeEstimateDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL") : "—"}
-                    </p>
-                    <p className="mt-0.5 text-neutral-500">{locale === "en" ? "Actual" : "Real"}: —</p>
-                  </div>
-                </div>
-              )}
-              {constructionStartGap && (
-                <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-400">
-                  {locale === "en"
-                    ? "Connection processing is complete, but PGP reports 0% physical progress. The start of works is not evidenced by this source."
-                    : "La tramitación de conexión está completa, pero PGP reporta 0% de avance físico. Esta fuente no evidencia inicio de obras."}
-                </p>
-              )}
-              <p className="mt-2 text-[11px] text-neutral-400">
-                {locale === "en" ? "Official PGP reading observed on" : "Lectura oficial PGP observada el"} {new Date(pgpProgress.observedAt).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL")}.
-              </p>
-            </div>
-          </PlanGate>
-        </section>
-      )}
+            </PlanGate>
+          )}
+        </div>
+      </section>
 
       <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
         <SectionLabel
-          info={locale === "en" ? "Current status of the grid connection process and, if applicable, the environmental process (SEIA/Pertinencia)." : "Estado actual del trámite de conexión al sistema eléctrico y, si aplica, del trámite ambiental (SEIA/Pertinencia)."}
+          info={locale === "en" ? "Connection permitting progress, environmental progress and physical construction progress reported in the PGP, with source detail per bar." : "Avance del trámite de conexión, avance ambiental y avance físico de construcción reportado en el PGP, con detalle de la fuente en cada barra."}
           locale={locale}
         >
-          {locale === "en" ? "Permitting progress" : "Avance de tramitación"}
+          {locale === "en" ? "Project progress" : "Avance de proyecto"}
         </SectionLabel>
         <div className="mt-3">
           <PlanGate locked={isFree}>
             <ProjectProcessProgress
+              projectId={project.id}
               connectionStatus={project.status}
+              externalReference={project.externalReference}
               environmentalStatus={seiaRecord?.status ?? null}
+              seiaUrlFicha={seiaRecord?.urlFicha}
               pertinencia={confirmedPertinencia ? { estado: confirmedPertinencia.estado, subEstado: confirmedPertinencia.subEstado } : null}
+              pertinenciaDocUrl={confirmedPertinencia?.documentos[0]?.url ?? null}
+              pgpProgress={pgpProgress}
+              pgpReading={pgpReading}
+              constructionStartGap={constructionStartGap}
+              environmentalDetailExtra={environmentalDetailExtra}
+              showSuctdSearch={showSuctdSearch}
               locale={locale}
             />
           </PlanGate>
@@ -473,13 +385,13 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
             info={locale === "en" ? "Probabilistic model that works backward from the estimated connection date to place the project in a typical market development stage." : "Modelo probabilístico que calcula hacia atrás desde la fecha de conexión estimada para ubicar al proyecto en una etapa de desarrollo típica de mercado."}
             locale={locale}
           >
-            {locale === "en" ? "Estimated development stage" : "Etapa estimada de desarrollo"}
+            {locale === "en" ? "Estimated project schedule" : "Cronograma estimado del proyecto"}
           </SectionLabel>
           <PlanGate locked={isFree}>
             <div className="mt-3 flex items-center gap-2">
               <span className="rounded-full bg-brand-surface px-2 py-0.5 text-xs font-medium text-brand-deep">
                 {locale === "en" ? "Estimated" : "Estimado"} ·{" "}
-                {estimatedPhase.groupLabel === "PMGD" ? `PMGD · ${technologyLabel}` : estimatedPhase.groupLabel}
+                {estimatedPhase.groupLabel === "PMGD" ? technologyLabel : estimatedPhase.groupLabel}
               </span>
             </div>
             {scheduleCalibration && (
@@ -530,7 +442,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           info={locale === "en" ? "Contact details for people linked to the project or the developer company." : "Datos de contacto de las personas vinculadas al proyecto o a la empresa desarrolladora."}
           locale={locale}
         >
-          {locale === "en" ? "Contact" : "Contacto"}
+          {locale === "en" ? "Contact (related executives)" : "Contacto (Ejecutivos relacionados)"}
         </SectionLabel>
         <div className="mt-4">
           <RevealStakeholders
@@ -541,45 +453,6 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
             maskedPreview={maskedContactPreview}
             locale={locale}
           />
-        </div>
-      </section>
-
-      <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-        <div className="flex items-center justify-between">
-          <SectionLabel
-            info={locale === "en" ? "Status of the project's environmental filing with the SEIA, including pertinencia filings when applicable." : "Estado del expediente ambiental del proyecto en el SEIA, incluyendo pertinencias cuando corresponde."}
-            locale={locale}
-          >
-            {locale === "en" ? "Environmental status" : "Estado ambiental"}
-          </SectionLabel>
-          {admin && (
-            <div className="flex items-center gap-3">
-              <SeiaMatchModal
-                projectId={project.id}
-                projectName={project.name}
-                hasExistingMatch={!!seiaRecord}
-                isAdmin
-              />
-              <PertinenciaMatchModal
-                projectId={project.id}
-                projectName={project.name}
-                hasExistingMatch={!!confirmedPertinencia}
-                isAdmin
-              />
-            </div>
-          )}
-        </div>
-        <div className="mt-3 flex flex-col gap-4">
-          <PlanGate locked={isFree}>
-            {seiaRecord ? (
-              <SeiaStatusCard record={seiaRecord} locale={locale} />
-            ) : (
-              <div>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "No associated records." : "Sin antecedentes asociados."}</p>
-              </div>
-            )}
-            {confirmedPertinencia && <PertinenciaStatusCard record={confirmedPertinencia} locale={locale} />}
-          </PlanGate>
         </div>
       </section>
 

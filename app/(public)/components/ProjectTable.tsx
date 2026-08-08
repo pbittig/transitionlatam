@@ -9,7 +9,7 @@ import { AddToCrmButton } from "./AddToCrmButton";
 import { BatteryCharging, ContactRound, Droplets, Leaf, LockKeyhole, Sun, Wind } from "lucide-react";
 import type { AppLocale } from "@/lib/i18n";
 
-function ProjectTechnologyIcon({ project, locale }: { project: ProjectListItem; locale: AppLocale }) {
+export function ProjectTechnologyIcon({ project, locale }: { project: ProjectListItem; locale: AppLocale }) {
   const signal = `${project.technologyCode ?? ""} ${project.technology ?? ""} ${project.name}`.toLowerCase();
   const isStorageOnly = project.projectKind === "storage" || project.technologyCode === "bess";
   const isSolar = /solar|fotovolta/.test(signal);

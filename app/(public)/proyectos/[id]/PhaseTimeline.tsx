@@ -83,11 +83,11 @@ export function PhaseTimeline({
         <div className="relative mt-2">
           {todayInRange && (
             <div
-              className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-[#eb6834]"
+              className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-emerald-600"
               style={{ left: `calc(196px + (100% - 196px) * ${todayPct / 100})` }}
               aria-hidden="true"
             >
-              <span className="absolute -top-1 -translate-x-1/2 -translate-y-full bg-white px-1 text-[10px] font-semibold text-[#d95926] dark:bg-neutral-950">
+              <span className="absolute -top-1 -translate-x-1/2 -translate-y-full bg-white px-1 text-[10px] font-semibold text-emerald-700 dark:bg-neutral-950 dark:text-emerald-400">
                 {locale === "en" ? "Theoretical · Today" : "Teórico · Hoy"}
               </span>
             </div>

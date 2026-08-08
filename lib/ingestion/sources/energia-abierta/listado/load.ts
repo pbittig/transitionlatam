@@ -19,7 +19,7 @@ const CONFIDENCE_PUBLIC = "PUBLICO";
  * Por eso el "maestro" no es fijo (ni siempre Fehaciente ni siempre SUCTD) sino el
  * expediente procesalmente más avanzado que no esté rechazado/desistido.
  */
-const FEHACIENTE_AWAITING_SUCTD_MARKER = "debe presentar suctd";
+export const FEHACIENTE_AWAITING_SUCTD_MARKER = "debe presentar suctd";
 
 // La API siempre devuelve las solicitudes en el mismo orden. Si la corrida se
 // corta antes de terminar (ej. timeout de función serverless en el cron), un
@@ -35,7 +35,7 @@ function shuffle<T>(items: T[]): T[] {
   return result;
 }
 
-function statusRank(status: string | null): 0 | 1 | 2 {
+export function statusRank(status: string | null): 0 | 1 | 2 {
   if (!status) return 1;
   const normalized = normalizeForMatch(status);
   if (REJECTED_STATUSES.some((s) => normalizeForMatch(s) === normalized)) return 0;

@@ -20,7 +20,7 @@ export interface HealthScoreResult {
   statusScore: number | null;
   seiaScore: number | null;
   overdue: boolean;
-  environmentalTreatment: "seia" | "pertinencia" | "bess_no_automatico" | "requerido_pendiente" | "sin_antecedente";
+  environmentalTreatment: "seia" | "pertinencia" | "bess_no_automatico" | "requerido_pendiente" | "concluido_por_construccion" | "sin_antecedente";
   environmentalNote: string;
 }
 
@@ -90,6 +90,8 @@ export function computeHealthScore(
 
   const statusMaturity = getStatusMaturity(status);
   const statusScore = statusMaturity?.order ?? null;
+  const advancedBands: StatusBand[] = ["construccion", "finalizado"];
+  const alreadyInConstruction = !!statusMaturity && advancedBands.includes(statusMaturity.band);
 
   // Un componente BESS no determina por sí solo el tratamiento ambiental.
   // La excepción conservadora aplica sólo al almacenamiento stand-alone; un
@@ -100,9 +102,22 @@ export function computeHealthScore(
   const hasEnvironmentalRecord = isPertinence || !!context.seiaSubmissionType;
   // Sin antecedente todavía, pero según tamaño/voltaje la ley debería exigirlo
   // (ver environmentalReviewRules.ts) — a diferencia de "sin_antecedente", esto
-  // sí penaliza: no es que no aplique, es que falta un paso obligatorio.
+  // sí penaliza: no es que no aplique, es que falta un paso obligatorio. Salvo
+  // que el proyecto ya esté declarado en construcción: no se puede llegar ahí
+  // legalmente sin haber resuelto el trámite ambiental, así que la falta del
+  // antecedente en nuestros datos se lee como un vacío de matching nuestro, no
+  // como un paso pendiente del proyecto — no corresponde penalizar.
   const environmentallyRequired =
     !hasEnvironmentalRecord &&
+    !alreadyInConstruction &&
+    requiresEnvironmentalReview({
+      isStandaloneBess,
+      generationCapacityMw: context.generationCapacityMw ?? null,
+      voltageLevelKv: parseVoltageKv(context.voltageLevel),
+    });
+  const concludedByConstruction =
+    !hasEnvironmentalRecord &&
+    alreadyInConstruction &&
     requiresEnvironmentalReview({
       isStandaloneBess,
       generationCapacityMw: context.generationCapacityMw ?? null,
@@ -112,18 +127,22 @@ export function computeHealthScore(
     ? pertinenceScore(seiaStatus)
     : seiaMaturity
       ? seiaMaturity.order
-      : environmentallyRequired
-        ? 15 // mismo valor que "requiere ingreso" en pertinenceScore — misma situación: se sabe que corresponde y aún no hay antecedente.
-        : null;
+      : concludedByConstruction
+        ? 100
+        : environmentallyRequired
+          ? 15 // mismo valor que "requiere ingreso" en pertinenceScore — misma situación: se sabe que corresponde y aún no hay antecedente.
+          : null;
   const environmentalTreatment = isPertinence
     ? "pertinencia"
     : context.seiaSubmissionType
       ? "seia"
-      : environmentallyRequired
-        ? "requerido_pendiente"
-        : isStandaloneBess
-          ? "bess_no_automatico"
-          : "sin_antecedente";
+      : concludedByConstruction
+        ? "concluido_por_construccion"
+        : environmentallyRequired
+          ? "requerido_pendiente"
+          : isStandaloneBess
+            ? "bess_no_automatico"
+            : "sin_antecedente";
   const environmentalNote =
     environmentalTreatment === "pertinencia"
       ? "Se considera la consulta de pertinencia como antecedente ambiental del BESS."
@@ -131,9 +150,11 @@ export function computeHealthScore(
         ? "La falta de DIA/EIA no penaliza: un BESS no tiene ingreso automático al SEIA; deben revisarse sus obras asociadas."
         : environmentalTreatment === "seia"
           ? "Se considera el avance del expediente DIA/EIA asociado."
-          : environmentalTreatment === "requerido_pendiente"
-            ? "El proyecto debería tener un antecedente ambiental (DIA/EIA) según su tamaño o voltaje de conexión, pero no se encontró ninguno."
-            : "No se encontró un antecedente ambiental asociado.";
+          : environmentalTreatment === "concluido_por_construccion"
+            ? "El proyecto ya fue declarado en construcción — el trámite ambiental se considera concluido aunque no tengamos el expediente vinculado."
+            : environmentalTreatment === "requerido_pendiente"
+              ? "El proyecto debería tener un antecedente ambiental (DIA/EIA) según su tamaño o voltaje de conexión, pero no se encontró ninguno."
+              : "No se encontró un antecedente ambiental asociado.";
 
   let score: number;
   if (statusScore !== null && seiaScore !== null) {
@@ -146,7 +167,6 @@ export function computeHealthScore(
     score = 0;
   }
 
-  const advancedBands: StatusBand[] = ["construccion", "finalizado"];
   const band = statusMaturity?.band ?? "inicial";
   // Once a project reaches "construcción" or later, whether/when it's actually
   // built is a commercial decision for the developer, not a project-health
