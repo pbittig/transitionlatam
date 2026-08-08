@@ -39,6 +39,7 @@ import { getCodSlippageCalibration } from "@/lib/data-access/scheduleCalibration
 import { dateForExpectedProgress, hasConstructionStartGap, interpretPgpProgress, isDeclaredConstructionStatus } from "@/lib/shared/pgpProjectProgress";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 import { FEHACIENTE_AWAITING_SUCTD_MARKER } from "@/lib/ingestion/sources/energia-abierta/listado/load";
+import { parseVoltageKv } from "@/lib/shared/environmentalReviewRules";
 
 export const dynamic = "force-dynamic";
 
@@ -157,11 +158,34 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     project.capacityMw && project.capacityMw > 0
       ? project.capacityMw
       : (project.generationCapacityMw ?? project.storageCapacityMw ?? null);
+  // The detailed PDTE estimator (projectTimelineEstimator.ts) already knows how
+  // to push out the schedule for a DIA (+3mo) or EIA (+9mo) environmental review
+  // and for a SUCTD connection (+2mo, third-party capacity negotiation) — but
+  // no caller ever passed those options in, so the Cronograma never reflected
+  // them even though we already load this same data on this page (audited with
+  // the sector-electrico-chile skill, 2026-08-08). Wire in what we can verify
+  // from real data; connectionType is normalized since Acceso Abierto's raw
+  // request_type has SASC/SUCT variants alongside SAC/SUCTD, and "FEHACIENTE"
+  // isn't equivalent to either so it's left unmapped (no adjustment).
+  const environmentalOption = seiaRecord?.submissionType === "DIA" || seiaRecord?.submissionType === "EIA" ? seiaRecord.submissionType : "None";
+  const connectionTypeOption = (() => {
+    const normalized = normalizeForMatch(project.requestType ?? "");
+    if (normalized === "sac" || normalized === "sasc") return "SAC";
+    if (normalized === "suctd" || normalized === "suct") return "SUCTD";
+    return null;
+  })();
   const estimatedPhase = computeEstimatedPhase(
     adjustedConnectionDate,
     project.technologyCode,
     project.includesStorage,
     bestKnownCapacityMw,
+    new Date(),
+    {
+      environmental: environmentalOption,
+      connectionType: connectionTypeOption,
+      voltageLevelKv: parseVoltageKv(project.voltageLevel),
+      storageMwh: project.capacityMwh,
+    },
   );
   // The backward date math never sees the project's real reported status, so on
   // its own it can highlight an earlier phase as "current" for a developer

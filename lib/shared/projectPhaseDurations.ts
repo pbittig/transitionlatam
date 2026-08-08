@@ -244,15 +244,28 @@ export const GROUP_DURATIONS: Record<ProjectScheduleGroup, Partial<Record<PhaseK
   },
 };
 
-/** Umbral regulatorio chileno: generación ≤9 MW conectada a distribución = PMGD (Reglamento MGPE). */
+/**
+ * PMGD (Reglamento de Medios de Generación de Pequeño Efecto, MGPE) clasifica el
+ * proyecto por su *punto de conexión* (a distribución, no a transmisión) — no por
+ * capacidad sola. Acceso Abierto (nuestra fuente para `project.status`) es el
+ * trámite de conexión a instalaciones de *transmisión* (SAC/SUCTD): cualquier
+ * proyecto con un estado propio ahí ya está, casi por definición, fuera del
+ * circuito PMGD real, sin importar su capacidad. Antes se usaba `capacityMw ≤ 9`
+ * como proxy para elegir el grupo PMGD (con su propia lista de fases —
+ * "Estudios de Factibilidad" en vez de "Compras"), pero sin ninguna señal real
+ * de conexión eso solo adivinaba mal para proyectos chicos que igual se
+ * conectan a transmisión (ver auditoría con la skill sector-electrico-chile,
+ * 2026-08-08). Se mantiene la tabla de duraciones PMGD por si en el futuro hay
+ * una señal confiable (voltaje de conexión, ej.) para activarla — pero
+ * getScheduleGroup ya no la selecciona automáticamente.
+ */
 export const PMGD_CAPACITY_THRESHOLD_MW = 9;
 
 export function getScheduleGroup(
   technologyCode: string | null,
   includesStorage: boolean,
-  capacityMw: number | null,
+  _capacityMw: number | null,
 ): ProjectScheduleGroup | null {
-  if (capacityMw !== null && capacityMw <= PMGD_CAPACITY_THRESHOLD_MW) return "PMGD";
   if (technologyCode === "bess") return "BESS_STANDALONE";
   if (technologyCode === "solar_pv") return includesStorage ? "SOLAR_BESS" : "SOLAR_UTILITY";
   if (technologyCode === "wind") return includesStorage ? "EOLICO_BESS" : "EOLICO";

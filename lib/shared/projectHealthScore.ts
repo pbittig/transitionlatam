@@ -8,9 +8,10 @@
  * modelos que no sea trazable a algo que el usuario ya puede ver en la ficha.
  */
 
-import { getStatusMaturity, isRejectedStatus, type StatusBand } from "./projectStatusMaturity";
+import { getStatusMaturity, isRejectedStatus } from "./projectStatusMaturity";
 import { getSeiaMaturity, isSeiaNegativeTerminal } from "./seiaStatusMaturity";
 import { parseVoltageKv, requiresEnvironmentalReview } from "./environmentalReviewRules";
+import { isDeclaredConstructionStatus } from "./pgpProjectProgress";
 
 export type HealthBand = "alto" | "medio" | "bajo" | "no_aplica";
 
@@ -90,8 +91,12 @@ export function computeHealthScore(
 
   const statusMaturity = getStatusMaturity(status);
   const statusScore = statusMaturity?.order ?? null;
-  const advancedBands: StatusBand[] = ["construccion", "finalizado"];
-  const alreadyInConstruction = !!statusMaturity && advancedBands.includes(statusMaturity.band);
+  // isDeclaredConstructionStatus (no solo el band "construccion") — "Clasificado
+  // como obra menor" es igual de terminal para el trámite de conexión pero quedó
+  // clasificado en el band "avanzado" en projectStatusMaturity.ts; sin esto, esos
+  // proyectos quedaban exentos en el Gantt (PhaseTimeline usa la misma función)
+  // pero no aquí, dos respuestas distintas a la misma pregunta.
+  const alreadyInConstruction = isDeclaredConstructionStatus(status) || statusMaturity?.band === "finalizado";
 
   // Un componente BESS no determina por sí solo el tratamiento ambiental.
   // La excepción conservadora aplica sólo al almacenamiento stand-alone; un
@@ -167,13 +172,12 @@ export function computeHealthScore(
     score = 0;
   }
 
-  const band = statusMaturity?.band ?? "inicial";
-  // Once a project reaches "construcción" or later, whether/when it's actually
-  // built is a commercial decision for the developer, not a project-health
-  // problem — so this band stays exempt from the overdue check regardless of
-  // physical construction pace (PGP is shown elsewhere on the ficha, not
-  // folded into this score).
-  const overdue = !!estimatedConnectionDate && new Date(estimatedConnectionDate) < today && !advancedBands.includes(band);
+  // Once a project reaches "construcción" (or an equivalent terminal connection
+  // state) or later, whether/when it's actually built is a commercial decision
+  // for the developer, not a project-health problem — so it stays exempt from
+  // the overdue check regardless of physical construction pace (PGP is shown
+  // elsewhere on the ficha, not folded into this score).
+  const overdue = !!estimatedConnectionDate && new Date(estimatedConnectionDate) < today && !alreadyInConstruction;
 
   const finalScore = Math.max(0, overdue ? score - OVERDUE_PENALTY : score);
 
