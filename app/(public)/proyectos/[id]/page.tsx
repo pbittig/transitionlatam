@@ -36,7 +36,7 @@ import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import { getCodSlippageCalibration } from "@/lib/data-access/scheduleCalibration";
-import { dateForExpectedProgress, hasConstructionStartGap, interpretPgpProgress } from "@/lib/shared/pgpProjectProgress";
+import { dateForExpectedProgress, hasConstructionStartGap, interpretPgpProgress, isDeclaredConstructionStatus } from "@/lib/shared/pgpProjectProgress";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 import { FEHACIENTE_AWAITING_SUCTD_MARKER } from "@/lib/ingestion/sources/energia-abierta/listado/load";
 
@@ -163,6 +163,22 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     project.includesStorage,
     bestKnownCapacityMw,
   );
+  // The backward date math never sees the project's real reported status, so on
+  // its own it can highlight an earlier phase as "current" for a developer
+  // running ahead of the theoretical schedule. Once the connection status
+  // confirms construction, that real fact should never be contradicted by a
+  // date-only guess — clamp the effective phase (narrative + Gantt highlight)
+  // to at least "construccion".
+  const confirmedInConstruction = isDeclaredConstructionStatus(project.status);
+  const effectiveCurrentPhase = (() => {
+    if (!estimatedPhase || !confirmedInConstruction) return estimatedPhase?.currentPhase ?? null;
+    const constructionIndex = estimatedPhase.milestones.findIndex((m) => m.phase === "construccion");
+    if (constructionIndex === -1) return estimatedPhase.currentPhase;
+    const dateBasedIndex = estimatedPhase.currentPhase
+      ? estimatedPhase.milestones.findIndex((m) => m.phase === estimatedPhase.currentPhase)
+      : -1;
+    return dateBasedIndex >= constructionIndex ? estimatedPhase.currentPhase : "construccion";
+  })();
   // Where the real (PGP) progress percent would fall if plotted on the same
   // theoretical date axis — lets the timeline show "how far behind" as a
   // calendar gap, not just a percentage gap.
@@ -405,16 +421,22 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
               {locale === "en" ? (
                 estimatedPhase.pastConnectionDate
                   ? "The estimated connection date has passed; the project should already be operational. "
-                  : estimatedPhase.currentPhase
-                    ? `Based on the estimated connection date and typical market durations, the project should currently be in ${estimatedPhase.milestones.find((m) => m.phase === estimatedPhase.currentPhase)!.label}. `
-                    : "Development should not have started yet based on the estimated connection date. "
+                  : confirmedInConstruction
+                    ? `The project has already been declared under construction by the National Electricity Coordinator — confirmed, not estimated. On the probabilistic schedule this corresponds to ${estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label}. `
+                    : effectiveCurrentPhase
+                      ? `Based on the estimated connection date and typical market durations, the project should currently be in ${estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label}. `
+                      : "Development should not have started yet based on the estimated connection date. "
               ) : estimatedPhase.pastConnectionDate
                 ? "La fecha estimada de conexión ya pasó — el proyecto debería estar en operación."
-                : estimatedPhase.currentPhase
-                  ? `Con base en la fecha estimada de conexión y duraciones típicas de mercado para este tipo de proyecto (${estimatedPhase.groupLabel}), el proyecto debería estar en: ${
-                      estimatedPhase.milestones.find((m) => m.phase === estimatedPhase.currentPhase)!.label
+                : confirmedInConstruction
+                  ? `El proyecto ya fue declarado en construcción por el Coordinador Eléctrico Nacional — esto es un dato confirmado, no una estimación. En el cronograma probabilístico corresponde a: ${
+                      estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label
                     }.`
-                  : "Aún no debería haber iniciado desarrollo según la fecha estimada de conexión."}{" "}
+                  : effectiveCurrentPhase
+                    ? `Con base en la fecha estimada de conexión y duraciones típicas de mercado para este tipo de proyecto (${estimatedPhase.groupLabel}), el proyecto debería estar en: ${
+                        estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label
+                      }.`
+                    : "Aún no debería haber iniciado desarrollo según la fecha estimada de conexión."}{" "}
               {locale === "en" ? `This is not confirmed project data; it is a probabilistic model calculated backwards from the connection date reported by the National Electricity Coordinator. Estimated total duration: approximately ${Math.round(estimatedPhase.totalDurationMonths)} months.` : <>No es un dato confirmado del proyecto — es un modelo probabilístico (mínimo / más probable / máximo)
               calculado hacia atrás desde la fecha estimada de conexión reportada por el Coordinador Eléctrico
               Nacional. Duración total estimada: ~{Math.round(estimatedPhase.totalDurationMonths)} meses. Las bandas
@@ -431,6 +453,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
                   : undefined
               }
               realProgressDate={realProgressDate ?? undefined}
+              confirmedMinimumPhase={confirmedInConstruction ? "construccion" : undefined}
               locale={locale}
             />
           </PlanGate>

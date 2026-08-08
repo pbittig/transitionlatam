@@ -33,6 +33,7 @@ export function PhaseTimeline({
   pgpMilestones = [],
   constructionProgress,
   realProgressDate,
+  confirmedMinimumPhase,
   today = new Date(),
   locale = "es",
 }: {
@@ -43,6 +44,15 @@ export function PhaseTimeline({
   constructionProgress?: { theoreticalPercent: number; realPercent: number };
   /** Where the real (PGP) percent would fall on the theoretical date axis — see dateForExpectedProgress. */
   realProgressDate?: string;
+  /**
+   * A phase the project's real (reported) status has already confirmed reaching —
+   * e.g. "construccion" once declared under construction. The pure date math never
+   * gets to see real status, so on its own it can highlight an earlier phase as
+   * "current" for a developer running ahead of the theoretical schedule; this
+   * clamps the highlight (and completed styling) to never regress behind what we
+   * actually know happened.
+   */
+  confirmedMinimumPhase?: PhaseMilestone["phase"];
   today?: Date;
   locale?: AppLocale;
 }) {
@@ -60,13 +70,23 @@ export function PhaseTimeline({
   const realInRange = realDate ? realDate >= minDate && realDate <= maxDate : false;
   const midpoint = new Date(minDate.getTime() + span / 2);
 
-  const rows = milestones.map((milestone, index) => {
+  const dateBasedRows = milestones.map((milestone, index) => {
     const start = likelyStarts[index];
     const finish = likelyStarts[index + 1] ?? poc;
     const current = today >= start && today < finish;
     const completed = today >= finish;
     return { milestone, start, finish, current, completed };
   });
+  const confirmedIndex = confirmedMinimumPhase ? milestones.findIndex((m) => m.phase === confirmedMinimumPhase) : -1;
+  const dateBasedCurrentIndex = dateBasedRows.findIndex((row) => row.current);
+  const effectiveCurrentIndex = confirmedIndex >= 0 ? Math.max(dateBasedCurrentIndex, confirmedIndex) : dateBasedCurrentIndex;
+  const rows = confirmedIndex < 0
+    ? dateBasedRows
+    : dateBasedRows.map((row, index) => ({
+        ...row,
+        current: index === effectiveCurrentIndex,
+        completed: row.completed || index < effectiveCurrentIndex,
+      }));
 
   return (
     <div className="overflow-x-auto pb-2">
