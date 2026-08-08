@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert, FileSearch } from "lucide-react";
+import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert, FileSearch, BarChart3 } from "lucide-react";
 import { countUnverifiedProjects, countNeedsReverification } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../components/Panel";
@@ -122,6 +122,14 @@ export default async function AdminPage() {
                   ? "1 pertinencia por revisar."
                   : `${pertinenciaCount.toLocaleString("es-CL")} pertinencias por revisar.`}
             </p>
+          </Panel>
+        </Link>
+        <Link href="/admin/metricas">
+          <Panel className="flex flex-col gap-2 hover:border-neutral-300 dark:hover:border-neutral-700">
+            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              <BarChart3 size={18} /> Métricas
+            </div>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">Usuarios registrados, actividad y proyectos más visitados.</p>
           </Panel>
         </Link>
         <Link href="/admin/logs">
