@@ -304,6 +304,19 @@ export async function loadNormalizedProjects(
       status: row.statusLabel,
       estimated_connection_date: row.estimatedConnectionDate,
     };
+    // Hallazgo real (2026-08-09, caso "Ríos de Jerez"): el listado no trae el
+    // mismo nivel de detalle que el Formulario/preverificación con IA (ej. no
+    // siempre tiene la capacidad de un BESS). Escribir esos null sobre un
+    // proyecto no verificado borraba cada día lo que la preverificación había
+    // extraído con confianza alta la corrida anterior — el admin llegaba a
+    // verificar y encontraba campos vacíos que en realidad ya se habían
+    // calculado bien. Un null del listado nunca es "confirmamos que no tiene
+    // capacidad", es "esta fuente no trae ese detalle para esta fila" — no debe
+    // pisar un valor ya conocido. Se usa tanto al actualizar un proyecto
+    // existente como al promover un hermano (ver regla Fehaciente/SUCTD).
+    const projectFieldsWithoutNulls = Object.fromEntries(
+      Object.entries(projectFields).filter(([, value]) => value !== null),
+    );
 
     if (existingProject) {
       // 1. Compute all diffs from the already-fetched state before mutating anything.
@@ -327,7 +340,7 @@ export async function loadNormalizedProjects(
             estimated_connection_date: row.estimatedConnectionDate,
             ...(reverificationReason ? { needs_reverification: true, reverification_reason: reverificationReason } : {}),
           }
-        : projectFields;
+        : projectFieldsWithoutNulls;
 
       const { data: existingConnection } = await client
         .from("project_connection")
@@ -449,7 +462,7 @@ export async function loadNormalizedProjects(
       // La solicitud entrante es más avanzada: "promueve" la fila existente en vez
       // de crear una hermana — mismo id, así los vínculos ya armados (contactos,
       // empresa, SEIA) siguen apuntando al proyecto sin necesidad de migrarlos.
-      const { error: promoteError } = await client.from("project").update(projectFields).eq("id", sibling.id);
+      const { error: promoteError } = await client.from("project").update(projectFieldsWithoutNulls).eq("id", sibling.id);
       if (promoteError) {
         throw new Error(`Error promoviendo proyecto '${row.projectName}' (${row.externalId}) sobre hermano ${sibling.id}: ${promoteError.message}`);
       }

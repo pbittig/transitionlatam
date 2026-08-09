@@ -79,7 +79,15 @@ async function atomicFillProjectField(
   return (data?.length ?? 0) === 1;
 }
 
-async function applyHighConfidenceFields(
+/**
+ * Exportada además de usarse internamente en runProjectPreverification: el fix
+ * al sync de listado (2026-08-09, ver load.ts) evita que se vuelva a borrar un
+ * campo ya calculado, pero no restaura lo que el sync ya borró antes del fix —
+ * esta función es re-invocable de forma segura (guardas atómicas is-null) sobre
+ * los fields{} ya guardados en project_preverification.report, sin necesidad de
+ * volver a llamar al proveedor de IA, para restaurar ese backlog puntualmente.
+ */
+export async function applyHighConfidenceFields(
   client: SupabaseClient,
   projectId: string,
   fields: PreverificationFieldResult[],
