@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@firecrawl/pdf-inspector": "^1.12.0",
     "@napi-rs/canvas": "^1.0.5",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.7",
