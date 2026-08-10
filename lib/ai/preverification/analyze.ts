@@ -14,16 +14,24 @@ export interface DeepDocumentAssessment {
   storageHoursConfidence: "high" | "medium" | "low" | null;
   capacityMwh: number | null;
   capacityMwhConfidence: "high" | "medium" | "low" | null;
+  companyRut: string | null;
+  companyRutConfidence: "high" | "medium" | "low" | null;
+  companyLegalAddress: string | null;
+  companyLegalAddressConfidence: "high" | "medium" | "low" | null;
   evidence: string;
 }
 
 const ASSESSMENT_PROMPT = `Eres un revisor conservador de proyectos eléctricos chilenos.
 Recibirás la extracción estructurada del Formulario y, opcionalmente, texto del
-"Informe de Autorización de Conexión Preliminar".
+Informe de Autorización de Conexión (preliminar, definitivo, o de proyecto
+Fehaciente).
 
-Determina solo tecnología, potencia BESS, horas y energía BESS. El Formulario es
-la fuente principal. El informe secundario solo puede resolver horas BESS o la
-duda de si el proyecto combina generación y almacenamiento.
+Determina tecnología, potencia BESS, horas, energía BESS, y RUT/dirección legal
+de la empresa titular. El Formulario es la fuente principal para todo. El
+informe secundario solo puede resolver horas BESS, la duda de si el proyecto
+combina generación y almacenamiento, o completar RUT/dirección legal cuando el
+Formulario no los trae — el informe de autorización suele identificar
+formalmente al titular con esos datos.
 
 Reglas:
 - No inventes. Si el dato no está explícito o hay contradicción, devuelve null.
@@ -34,6 +42,10 @@ Reglas:
 - capacityMw representa la potencia titular del proyecto BESS: para BESS puro,
   la potencia de almacenamiento; para híbrido, la potencia informada como
   capacidad general/neta, sin inventar una suma.
+- companyRut debe venir en formato chileno con guión (ej. "76.492.150-K"), tal
+  como aparece en el documento — no inventes el dígito verificador.
+- companyLegalAddress es la dirección legal/domicilio de la empresa titular, no
+  del punto de conexión ni del proyecto.
 - Resume evidence en una frase breve, sin copiar pasajes largos.
 
 Responde solo JSON con:
@@ -41,7 +53,9 @@ Responde solo JSON con:
 "technologyReason":string,"capacityMw":number|null,
 "capacityMwConfidence":"high"|"medium"|"low"|null,"storageHours":number|null,
 "storageHoursConfidence":"high"|"medium"|"low"|null,"capacityMwh":number|null,
-"capacityMwhConfidence":"high"|"medium"|"low"|null,"evidence":string}`;
+"capacityMwhConfidence":"high"|"medium"|"low"|null,"companyRut":string|null,
+"companyRutConfidence":"high"|"medium"|"low"|null,"companyLegalAddress":string|null,
+"companyLegalAddressConfidence":"high"|"medium"|"low"|null,"evidence":string}`;
 
 export async function extractPdfText(filePath: string): Promise<string> {
   if (extname(filePath).toLowerCase() !== ".pdf") return "";
@@ -62,7 +76,9 @@ export async function assessProjectDocuments(
     return {
       technologyCombo: null, technologyConfidence: null, technologyReason: "No hay documentos analizables.",
       capacityMw: null, capacityMwConfidence: null, storageHours: null, storageHoursConfidence: null,
-      capacityMwh: null, capacityMwhConfidence: null, evidence: "Sin evidencia documental.",
+      capacityMwh: null, capacityMwhConfidence: null,
+      companyRut: null, companyRutConfidence: null, companyLegalAddress: null, companyLegalAddressConfidence: null,
+      evidence: "Sin evidencia documental.",
     };
   }
   const prompt = JSON.stringify({

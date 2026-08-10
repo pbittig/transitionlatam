@@ -86,19 +86,28 @@ export function findFormularioDocuments(docs: AccesoAbiertoDocument[]): AccesoAb
 }
 
 /**
- * Informe emitido durante la autorización preliminar de conexión. Es una fuente
- * secundaria: la pre-verificación solo lo consulta para horas de almacenamiento
- * o para resolver si una solicitud combina generación + BESS.
+ * Informe de autorización de conexión — preliminar, definitivo, o el emitido
+ * para proyectos "Fehaciente" (mismo tipo de documento, nombre distinto según
+ * la etapa/tipo de solicitud; caso real "Ríos de Jerez" trae tanto el
+ * preliminar como el definitivo como documentos separados). Es una fuente
+ * secundaria: la pre-verificación lo consulta para horas de almacenamiento,
+ * para resolver si una solicitud combina generación + BESS, y (agregado
+ * 2026-08-09) para RUT/dirección legal cuando el Formulario no las trae — el
+ * "definitivo" suele confirmar esos datos de forma más formal que el
+ * "preliminar" original, antes solo se buscaba este último.
  *
  * En datos históricos el nombre puede aparecer con o sin "de Conexión" y con
  * pequeñas variaciones de acentos, por eso se exige la combinación distintiva
- * "Informe" + "Autorización" + "Preliminar" en tipo o nombre del documento.
+ * "Informe" + "Autorización" + (preliminar|definitivo|fehaciente) en tipo o
+ * nombre del documento. Ordenar por id descendente ya prioriza el más
+ * reciente cuando hay varios (el definitivo suele tener id mayor que el
+ * preliminar de la misma solicitud, al emitirse después).
  */
-export function findPreliminaryConnectionAuthorizationReports(
+export function findConnectionAuthorizationReports(
   docs: AccesoAbiertoDocument[],
 ): AccesoAbiertoDocument[] {
   return docs.filter((doc) => {
     const haystack = `${doc.tipoDocumento} ${doc.nombre}`;
-    return /informe/i.test(haystack) && /autorizaci[oó]n/i.test(haystack) && /preliminar/i.test(haystack);
+    return /informe/i.test(haystack) && /autorizaci[oó]n/i.test(haystack) && /(preliminar|definitivo|fehaciente)/i.test(haystack);
   });
 }

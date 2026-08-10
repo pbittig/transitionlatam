@@ -22,7 +22,10 @@ export interface PreverificationDocumentInfo {
   id: number;
   name: string;
   type: string;
-  role: "formulario" | "informe_preliminar";
+  // "informe_preliminar" queda por compatibilidad con reportes ya guardados
+  // antes de este cambio (2026-08-09) — las corridas nuevas ya solo escriben
+  // "informe_conexion" (preliminar, definitivo, o fehaciente, ver fetchFromPortal.ts).
+  role: "formulario" | "informe_conexion" | "informe_preliminar";
 }
 
 export interface PreverificationSeiaSuggestion {

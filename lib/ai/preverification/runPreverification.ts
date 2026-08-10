@@ -11,7 +11,7 @@ import {
 import {
   downloadDocument,
   findFormularioDocuments,
-  findPreliminaryConnectionAuthorizationReports,
+  findConnectionAuthorizationReports,
   listDocumentsForSolicitud,
   type AccesoAbiertoDocument,
 } from "@/lib/ingestion/sources/energia-abierta/detalle-formulario/fetchFromPortal";
@@ -79,6 +79,18 @@ async function atomicFillProjectField(
   return (data?.length ?? 0) === 1;
 }
 
+/** Mismo criterio fill-only atómico que atomicFillProjectField, pero sobre la empresa desarrolladora del proyecto (rut/legal_address no viven en `project`). */
+async function atomicFillCompanyField(
+  client: SupabaseClient,
+  companyId: string,
+  column: string,
+  value: unknown,
+): Promise<boolean> {
+  const { data, error } = await client.from("company").update({ [column]: value }).eq("id", companyId).is(column, null).select("id");
+  if (error) throw new Error(error.message);
+  return (data?.length ?? 0) === 1;
+}
+
 /**
  * Exportada además de usarse internamente en runProjectPreverification: el fix
  * al sync de listado (2026-08-09, ver load.ts) evita que se vuelva a borrar un
@@ -134,6 +146,39 @@ export async function applyHighConfidenceFields(
       // Conserva la compatibilidad establecida por updateProjectField sin
       // sobrescribir generation_capacity_mw si ya existe.
       await atomicFillProjectField(client, projectId, "generation_capacity_mw", result.proposedValue);
+    }
+  }
+
+  // RUT/dirección legal viven en `company`, no en `project` — el Formulario no
+  // siempre los trae (caso real "Ríos de Jerez"), así que se completan desde el
+  // informe de autorización de conexión cuando esté disponible (ver analyze.ts).
+  const companyMappings: Array<[string, string]> = [
+    ["companyRut", "rut"],
+    ["companyLegalAddress", "legal_address"],
+  ];
+  const hasCompanyFieldToApply = companyMappings.some(([fieldName]) => byName.get(fieldName)?.status === "completed");
+  if (hasCompanyFieldToApply) {
+    const { data: projectRow, error: projectError } = await client
+      .from("project")
+      .select("developer_company_id")
+      .eq("id", projectId)
+      .maybeSingle();
+    if (projectError) throw new Error(projectError.message);
+    const companyId = projectRow?.developer_company_id as string | undefined;
+    for (const [fieldName, column] of companyMappings) {
+      const result = byName.get(fieldName);
+      if (result?.status !== "completed") continue;
+      if (!companyId) {
+        result.applied = false;
+        result.status = "already_present";
+        result.reason = "No se aplicó: el proyecto no tiene empresa desarrolladora asociada.";
+        continue;
+      }
+      result.applied = await atomicFillCompanyField(client, companyId, column, result.proposedValue);
+      if (!result.applied) {
+        result.status = "already_present";
+        result.reason = "No se aplicó: el campo fue completado mientras corría el análisis.";
+      }
     }
   }
 }
@@ -220,18 +265,18 @@ export async function runProjectPreverification(
       const docs = await listDocumentsForSolicitud(project.externalReference);
       report.observedDocumentTypes = [...new Set(docs.map((doc) => doc.tipoDocumento))].sort();
       const formulario = findFormularioDocuments(docs).sort((a, b) => b.id - a.id)[0] ?? null;
-      const preliminary = findPreliminaryConnectionAuthorizationReports(docs).sort((a, b) => b.id - a.id)[0] ?? null;
+      const connectionReport = findConnectionAuthorizationReports(docs).sort((a, b) => b.id - a.id)[0] ?? null;
 
       if (formulario) {
         report.documents.push({ id: formulario.id, name: formulario.nombre, type: formulario.tipoDocumento, role: "formulario" });
         const path = await downloadToTemp(formulario, tempDirectory);
         formularioResult = await parseFormulario(path);
       }
-      if (preliminary) {
-        report.documents.push({ id: preliminary.id, name: preliminary.nombre, type: preliminary.tipoDocumento, role: "informe_preliminar" });
-        const path = await downloadToTemp(preliminary, tempDirectory);
+      if (connectionReport) {
+        report.documents.push({ id: connectionReport.id, name: connectionReport.nombre, type: connectionReport.tipoDocumento, role: "informe_conexion" });
+        const path = await downloadToTemp(connectionReport, tempDirectory);
         preliminaryText = await extractPdfText(path);
-        if (!preliminaryText) report.errors.push(`Informe preliminar ${preliminary.nombre}: formato sin extracción de texto soportada.`);
+        if (!preliminaryText) report.errors.push(`Informe de conexión ${connectionReport.nombre}: formato sin extracción de texto soportada.`);
       }
     }
 
@@ -242,6 +287,8 @@ export async function runProjectPreverification(
       field("capacityMw", project.capacityMw, assessment.capacityMw, assessment.capacityMwConfidence, source, assessment.evidence),
       field("storageHours", project.storageHours, assessment.storageHours, assessment.storageHoursConfidence, source, assessment.evidence),
       field("capacityMwh", project.capacityMwh, assessment.capacityMwh, assessment.capacityMwhConfidence, source, assessment.evidence),
+      field("companyRut", project.developerCompanyRut, assessment.companyRut, assessment.companyRutConfidence, source, assessment.evidence),
+      field("companyLegalAddress", project.developerCompanyAddress, assessment.companyLegalAddress, assessment.companyLegalAddressConfidence, source, assessment.evidence),
     ];
 
     if (formularioResult?.kind === "full") {
