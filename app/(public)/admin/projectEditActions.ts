@@ -76,6 +76,23 @@ export async function updateProjectField(
       // (ficha pública, listado) quede desincronizado.
       const patch: Record<string, string | number | null> = { [PROJECT_COLUMNS[field]!]: value };
       if (field === "capacityMw") patch.generation_capacity_mw = value;
+
+      // MW × horas = MWh es un cálculo exacto (no una estimación) una vez que se
+      // conocen ambos — se completa solo mientras el admin no haya puesto un valor
+      // propio en Energía (MWh); si ya hay uno, se respeta y no se pisa.
+      if (field === "storageCapacityMw" || field === "storageHours") {
+        const { data: current } = await client
+          .from("project")
+          .select("storage_capacity_mw, storage_hours, capacity_mwh")
+          .eq("id", projectId)
+          .maybeSingle();
+        if (current && current.capacity_mwh === null) {
+          const mw = field === "storageCapacityMw" ? (value as number | null) : current.storage_capacity_mw;
+          const hours = field === "storageHours" ? (value as number | null) : current.storage_hours;
+          if (mw !== null && hours !== null) patch.capacity_mwh = Number(mw) * Number(hours);
+        }
+      }
+
       const { error } = await client.from("project").update(patch).eq("id", projectId);
       if (error) throw new Error(error.message);
     } else if (COMPANY_COLUMNS[field]) {
