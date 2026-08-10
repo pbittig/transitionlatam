@@ -26,7 +26,7 @@ async function main() {
 
   const { data: projects, error } = await client
     .from("project")
-    .select("id, name, location:location_id(region:region_id(name))")
+    .select("id, name, location:location_id(region:region_id(name)), developer:developer_company_id(name)")
     .gte("estimated_connection_date", startOfMonth)
     .not("status", "in", "(Rechazada,Desistida)")
     .limit(2000);
@@ -42,8 +42,9 @@ async function main() {
 
   for (const project of pending) {
     const region = (project as unknown as { location: { region: { name: string } | null } | null }).location?.region?.name ?? null;
+    const developerName = (project as unknown as { developer: { name: string } | null }).developer?.name ?? null;
     try {
-      const result = await findBestSeiaMatch(project.name as string, region);
+      const result = await findBestSeiaMatch(project.name as string, region, developerName);
       if (result) {
         await saveSeiaMatch(client, project.id as string, result.candidate, result.confidence);
         matched++;

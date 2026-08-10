@@ -22,6 +22,38 @@ export function distinctiveTokens(name: string): string[] {
     .filter((t) => t.length > 0 && !STOPWORDS.has(t));
 }
 
+// Formas legales y palabras genéricas de razón social — se quitan para comparar
+// el titular SEIA contra nuestra empresa desarrolladora sin que "SpA"/"S.A." o
+// "Chile" hagan fallar una comparación por lo demás idéntica.
+const COMPANY_STOPWORDS = new Set(
+  ["spa", "s a", "sa", "ltda", "limitada", "chile", "de", "del", "la", "el", "los", "las", "y"].map(normalizeForMatch),
+);
+
+function companyTokens(name: string): Set<string> {
+  return new Set(
+    normalizeForMatch(name)
+      .split(" ")
+      .filter((t) => t.length > 1 && !COMPANY_STOPWORDS.has(t)),
+  );
+}
+
+/**
+ * ¿El titular SEIA es (probablemente) la misma empresa que nuestro desarrollador?
+ * Comparación por superposición de tokens distintivos, no RUT — SEIA no expone
+ * RUT en la búsqueda pública, solo el nombre del titular. Exige que al menos la
+ * mitad de nuestros tokens distintivos aparezcan en el titular SEIA; tolera
+ * diferencias de forma legal/orden de palabras sin exigir el string exacto.
+ */
+function titularLikelyMatches(ourCompanyName: string | null, seiaTitular: string | null): boolean {
+  if (!ourCompanyName || !seiaTitular) return false;
+  const ours = companyTokens(ourCompanyName);
+  const theirs = companyTokens(seiaTitular);
+  if (ours.size === 0 || theirs.size === 0) return false;
+  let intersection = 0;
+  for (const t of ours) if (theirs.has(t)) intersection++;
+  return intersection / ours.size >= 0.5;
+}
+
 // SEIA antepone "Región de "/"Región del "/"Región Metropolitana de " — se
 // quita para comparar contra nuestros nombres de región ("Antofagasta", etc.).
 function normalizeRegionName(region: string): string {
@@ -45,6 +77,7 @@ export interface SeiaMatchCandidate {
   coverage: number; // 0-1: cuántas palabras distintivas de nuestro proyecto aparecen en el nombre SEIA
   regionMatches: boolean;
   isGenerationType: boolean;
+  titularMatches: boolean;
 }
 
 export interface SeiaMatchResult {
@@ -59,7 +92,11 @@ export interface SeiaMatchResult {
  * distintas es demasiado común (parques con nombres genéricos de sitio) para
  * confiar sin ese refuerzo.
  */
-export async function findBestSeiaMatch(projectName: string, projectRegion: string | null): Promise<SeiaMatchResult | null> {
+export async function findBestSeiaMatch(
+  projectName: string,
+  projectRegion: string | null,
+  developerCompanyName: string | null = null,
+): Promise<SeiaMatchResult | null> {
   const ourTokens = distinctiveTokens(projectName);
   if (ourTokens.length === 0) return null;
 
@@ -77,21 +114,27 @@ export async function findBestSeiaMatch(projectName: string, projectRegion: stri
     const coverage = hits / ourTokens.length;
     const regionMatches = ourRegionNormalized !== null && normalizeRegionName(record.REGION_NOMBRE) === ourRegionNormalized;
     const isGenerationType = record.TIPO_PROYECTO === GENERATION_TYPE_CODE;
-    return { record, coverage, regionMatches, isGenerationType };
+    const titularMatches = titularLikelyMatches(developerCompanyName, record.TITULAR);
+    return { record, coverage, regionMatches, isGenerationType, titularMatches };
   });
 
   // Un mismo proyecto puede tener varios expedientes SEIA (reingreso tras
   // rechazo, actualizaciones, o procesos hermanos como la línea de conexión) —
   // entre candidatos que superan el umbral de cobertura, se prefiere primero
-  // el expediente de central (isGenerationType) sobre uno de línea/subestación,
-  // luego cobertura, luego región, luego el más reciente por fecha de
-  // presentación (el estado vigente, no uno viejo ya superado).
+  // el expediente de central (isGenerationType), luego uno cuyo titular
+  // coincida con nuestra empresa desarrolladora (hallazgo real, piloto Kimi/GLM
+  // 2026-07-26: "BESS Llanos del Viento" matcheaba en "alta" confianza con
+  // "Parque Eólico Llanos del Viento", mismo nombre de sitio, empresa
+  // completamente distinta — SEIA no expone tecnología en la búsqueda, así que
+  // el titular es la única señal real para separar estos casos), luego
+  // cobertura, luego región, luego el más reciente por fecha de presentación.
   candidates.sort((a, b) => {
     const aQualifies = a.coverage >= 0.5;
     const bQualifies = b.coverage >= 0.5;
     if (aQualifies !== bQualifies) return aQualifies ? -1 : 1;
     return (
       (b.isGenerationType ? 1 : 0) - (a.isGenerationType ? 1 : 0) ||
+      (b.titularMatches ? 1 : 0) - (a.titularMatches ? 1 : 0) ||
       b.coverage - a.coverage ||
       (b.regionMatches ? 1 : 0) - (a.regionMatches ? 1 : 0) ||
       Number(b.record.FECHA_PRESENTACION || 0) - Number(a.record.FECHA_PRESENTACION || 0)
@@ -99,6 +142,12 @@ export async function findBestSeiaMatch(projectName: string, projectRegion: stri
   });
   const best = candidates[0];
   if (!best || best.coverage < 0.5) return null;
+
+  // Si conocemos el nombre de nuestra empresa desarrolladora y el titular SEIA
+  // del mejor candidato NO coincide, es una señal fuerte de que compartimos
+  // nombre de sitio pero no somos el mismo proyecto — nunca confiar "alta"/
+  // "media" en ese caso, exactamente el patrón del caso real citado arriba.
+  const titularMismatch = developerCompanyName !== null && !best.titularMatches;
 
   // Una sola palabra distintiva en común (ej. solo el nombre del lugar, "Panimávida")
   // no es suficiente para "alta" aunque coincida 100% + región — muchos proyectos
@@ -110,7 +159,7 @@ export async function findBestSeiaMatch(projectName: string, projectRegion: stri
   // subestación) puede ser el único resultado que comparte nombre con nuestro
   // proyecto sin ser su expediente ambiental real — se guarda igual (útil para
   // revisión manual en la ficha) pero nunca con confianza alta/media.
-  const confidence: "alta" | "media" | "baja" = !best.isGenerationType
+  const confidence: "alta" | "media" | "baja" = !best.isGenerationType || titularMismatch
     ? "baja"
     : best.coverage >= 0.99 && best.regionMatches && strongEnoughForAlta
       ? "alta"
