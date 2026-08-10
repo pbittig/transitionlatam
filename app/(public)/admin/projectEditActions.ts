@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { TECHNOLOGY_COMBOS, type TechnologyCombo } from "./technologyCombos";
@@ -175,12 +176,18 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
     // Contactos frescos al momento de verificar — así queda con la lógica de
     // validación vigente (isPlausiblePhone/isPlaceholderContact, ver
     // detalle-formulario/load.ts) sin depender de una corrida manual aparte.
-    // No bloquea la verificación si falla (ej. Nemotron caído): se registra el
-    // error pero el proyecto queda verificado igual.
-    const reprocess = await reprocessFormularioContacts(client, projectId);
-    if (!reprocess.success) {
-      console.warn(`No se pudieron refrescar los contactos de ${projectId} al verificar: ${reprocess.error}`);
-    }
+    // Programado con after() en vez de esperado: cuando el Formulario original
+    // es un PDF, esto pasa por IA (NVIDIA NIM) que en el tier gratuito puede
+    // demorar mucho o fallar (hallazgo real: clicks en "Verificado" tardando
+    // 8-84s+ porque el botón esperaba esto antes de responder). No bloquea la
+    // verificación si falla — se registra el error pero el proyecto queda
+    // verificado igual.
+    after(async () => {
+      const reprocess = await reprocessFormularioContacts(client, projectId);
+      if (!reprocess.success) {
+        console.warn(`No se pudieron refrescar los contactos de ${projectId} al verificar: ${reprocess.error}`);
+      }
+    });
 
     revalidatePath("/admin/verificador");
     revalidatePath("/admin/trabajo-hoy");
