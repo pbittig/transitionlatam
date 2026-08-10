@@ -1,13 +1,16 @@
 import { getConnectionStatuses } from "@/lib/data-access/connectionStatuses";
 import { getSeiaRecordForProject } from "@/lib/data-access/seia";
 import { getProjectStakeholders, type ProjectDetail } from "@/lib/data-access/projects";
+import { getConfirmedPertinenciaForProject } from "@/lib/data-access/pertinencias";
 import { ProjectEditForm } from "./ProjectEditForm";
 import { UnassignSeiaButton } from "./UnassignSeiaButton";
 import { DeleteProjectButton } from "./DeleteProjectButton";
 import { ProjectContactsEditor } from "./ProjectContactsEditor";
 import { FormularioDocumentLink } from "../verificador/FormularioDocumentLink";
 import { SeiaMatchModal } from "../../proyectos/[id]/SeiaMatchModal";
+import { PertinenciaMatchModal } from "../../proyectos/[id]/PertinenciaMatchModal";
 import { SeiaStatusCard } from "../../components/SeiaStatusCard";
+import { PertinenciaStatusCard } from "../../components/PertinenciaStatusCard";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { isAdmin } from "@/lib/auth/session";
 
@@ -23,10 +26,11 @@ export async function ProjectEditPageBody({
   // Se crea dentro del Server Component para que el objeto Supabase (con
   // prototipos no serializables) nunca viaje como prop por el payload RSC.
   const client = createSupabaseServiceClient();
-  const [connectionStatuses, seiaRecord, stakeholders] = await Promise.all([
+  const [connectionStatuses, seiaRecord, stakeholders, confirmedPertinencia] = await Promise.all([
     getConnectionStatuses(client),
     getSeiaRecordForProject(client, project.id),
     getProjectStakeholders(client, project.id, project.developerCompanyId, { skipCompanyFallback: true }),
+    getConfirmedPertinenciaForProject(client, project.id),
   ]);
 
   return (
@@ -50,6 +54,21 @@ export async function ProjectEditPageBody({
             <SeiaStatusCard record={seiaRecord} />
           ) : (
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin expediente SEIA asociado todavía.</p>
+          )}
+        </div>
+      </div>
+      <div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+            Pertinencia SEA
+          </h2>
+          <PertinenciaMatchModal projectId={project.id} projectName={project.name} hasExistingMatch={!!confirmedPertinencia} isAdmin />
+        </div>
+        <div className="mt-3">
+          {confirmedPertinencia ? (
+            <PertinenciaStatusCard record={confirmedPertinencia} />
+          ) : (
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Sin pertinencia asociada todavía.</p>
           )}
         </div>
       </div>

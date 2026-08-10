@@ -103,7 +103,7 @@ async function main() {
         continue;
       }
 
-      const formularios = findFormularioDocuments(docs).sort((a, b) => b.id - a.id); // más reciente primero
+      const formularios = findFormularioDocuments(docs); // .xlsx primero, luego más reciente
       if (formularios.length === 0) {
         await logOutcome(client, project.id as string, solicitudId, "no_formulario", null, null);
         noFormulario++;

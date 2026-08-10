@@ -80,9 +80,26 @@ export async function downloadDocument(doc: AccesoAbiertoDocument): Promise<Buff
   return Buffer.from(arrayBuffer);
 }
 
-/** El Formulario es el documento que trae contactos — filtra por tipo, ignora Carta Conductora y similares. */
+/**
+ * El Formulario es el documento que trae contactos — filtra por tipo, ignora Carta
+ * Conductora y similares. Ordenado con el .xlsx más útil primero: el Excel es
+ * extracción determinística por celda, mientras que el PDF a veces es solo un
+ * escaneo sin texto o el checklist de verificación mal detectado (casos reales
+ * "BESS Río Llanco"/"BESS Charruana", 2026-08-09 — ambos con un .xlsx bueno
+ * disponible para la misma solicitud, pero el pipeline elegía el .pdf de mayor id
+ * y terminaba sin contactos). Dentro de la misma extensión, el id más alto (más
+ * reciente) sigue ganando — todos los llamadores deben tomar el [0] del resultado
+ * en vez de re-ordenar por id, o este orden se pierde.
+ */
 export function findFormularioDocuments(docs: AccesoAbiertoDocument[]): AccesoAbiertoDocument[] {
-  return docs.filter((d) => /formulario/i.test(d.tipoDocumento));
+  return docs
+    .filter((d) => /formulario/i.test(d.tipoDocumento))
+    .sort((a, b) => {
+      const aIsXlsx = /\.xlsx?$/i.test(a.nombre) ? 1 : 0;
+      const bIsXlsx = /\.xlsx?$/i.test(b.nombre) ? 1 : 0;
+      if (aIsXlsx !== bIsXlsx) return bIsXlsx - aIsXlsx;
+      return b.id - a.id;
+    });
 }
 
 /**

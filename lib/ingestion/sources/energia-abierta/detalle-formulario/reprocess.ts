@@ -33,7 +33,7 @@ export async function reprocessFormularioContacts(client: SupabaseClient, projec
   const solicitudId = log.solicitud_id as string;
   try {
     const docs = await listDocumentsForSolicitud(solicitudId);
-    const formularios = findFormularioDocuments(docs).sort((a, b) => b.id - a.id);
+    const formularios = findFormularioDocuments(docs);
     if (formularios.length === 0) return { success: true, contactCount: 0 };
 
     const doc = formularios[0];

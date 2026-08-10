@@ -264,7 +264,7 @@ export async function runProjectPreverification(
     } else {
       const docs = await listDocumentsForSolicitud(project.externalReference);
       report.observedDocumentTypes = [...new Set(docs.map((doc) => doc.tipoDocumento))].sort();
-      const formulario = findFormularioDocuments(docs).sort((a, b) => b.id - a.id)[0] ?? null;
+      const formulario = findFormularioDocuments(docs)[0] ?? null;
       const connectionReport = findConnectionAuthorizationReports(docs).sort((a, b) => b.id - a.id)[0] ?? null;
 
       if (formulario) {
