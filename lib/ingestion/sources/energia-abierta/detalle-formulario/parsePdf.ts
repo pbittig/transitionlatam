@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { PDFParse } from "pdf-parse";
 import type { FormularioData, FormularioVerification } from "./types";
 import { extractFormularioWithAi } from "./extractWithAi";
 
@@ -61,6 +60,13 @@ export async function parseFormularioPdf(
   filePath: string,
 ): Promise<{ kind: "full"; data: FormularioData } | { kind: "verification_only"; data: FormularioVerification }> {
   const data = await readFile(filePath);
+  // Import dinámico: pdf-parse (vía pdfjs-dist/@napi-rs/canvas) puede fallar a
+  // cargar en el runtime serverless de Vercel (ver commit eebfcdf) — un import
+  // estático arrastraría ese riesgo a TODA la ruta que importa este archivo
+  // (ej. /admin/verificador, incluido el botón "Verificado", que no necesita
+  // leer PDFs para nada). Aislado así, un fallo acá solo rompe el parseo de
+  // este PDF puntual, no las demás acciones de la misma página.
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data });
   const { text } = await parser.getText();
 

@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
-import { PDFParse } from "pdf-parse";
 import type { FormularioResult } from "@/lib/ingestion/sources/energia-abierta/detalle-formulario/types";
 import type { TechnologyCombo } from "@/app/(public)/admin/technologyCombos";
 import { completePreverificationReview } from "./reviewProvider";
@@ -46,6 +45,10 @@ Responde solo JSON con:
 
 export async function extractPdfText(filePath: string): Promise<string> {
   if (extname(filePath).toLowerCase() !== ".pdf") return "";
+  // Import dinámico — ver mismo comentario en parsePdf.ts (commit eebfcdf):
+  // aísla el riesgo de que pdf-parse falle a cargar en producción a solo esta
+  // función, en vez de tumbar toda la ruta que la importa.
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: await readFile(filePath) });
   const { text } = await parser.getText();
   return text.slice(0, 60_000);
