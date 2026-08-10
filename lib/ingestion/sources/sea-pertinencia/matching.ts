@@ -116,3 +116,63 @@ export function suggestProjectMatch(
   }
   return best;
 }
+
+export interface PertinenciaCandidateForProjectMatch {
+  id: string;
+  name: string;
+  titularRut: string | null;
+}
+
+export interface PertinenciaSuggestionForProject {
+  pertinenciaId: string;
+  pertinenciaName: string;
+  score: number;
+  matchedBy: "rut" | "name";
+}
+
+/** Carga las pertinencias aún sin resolver (match_status='pending') — candidatas para el fallback automático cuando SEIA no encuentra nada (ver match-seia-projects.ts). */
+export async function loadPendingPertinenciaCandidates(client: SupabaseClient): Promise<PertinenciaCandidateForProjectMatch[]> {
+  const all: PertinenciaCandidateForProjectMatch[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await client
+      .from("pertinencia_consulta")
+      .select("id, name, titular_rut")
+      .eq("match_status", "pending")
+      .range(offset, offset + 999);
+    if (error) throw new Error(`Error cargando pertinencias pendientes: ${error.message}`);
+    for (const row of data ?? []) all.push({ id: row.id, name: row.name, titularRut: row.titular_rut as string | null });
+    if (!data || data.length < 1000) break;
+  }
+  return all;
+}
+
+/**
+ * Mismo criterio que suggestProjectMatch pero en dirección inversa: dado un
+ * proyecto que se quedó sin match SEIA, busca la pertinencia pendiente más
+ * parecida. Nunca confirma sola — solo deja `suggested_project_id` listo en la
+ * pertinencia para que un humano lo confirme en /admin/pertinencias, mismo
+ * criterio semi-asistido que ya usa el resto de este sistema.
+ */
+export function suggestPertinenciaForProject(
+  projectName: string,
+  projectDeveloperRut: string | null,
+  candidates: PertinenciaCandidateForProjectMatch[],
+): PertinenciaSuggestionForProject | null {
+  const rutNorm = normalizeRutDigits(projectDeveloperRut);
+  if (rutNorm) {
+    const rutMatch = candidates.find((c) => normalizeRutDigits(c.titularRut) === rutNorm);
+    if (rutMatch) return { pertinenciaId: rutMatch.id, pertinenciaName: rutMatch.name, score: 100, matchedBy: "rut" };
+  }
+
+  const targetTokens = tokenize(projectName);
+  if (targetTokens.size === 0) return null;
+
+  let best: PertinenciaSuggestionForProject | null = null;
+  for (const candidate of candidates) {
+    const score = jaccardScore(targetTokens, tokenize(candidate.name));
+    if (score >= MIN_NAME_MATCH_SCORE && (!best || score > best.score)) {
+      best = { pertinenciaId: candidate.id, pertinenciaName: candidate.name, score, matchedBy: "name" };
+    }
+  }
+  return best;
+}

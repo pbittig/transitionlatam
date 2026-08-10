@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { findBestSeiaMatch } from "../lib/ingestion/sources/seia/match";
 import { saveSeiaMatch } from "../lib/ingestion/sources/seia/load";
+import { loadPendingPertinenciaCandidates, suggestPertinenciaForProject } from "../lib/ingestion/sources/sea-pertinencia/matching";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, "..", ".env.local") });
@@ -26,7 +27,7 @@ async function main() {
 
   const { data: projects, error } = await client
     .from("project")
-    .select("id, name, location:location_id(region:region_id(name)), developer:developer_company_id(name)")
+    .select("id, name, location:location_id(region:region_id(name)), developer:developer_company_id(name, rut)")
     .gte("estimated_connection_date", startOfMonth)
     .not("status", "in", "(Rechazada,Desistida)")
     .limit(2000);
@@ -36,21 +37,39 @@ async function main() {
   const pending = (projects ?? []).filter((p) => !matchedIds.has(p.id as string)).slice(0, BATCH_SIZE);
   console.log(`Proyectos esperados sin match SEIA: ${(projects ?? []).length - matchedIds.size} — procesando ${pending.length} en esta corrida.`);
 
+  // Cargado una vez, reutilizado en cada intento sin match SEIA — ver
+  // suggestPertinenciaForProject (lib/ingestion/sources/sea-pertinencia/matching.ts).
+  const pertinenciaCandidates = await loadPendingPertinenciaCandidates(client);
+
   let matched = 0;
   let noMatch = 0;
+  let pertinenciaFallbackSuggested = 0;
   let errors = 0;
 
   for (const project of pending) {
     const region = (project as unknown as { location: { region: { name: string } | null } | null }).location?.region?.name ?? null;
-    const developerName = (project as unknown as { developer: { name: string } | null }).developer?.name ?? null;
+    const developer = (project as unknown as { developer: { name: string; rut: string | null } | null }).developer ?? null;
     try {
-      const result = await findBestSeiaMatch(project.name as string, region, developerName);
+      const result = await findBestSeiaMatch(project.name as string, region, developer?.name ?? null);
       if (result) {
         await saveSeiaMatch(client, project.id as string, result.candidate, result.confidence);
         matched++;
         console.log(`  [match ${result.confidence}] ${project.name} -> ${result.candidate.EXPEDIENTE_NOMBRE} (${result.candidate.ESTADO_PROYECTO})`);
       } else {
         noMatch++;
+        // Sin expediente SEIA: probamos Pertinencia como respaldo antes de dejarlo
+        // sin nada — nunca confirma sola, solo deja la sugerencia lista para
+        // revisar en /admin/pertinencias (mismo criterio semi-asistido de siempre).
+        const suggestion = suggestPertinenciaForProject(project.name as string, developer?.rut ?? null, pertinenciaCandidates);
+        if (suggestion) {
+          const { error: updateError } = await client
+            .from("pertinencia_consulta")
+            .update({ suggested_project_id: project.id, suggested_match_score: suggestion.score })
+            .eq("id", suggestion.pertinenciaId);
+          if (updateError) throw new Error(updateError.message);
+          pertinenciaFallbackSuggested++;
+          console.log(`  [fallback pertinencia ${suggestion.matchedBy} ${suggestion.score}] ${project.name} -> ${suggestion.pertinenciaName}`);
+        }
       }
     } catch (err) {
       errors++;
@@ -61,8 +80,9 @@ async function main() {
 
   console.log("\n--- Resumen ---");
   console.log("Procesados:", pending.length);
-  console.log("Con match:", matched);
-  console.log("Sin match:", noMatch);
+  console.log("Con match SEIA:", matched);
+  console.log("Sin match SEIA:", noMatch);
+  console.log("  de los cuales, con sugerencia de Pertinencia como respaldo:", pertinenciaFallbackSuggested);
   console.log("Errores:", errors);
 }
 
