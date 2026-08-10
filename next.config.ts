@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   experimental: {
     viewTransition: true,
   },
+  // pdf-parse -> pdfjs-dist -> @napi-rs/canvas is a native binary addon. Left
+  // bundled, Turbopack's static file tracing misses the platform-specific
+  // .node binary in the serverless output (worked locally, "DOMMatrix is not
+  // defined" in production — @napi-rs/canvas silently failed to load). Marking
+  // these external makes them resolve via normal node_modules requires at
+  // runtime instead, which @vercel/nft traces correctly.
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas"],
   async redirects() {
     return [
       { source: "/matriz", destination: "/operacion", permanent: true },
