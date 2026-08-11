@@ -69,22 +69,38 @@ if (-not (Test-Path $tsx)) {
 
 # Orden espejo del que tenian los Vercel Cron. send-daily-project-report va
 # ultimo a proposito: reporta sobre lo que los jobs anteriores acaban de cargar.
+#
+# Cada entrada lleva sus argumentos porque varios scripts NO tienen los mismos
+# valores por defecto que usaba su ruta de cron. El caso grave fue
+# preverify-projects: sin --apply corre en modo simulacion, gasta ~10 min de
+# IA y no escribe un solo campo. Verificado contra
+# app/api/cron/preverify-editorial/route.ts.
 $daily = @(
-  'sync-listado',
-  'sync-pgp-progress',
-  'screen-verification-queue',
-  'preverify-projects',
-  'sync-sea-pertinencia',
-  'send-daily-project-report'
+  @{ name = 'sync-listado';              args = @() },
+  @{ name = 'sync-pgp-progress';         args = @() },
+  @{ name = 'screen-verification-queue'; args = @() },
+  @{ name = 'preverify-projects';        args = @(
+      '--provider', 'nemotron',   # el cron fija PREVERIFICATION_REVIEW_PROVIDER=nemotron; el script por defecto usa glm
+      '--limit', '10',
+      '--concurrency', '2',
+      '--apply',                  # sin esto no aplica NADA
+      '--persist',
+      '--editorial-only',
+      # Por defecto escribe un .md con fecha dentro de docs/, ensuciando el
+      # repo en cada corrida. Se redirige a logs/, que esta en .gitignore.
+      '--output', 'logs\preverification-ultima.md'
+    ) },
+  @{ name = 'sync-sea-pertinencia';      args = @() },
+  @{ name = 'send-daily-project-report'; args = @() }
 )
 $weekly = @(
-  'sync-sipub-empresas',
-  'sync-sipub-centrales',
-  'sync-sipub-transmision',
+  @{ name = 'sync-sipub-empresas';    args = @() },
+  @{ name = 'sync-sipub-centrales';   args = @() },
+  @{ name = 'sync-sipub-transmision'; args = @() },
   # -remote y no sync-cne-capacidad.ts a proposito: ese lee un CSV estatico de
   # dataset/, este descarga la version vigente (ver cabecera del script).
-  'sync-cne-capacidad-remote',
-  'compute-schedule-calibration'
+  @{ name = 'sync-cne-capacidad-remote'; args = @() },
+  @{ name = 'compute-schedule-calibration'; args = @() }
 )
 
 $jobs = switch ($Set) {
@@ -100,7 +116,8 @@ $started = Get-Date
 Write-Output "===== run-syncs [$Set] : $($started.ToString('yyyy-MM-dd HH:mm:ss')) ====="
 $results = @()
 
-foreach ($job in $jobs) {
+foreach ($entry in $jobs) {
+  $job = $entry.name
   $script = Join-Path $repoRoot "scripts\$job.ts"
   if (-not (Test-Path $script)) {
     Write-Output "[$job] SALTADO - no existe $script"
@@ -110,12 +127,13 @@ foreach ($job in $jobs) {
 
   $log = Join-Path $logDir "$job.log"
   $t0 = Get-Date
+  $argText = if ($entry.args.Count) { ($entry.args | ForEach-Object { "`"$_`"" }) -join ' ' } else { '' }
   Write-Output "[$job] iniciando..."
   Add-Content -Path $log -Value "==== $($t0.ToString('yyyy-MM-dd HH:mm:ss')) ====" -Encoding utf8
 
   # cmd /c mantiene la redireccion dentro del proceso hijo: evita que
   # PowerShell 5.1 envuelva cada linea de stderr en un ErrorRecord.
-  & cmd /c "`"$tsx`" `"$script`" >> `"$log`" 2>&1"
+  & cmd /c "`"$tsx`" `"$script`" $argText >> `"$log`" 2>&1"
   $code = $LASTEXITCODE
   $seg = [math]::Round(((Get-Date) - $t0).TotalSeconds, 1)
 
