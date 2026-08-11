@@ -75,6 +75,39 @@ function isPlaceholderContact(name: string, email: string | null): boolean {
   return !!domain && PLACEHOLDER_EMAIL_DOMAINS.has(domain);
 }
 
+/**
+ * El mismo problema que PLACEHOLDER_NAME_PATTERNS, pero del lado de la empresa —
+ * que hasta ahora no estaba cubierto. La plantilla en blanco del Formulario trae
+ * nombres de relleno ("Empresa de Energía S.A.") y RUT de ejemplo (12.345.678-9);
+ * cuando la extracción no logra leer el titular real, esos valores se guardaban
+ * como si fueran el dato. Al 2026-08-11 había 49 SPV y 30 proyectos reales
+ * colgando de seis empresas inventadas así, con filas creadas ese mismo día.
+ *
+ * Los patrones van anclados y completos a propósito: un `^empresa de` suelto
+ * también atraparía "Empresa de Transporte de Pasajeros Metro S.A.", que es
+ * Metro de Santiago y es real.
+ */
+const PLACEHOLDER_COMPANY_PATTERNS = [
+  /^empresa\s+de\s+generaci[oó]n(\s+(energ[eé]tica|el[eé]ctrica))?\s+s\.?\s?a\.?$/i,
+  /^empresa\s+de\s+energ[ií]a(\s+renovable)?\s+s\.?\s?a\.?$/i,
+  /^empresa\s+chile\s+s\.?\s?a\.?$/i,
+];
+
+/** RUT de ejemplo de la plantilla, normalizados sin puntos ni guion. */
+const PLACEHOLDER_RUTS = new Set(["123456789", "761234567", "761234568", "76543210k"]);
+
+function normalizeRut(value: string): string {
+  return value.replace(/[^0-9kK]/g, "").toLowerCase();
+}
+
+function isPlaceholderCompanyName(name: string): boolean {
+  return PLACEHOLDER_COMPANY_PATTERNS.some((re) => re.test(name.trim()));
+}
+
+function isPlaceholderRut(rut: string): boolean {
+  return PLACEHOLDER_RUTS.has(normalizeRut(rut));
+}
+
 export interface FormularioLoadResult {
   companyId: string | null;
   personIds: string[];
@@ -93,6 +126,13 @@ export async function getOrCreateCompany(
   rut: string | null,
   legalAddress: string | null,
 ): Promise<string | null> {
+  // Se descartan por separado a propósito: un Formulario puede traer el nombre
+  // real de la SPV con el RUT de ejemplo sin corregir (caso real: "Bridge
+  // Almacenamiento Uno SpA" con rut 12.345.678-9). Descartar solo el campo
+  // inventado conserva el que sí sirve.
+  if (name && isPlaceholderCompanyName(name)) name = null;
+  if (rut && isPlaceholderRut(rut)) rut = null;
+
   if (!name && !rut) return null;
 
   if (rut) {
@@ -231,9 +271,15 @@ async function linkCompanyAsSpv(
   const { data: project } = await client.from("project").select("spv_id").eq("id", projectId).maybeSingle();
   if (!project || project.spv_id) return;
 
+  // Sin nombre real no se inventa una SPV. Antes caía en el literal "SPV", y con
+  // el nombre de relleno de la plantilla creaba una sociedad ficticia colgando de
+  // una matriz igual de ficticia — así se generaron las 49 SPV basura detectadas
+  // el 2026-08-11. Es preferible dejar el proyecto sin SPV que atribuirle una falsa.
+  if (!companyName || isPlaceholderCompanyName(companyName)) return;
+
   const { data: spv, error } = await client
     .from("spv")
-    .insert({ name: companyName ?? "SPV", parent_company_id: companyId })
+    .insert({ name: companyName, parent_company_id: companyId })
     .select("id")
     .single();
   if (error || !spv) return;
