@@ -19,6 +19,40 @@ Este archivo existe para que **cualquier instancia de Claude Code que abra este 
 7. **Planes de implementación cortos, no TDD exhaustivo por defecto** — el usuario prioriza eficiencia de tokens/tiempo sobre proceso formal, salvo que pida lo contrario.
 8. **"Verificar" un proyecto en `/admin/verificador` solo debe cambiar `verified_at`** (y campos editoriales asociados) — nunca debe reescribir silenciosamente otros datos de la ficha ya cargados.
 
+## Sesión 2026-08-11 — el entorno se mudó a un VPS y los syncs salieron de Vercel
+
+### Dónde corre ahora el desarrollo
+
+Hay un **VPS Windows** (zona horaria Pacific, UTC-7) espejado con la PC por Syncthing, y es donde se trabaja. Cosas que hay que saber antes de tocar nada ahí:
+
+- **Node 22.23.2 + npm 10.9.8** viven en `C:\Users\Admin\tools\nodejs`, **fuera del repo** a propósito, para que Syncthing no replique el runtime. Cualquier herramienta futura va en `C:\Users\Admin\tools\`, nunca dentro del proyecto.
+- El `package-lock.json` fue generado con **npm 11+** (el de la PC). El npm 10.9.8 del VPS le borra 57 bloques de metadata `libc` al reescribirlo. **Usar `npm ci`, no `npm install`.**
+- **El VPS no tiene credenciales de GitHub.** Se puede commitear ahí, pero el `push` sale de la PC. Como `.git` viaja por Syncthing, el commit aparece solo del otro lado.
+- **Syncthing sincroniza también `.git`, `node_modules` y `.next`.** Eso explica worktrees fantasma apuntando a rutas de la otra máquina y `git status` distintos en cada lado sobre archivos idénticos (mtime tocado ⇒ modificación falsa; `git diff` sale vacío). Pendiente: excluirlos y dejar que el código viaje por GitHub.
+
+### Producción estuvo rota y nadie se enteró
+
+`next build` fallaba desde `7f5b3d9` (2026-08-10): `@firecrawl/pdf-inspector` trae un asset no-ECMAScript que Turbopack no puede empacar en un chunk ESM. Como un push a `main` despliega, **el deploy de ese commit nunca salió**. Arreglado marcándolo en `serverExternalPackages` — el mismo patrón que ya existía para `pdf-parse`/`pdfjs-dist`/`@napi-rs/canvas`. Iba junto con 2 errores de lint (`react/no-unescaped-entities`). Moraleja: correr `npm run lint && npm run build` antes de pushear, sobre todo al agregar una dependencia nueva.
+
+### Los syncs ya no corren en Vercel
+
+Decisión del usuario: **todos los jobs corren desde el VPS**, los Vercel Cron se apagan. El motivo es duro: `maxDuration=60` del plan Hobby no alcanza. `sync-listado` tarda ~30 min por pasada completa y `sync-sea-pertinencia` **murió por timeout todos los días entre el 2026-08-06 y el 2026-08-11** sin cerrar su fila de `cron_run_log` — quedaba en `running` para siempre, así que no aparecía como error en ningún lado. Última corrida buena: 2026-08-05.
+
+- `scripts/run-syncs.ps1 -Set daily|weekly|all` los corre en secuencia. Un job que falla no detiene a los demás; todos siguen escribiendo en `cron_run_log`, así que `/admin/operacion` sigue siendo la fuente de verdad.
+- **El .ps1 se mantiene en ASCII puro.** Windows PowerShell 5.1 lee los `.ps1` sin BOM como ANSI, y un acento dentro de una cadena rompe el parseo del script entero.
+- Scripts nuevos porque no existían: `sync-pgp-progress.ts` (itera hasta cerrar el ciclo, en vez de 20 por día) y `compute-schedule-calibration.ts`.
+- **`sync-cne-capacidad-remote.ts` vs `sync-cne-capacidad.ts`:** el viejo lee un CSV estático de `dataset/` del 2026-07-21; el nuevo descarga la versión vigente, como hace el cron. Para desatendido va **siempre el `-remote`**. El viejo se dejó intacto porque su cabecera guarda un hallazgo sin terminar sobre la API pública de Energía Abierta (apikey embebido, ~25 datasets más).
+- Tareas `TransitionLatam-Syncs-Diario` (09:00 local = 16:00 UTC) y `-Semanal` (lunes 05:00 = 12:00 UTC) registradas **deshabilitadas**: habilitarlas antes de vaciar los `crons` de `vercel.json` haría que los dos sistemas escriban las mismas filas a la misma hora.
+- Fuera del runner a propósito: `sync-cne-construccion` (depende de un `.xlsx` bajado a mano) y `sync-formulario-bulk` (consume IA por lote, se corre a demanda).
+- La tarea `TransitionLatam-SyncListado-Diario` de la **PC quedó `Disabled`**.
+
+### Pendientes que esta sesión dejó identificados
+
+- **`daily-project-report` es el único cron sin `startCronRun`/`finishCronRun`**, por eso no aparece en `/admin/operacion`. Y si `RESEND_API_KEY` falta, `sendInternalNotification` solo hace `console.warn` y la ruta devuelve `success: true` igual: falla en silencio. Es la hipótesis principal de por qué no llegan los reportes diarios — falta confirmar la variable en el entorno Production de Vercel.
+- **`sea-pertinencia` tarda más de 30 min** por los timeouts de detalle uno a uno, y las pertinencias de 2020–2023 devuelven `Respuesta sin objeto 'pertinencia'`. Nunca se supo antes porque en Vercel moría al minuto.
+- **La auditoría de seguridad del 2026-07-29 sigue con hallazgos abiertos**: `company`, `spv`, `seia_record` y `market_signal` conservan `public_read using (true)` para `anon`, y `person` (los contactos) es legible por cualquier autenticado. `opportunity` sí se cerró en `20260803000002`.
+- El VPS está en Pacific Time: como PST y Chile cambian de horario de verano en fechas distintas, los horarios locales se desfasarán una hora dos veces al año respecto de los UTC originales.
+
 ## Estado del proyecto — resumen al 2026-08-10
 
 ### Qué es
