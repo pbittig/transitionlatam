@@ -21,16 +21,22 @@ export function sanitizeEmailSubjectPart(value: string): string {
   return value.replace(/[\r\n]+/g, " ").slice(0, 120);
 }
 
+/**
+ * Devuelve `true` si el correo se envió y `false` si se omitió por falta de
+ * `RESEND_API_KEY`. Antes devolvía `void`, y quien llamaba no podía distinguir
+ * "enviado" de "silenciosamente omitido" — así el reporte diario estuvo
+ * reportando éxito sin mandar nada. Un fallo real de la API sigue lanzando.
+ */
 export async function sendInternalNotification(params: {
   to: string;
   cc?: string[];
   subject: string;
   html: string;
-}): Promise<void> {
+}): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[notifications] RESEND_API_KEY no configurada — se omite el envío.");
-    return;
+    return false;
   }
   const res = await fetch(RESEND_API_URL, {
     method: "POST",
@@ -47,4 +53,5 @@ export async function sendInternalNotification(params: {
     const body = await res.text().catch(() => "");
     throw new Error(`Resend respondió ${res.status}: ${body}`);
   }
+  return true;
 }

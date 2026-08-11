@@ -73,10 +73,12 @@ export async function sendDailyProjectUpdatesReport(since = new Date(Date.now() 
     <p style="margin-top:28px;color:#777;font-size:12px">Reporte automático de Transition LATAM basado en cambios almacenados en la plataforma.</p>
   </div>`;
 
-  await sendInternalNotification({
+  // `sent` viaja en el resumen a propósito: sin él, quien invoca este reporte
+  // no puede distinguir "se envió" de "se omitió por falta de RESEND_API_KEY".
+  const sent = await sendInternalNotification({
     to: REPORT_RECIPIENT,
     subject: `Transition LATAM: ${accessRows.length + seiaRows.length} novedades de proyectos`,
     html,
   });
-  return { recipient: REPORT_RECIPIENT, accessOpen: accessRows.length, seia: seiaRows.length, since: sinceIso };
+  return { recipient: REPORT_RECIPIENT, accessOpen: accessRows.length, seia: seiaRows.length, since: sinceIso, sent };
 }
