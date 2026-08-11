@@ -32,7 +32,7 @@ export function PhaseTimeline({
   connectionDate,
   pgpMilestones = [],
   constructionProgress,
-  constructionNotStarted = false,
+  constructionNotStarted = null,
   realProgressDate,
   confirmedMinimumPhase,
   today = new Date(),
@@ -44,13 +44,13 @@ export function PhaseTimeline({
   /** Theoretical vs PGP-observed physical progress, shown only on the "construcción" row. */
   constructionProgress?: { theoreticalPercent: number; realPercent: number };
   /**
-   * El PGP reporta 0% de avance físico. La fila de construcción lo dice
-   * explícitamente en vez de mostrar "Real (PGP) 0%", porque la aritmética de
-   * fechas por sí sola puede marcar la fase como en curso mientras la fuente
-   * dice que las obras no empezaron. Solo se activa cuando existe lectura de
-   * PGP — ver isConstructionNotStartedPerPgp.
+   * Sabemos que las obras no empezaron, y por qué fuente — ver
+   * constructionNotStartedReason. La fila de construcción lo dice explícitamente
+   * en vez de dejar que la aritmética de fechas la marque como en curso.
+   * Solo se muestra cuando esa aritmética ya afirmó algo que hay que corregir,
+   * es decir cuando la fecha teórica de inicio ya pasó.
    */
-  constructionNotStarted?: boolean;
+  constructionNotStarted?: "pgp" | "estado" | null;
   /** Where the real (PGP) percent would fall on the theoretical date axis — see dateForExpectedProgress. */
   realProgressDate?: string;
   /**
@@ -159,11 +159,15 @@ export function PhaseTimeline({
                     <p className={`mt-1 pl-4 text-[10px] ${current ? "font-semibold text-brand-deep dark:text-brand-primary" : "text-neutral-400"}`}>
                       {status} · {locale === "en" ? "Confidence" : "Confianza"} {CONFIDENCE_LABEL[locale][milestone.confidence].toLowerCase()}
                     </p>
-                    {milestone.phase === "construccion" && constructionNotStarted && (
+                    {milestone.phase === "construccion" && constructionNotStarted && today >= start && (
                       <p className="mt-1 pl-4 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
-                        {locale === "en"
-                          ? "Construction not started — PGP reports 0%"
-                          : "Construcción no iniciada — PGP reporta 0%"}
+                        {constructionNotStarted === "pgp"
+                          ? locale === "en"
+                            ? "Construction not started — PGP reports 0%"
+                            : "Construcción no iniciada — PGP reporta 0%"
+                          : locale === "en"
+                            ? "Construction not started — not yet declared under construction"
+                            : "Construcción no iniciada — aún no declarada en construcción"}
                       </p>
                     )}
                     {milestone.phase === "construccion" && constructionProgress && !constructionNotStarted && (

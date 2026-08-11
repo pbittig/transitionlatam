@@ -1,3 +1,5 @@
+import { getStatusMaturity } from "./projectStatusMaturity";
+
 /** Interpretation of the official physical-progress percentage shown in PGP. */
 export type PhysicalProgressSignal =
   | "sin_inicio_reportado"
@@ -89,19 +91,33 @@ export function hasConstructionStartGap(status: string | null, progressPercent: 
   return isDeclaredConstructionStatus(status) && progressPercent === 0;
 }
 
+/** Por qué sabemos que la construcción no empezó. Determina qué fuente se cita en la UI. */
+export type ConstructionNotStartedReason = "pgp" | "estado";
+
 /**
- * ¿El PGP dice que las obras todavía no empezaron?
+ * ¿Sabemos que las obras todavía no empezaron, y por qué?
  *
- * A diferencia de hasConstructionStartGap, no exige que el proyecto esté
- * declarado en construcción: un desarrollador que reporta 0% de avance físico
- * no inició la obra, esté o no declarada. Sirve para que el cronograma no
- * afirme "construcción en curso" por pura aritmética de fechas cuando la
- * fuente dice lo contrario.
+ * Dos evidencias, en orden de fuerza:
  *
- * `null` (sin lectura de PGP) devuelve false a propósito: la ausencia de dato
- * no es dato, y afirmar que no empezó sin fuente violaría la regla de no
- * presentar una estimación como hecho verificado (docs/02-prd.md §2.3).
+ * 1. `"pgp"` — el desarrollador reporta 0% de avance físico. Evidencia directa,
+ *    pero cubre pocos proyectos: el PGP se consulta NUP por NUP y solo aparecen
+ *    los que ya declararon construcción.
+ * 2. `"estado"` — el estado oficial del trámite todavía no llegó a "declarado en
+ *    construcción". Cubre a todos los proyectos. Ojo con la escala: "autorizado
+ *    para declararse en construcción" (82) y "clasificado como obra menor" (92)
+ *    siguen en banda "avanzado" — están habilitados a construir, no construyendo.
+ *
+ * Devuelve null cuando el estado es desconocido o un terminal negativo: sin
+ * fuente no se afirma nada, que es la regla de no presentar una estimación como
+ * hecho verificado (docs/02-prd.md §2.3).
  */
-export function isConstructionNotStartedPerPgp(progressPercent: number | null | undefined): boolean {
-  return progressPercent === 0;
+export function constructionNotStartedReason(
+  status: string | null,
+  progressPercent: number | null | undefined,
+): ConstructionNotStartedReason | null {
+  if (progressPercent === 0) return "pgp";
+  const maturity = getStatusMaturity(status);
+  if (!maturity) return null;
+  if (maturity.band === "construccion" || maturity.band === "finalizado") return null;
+  return "estado";
 }
