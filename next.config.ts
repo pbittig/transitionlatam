@@ -10,7 +10,10 @@ const nextConfig: NextConfig = {
   // defined" in production — @napi-rs/canvas silently failed to load). Marking
   // these external makes them resolve via normal node_modules requires at
   // runtime instead, which @vercel/nft traces correctly.
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas"],
+  // @firecrawl/pdf-inspector (parser posicional de Formularios PDF) cae en la
+  // misma categoría: trae un asset no-ECMAScript que Turbopack no puede colocar
+  // en un chunk ESM ("non-ecmascript placeable asset"), y el build falla.
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas", "@firecrawl/pdf-inspector"],
   async redirects() {
     return [
       { source: "/matriz", destination: "/operacion", permanent: true },

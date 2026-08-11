@@ -34,7 +34,7 @@ export default async function PertinenciasPage({ searchParams }: { searchParams:
           Consultas de Pertinencia del SEA relacionadas con renovables/BESS — señal temprana de proyectos que podrían
           ingresar a SEIA. El match con un proyecto existente se sugiere por RUT del titular (si coincide con la empresa
           desarrolladora) o, si no, por similitud de nombre — nunca automático, siempre confirmar o rechazar. La pestaña
-          "Ya verificado" agrupa las pertinencias cuyo proyecto sugerido ya fue verificado antes.
+          &quot;Ya verificado&quot; agrupa las pertinencias cuyo proyecto sugerido ya fue verificado antes.
         </p>
       </div>
 
