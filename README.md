@@ -4,6 +4,8 @@ Plataforma de inteligencia de mercado para la transición energética en Latinoa
 
 La visión de producto, el modelo de datos, la arquitectura técnica/IA, el modelo de negocio, suscripciones, seguridad y el roadmap están documentados en [`/docs`](docs/) — empezar por [`docs/01-vision-producto.md`](docs/01-vision-producto.md) y [`docs/DECISIONS.md`](docs/DECISIONS.md) (registro de decisiones arquitectónicas).
 
+**¿Retomando el proyecto con un asistente de IA (otra sesión, otra máquina)?** Leer primero [`docs/AI-HANDOFF.md`](docs/AI-HANDOFF.md) — reglas de trabajo vigentes y resumen del estado/trabajo reciente.
+
 ## Stack
 
 Next.js (App Router) + TypeScript + Supabase (Postgres, Auth, Storage). Ver [`docs/05-arquitectura-tecnica.md`](docs/05-arquitectura-tecnica.md).
