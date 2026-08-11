@@ -88,3 +88,20 @@ export function isDeclaredConstructionStatus(status: string | null): boolean {
 export function hasConstructionStartGap(status: string | null, progressPercent: number | null): boolean {
   return isDeclaredConstructionStatus(status) && progressPercent === 0;
 }
+
+/**
+ * ¿El PGP dice que las obras todavía no empezaron?
+ *
+ * A diferencia de hasConstructionStartGap, no exige que el proyecto esté
+ * declarado en construcción: un desarrollador que reporta 0% de avance físico
+ * no inició la obra, esté o no declarada. Sirve para que el cronograma no
+ * afirme "construcción en curso" por pura aritmética de fechas cuando la
+ * fuente dice lo contrario.
+ *
+ * `null` (sin lectura de PGP) devuelve false a propósito: la ausencia de dato
+ * no es dato, y afirmar que no empezó sin fuente violaría la regla de no
+ * presentar una estimación como hecho verificado (docs/02-prd.md §2.3).
+ */
+export function isConstructionNotStartedPerPgp(progressPercent: number | null | undefined): boolean {
+  return progressPercent === 0;
+}

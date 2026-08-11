@@ -36,7 +36,7 @@ import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import { getCodSlippageCalibration } from "@/lib/data-access/scheduleCalibration";
-import { dateForExpectedProgress, hasConstructionStartGap, interpretPgpProgress, isDeclaredConstructionStatus } from "@/lib/shared/pgpProjectProgress";
+import { dateForExpectedProgress, hasConstructionStartGap, interpretPgpProgress, isConstructionNotStartedPerPgp, isDeclaredConstructionStatus } from "@/lib/shared/pgpProjectProgress";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 import { FEHACIENTE_AWAITING_SUCTD_MARKER } from "@/lib/ingestion/sources/energia-abierta/listado/load";
 import { parseVoltageKv } from "@/lib/shared/environmentalReviewRules";
@@ -471,6 +471,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
               milestones={estimatedPhase.milestones}
               connectionDate={adjustedConnectionDate!}
               pgpMilestones={pgpTimelineMilestones}
+              constructionNotStarted={isConstructionNotStartedPerPgp(pgpProgress?.progressPercent)}
               constructionProgress={
                 pgpProgress && pgpProgress.expectedProgressPercent !== null
                   ? { theoreticalPercent: pgpProgress.expectedProgressPercent, realPercent: pgpProgress.progressPercent }
