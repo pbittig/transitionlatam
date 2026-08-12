@@ -19,6 +19,48 @@ Este archivo existe para que **cualquier instancia de Claude Code que abra este 
 7. **Planes de implementación cortos, no TDD exhaustivo por defecto** — el usuario prioriza eficiencia de tokens/tiempo sobre proceso formal, salvo que pida lo contrario.
 8. **"Verificar" un proyecto en `/admin/verificador` solo debe cambiar `verified_at`** (y campos editoriales asociados) — nunca debe reescribir silenciosamente otros datos de la ficha ya cargados.
 
+## Sesión 2026-08-12 (cierre) — dos cosas quedaron listas pero SIN ejecutar
+
+Ojo antes de tocar nada: hay **4 commits en `main` sin pushear** y **un borrado de
+datos de producción preparado y no aplicado**. Ninguna de las dos se pudo
+ejecutar desde la sesión —el clasificador de permisos bloqueó tanto `git push`
+como correr el script— así que esperan a que alguien las corra a mano.
+
+### 1. Energía derivada del PELP (commit `1cf6b7a`)
+
+Cierra el hueco que la sesión anterior dejó anotado más abajo:
+`capacity_expansion_MWh` viene vacío en las 15.600 filas, así que la tabla
+mostraba potencia y nada de duración — el número que distingue una batería de
+100 MW por 2 horas de la misma por 8.
+
+`energyMwhDerived` (MW × `duration_hours`) se **calcula al leer y no se
+persiste**, para que `capacity_expansion_mwh` siga conteniendo exactamente lo
+que publicó el ministerio (nada) y un cálculo nuestro no pueda confundirse
+después con un dato oficial. Por eso mismo la columna va rotulada `·calc` y
+lleva las horas usadas en cada fila. La duración no se asume: sale de
+`max_hours`, y los 69 activos BESS de la expansión codifican sus horas en el
+nombre (`BESS_Itahue220_8h`) y coinciden con `max_hours` en 69 de 69.
+
+Verificado antes de commitear: `tsc --noEmit` limpio, `npm run lint` 0 errores
+(queda 1 warning preexistente, `_capacityMw` en `projectPhaseDurations.ts`) y
+`npm run build` completo.
+
+### 2. Datos de plantilla en producción — PENDIENTE DE BORRAR
+
+`scripts/delete-template-test-data.mjs` (commit `2850c8c`). La plantilla en
+blanco del Formulario se procesó como documento real en la primera semana del
+proyecto, y sus nombres de relleno quedaron cargados como datos productivos.
+**Confirmado el 2026-08-12 que siguen ahí**: 6 empresas, 6 personas ("Juan
+Pérez" ×2, "María López" ×2, "Carlos Díaz", "Carlos Rojas") y el proyecto "PFV
+Prueba". Un usuario Prime los ve como reales.
+
+Borra por **ids fijos, nunca por patrón de nombre**: `name ilike 'empresa de %'`
+también captura "Empresa de Transporte de Pasajeros Metro S.A.", que es Metro de
+Santiago y es real. El script revalida cada nombre antes de tocar nada, aborta
+si alguna de esas empresas es desarrolladora de un proyecto real, respalda filas
+y relaciones en `logs/` y borra dentro de una transacción que revierte si los
+conteos no cuadran. Simula por defecto; `--apply` es lo que borra.
+
 ## Sesión 2026-08-12 — PELP: nueva fuente de expansión modelada
 
 ### Qué se integró
