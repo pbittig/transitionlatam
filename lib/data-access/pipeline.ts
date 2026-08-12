@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { REJECTED_STATUSES, startOfCurrentMonthIso } from "./projects";
+import { applyVigenteScope, buildVigenciaPredicate } from "./projects";
 
 const PIPELINE_SYNC_SETTING_KEY = "pipeline_last_synced_at";
 const PIPELINE_CURSOR_SETTING_KEY = "pipeline_sync_cursor";
@@ -220,14 +220,15 @@ export interface ScheduleForecastInput {
  * agregar por región, no solo por mes.
  */
 export async function getUpcomingScheduleInputs(client: SupabaseClient): Promise<ScheduleForecastInput[]> {
-  const { data, error } = await client
-    .from("project")
-    .select(
-      "id, name, status, capacity_mw, includes_storage, estimated_connection_date, verified_at, technology:technology_id(code), location:location_id(region:region_id(name))",
-    )
-    .gte("estimated_connection_date", startOfCurrentMonthIso())
-    .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
-    .limit(1000);
+  const { data, error } = await applyVigenteScope(
+    client,
+    client
+      .from("project")
+      .select(
+        "id, name, status, capacity_mw, includes_storage, estimated_connection_date, verified_at, technology:technology_id(code), location:location_id(region:region_id(name))",
+      )
+      .limit(1000),
+  );
   if (error) throw new Error(`Error obteniendo insumos de cronograma del pipeline: ${error.message}`);
 
   return ((data ?? []) as unknown as Array<{
@@ -281,15 +282,23 @@ export async function getRecentSolicitudesCount(client: SupabaseClient, days: nu
  * getUpcomingScheduleInputs para que ambos conjuntos coincidan.
  */
 export async function getSeiaStatusesForUpcomingProjects(client: SupabaseClient): Promise<Map<string, string | null>> {
-  const { data, error } = await client
-    .from("seia_record")
-    .select("project_id, status, project:project_id!inner(id, estimated_connection_date, status)")
-    .gte("project.estimated_connection_date", startOfCurrentMonthIso())
-    .not("project.status", "in", `(${REJECTED_STATUSES.join(",")})`);
+  // El filtro de vigencia se aplica en Node: PostgREST no puede parsear un
+  // `or()` sobre columnas del embed `project` (ver buildVigenciaPredicate).
+  // Son ~234 expedientes en total, así que traerlos todos y filtrar acá no
+  // tiene costo relevante.
+  const [isVigente, { data, error }] = await Promise.all([
+    buildVigenciaPredicate(client),
+    client.from("seia_record").select("project_id, status, project:project_id!inner(id, estimated_connection_date, status)"),
+  ]);
   if (error) throw new Error(`Error obteniendo estados SEIA del pipeline vigente: ${error.message}`);
 
   const map = new Map<string, string | null>();
-  for (const row of (data ?? []) as unknown as Array<{ project_id: string; status: string | null }>) {
+  for (const row of (data ?? []) as unknown as Array<{
+    project_id: string;
+    status: string | null;
+    project: { id: string; status: string | null; estimated_connection_date: string | null };
+  }>) {
+    if (!isVigente(row.project)) continue;
     map.set(row.project_id, row.status);
   }
   return map;

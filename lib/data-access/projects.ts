@@ -62,6 +62,132 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Días de observación que se le dan a un proyecto después de la fecha de
+ * conexión que declaró. No es cortesía: es el plazo para detectar si la obra
+ * arranca. La fecha declarada es sistemáticamente optimista (contra la propia
+ * estimación del titular en PGP la desviación promedio es de +750 días), así
+ * que sacar el proyecto el día siguiente al vencimiento perdía proyectos vivos.
+ */
+export const VIGENCIA_GRACE_DAYS = 100;
+
+/** Prefijo del estado "declarado en construcción" — sin tilde ni final, porque la fuente mezcla "construcción"/"construccion"/mayúsculas. */
+const DECLARED_CONSTRUCTION_PREFIX = "Proyecto declarado en construc";
+
+function graceCutoffIso(): string {
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - VIGENCIA_GRACE_DAYS);
+  return cutoff.toISOString().slice(0, 10);
+}
+
+/**
+ * Las dos caras de la regla de vigencia, como cláusulas `or()` de PostgREST.
+ * Viven acá y no duplicadas en cada consumidor porque ya pasó una vez: el
+ * listado y la cola del verificador tenían dos definiciones distintas de
+ * "vigente" y el comentario de una decía que usaba el criterio de la otra.
+ */
+function aliveOrClause(sets: ConstructionSets): string {
+  return [
+    `estimated_connection_date.gte.${graceCutoffIso()}`,
+    "estimated_connection_date.is.null",
+    `status.ilike.${DECLARED_CONSTRUCTION_PREFIX}*`,
+    ...(sets.underConstructionIds.length ? [`id.in.(${sets.underConstructionIds.join(",")})`] : []),
+  ].join(",");
+}
+
+function historicOrClause(sets: ConstructionSets): string {
+  const expired = [
+    `estimated_connection_date.lt.${graceCutoffIso()}`,
+    `status.not.ilike.${DECLARED_CONSTRUCTION_PREFIX}*`,
+    ...(sets.underConstructionIds.length ? [`id.not.in.(${sets.underConstructionIds.join(",")})`] : []),
+  ];
+  return [
+    `status.in.(${REJECTED_STATUSES.join(",")})`,
+    ...(sets.builtIds.length ? [`id.in.(${sets.builtIds.join(",")})`] : []),
+    `and(${expired.join(",")})`,
+  ].join(",");
+}
+
+/**
+ * Aplica el alcance "pipeline vigente" a cualquier query sobre `project`, con
+ * el mismo criterio que el listado y la cola del verificador. Existe para que
+ * ningún consumidor tenga que reescribir la regla —así fue como aparecieron
+ * tres definiciones distintas de "vigente" conviviendo, dos de ellas en la
+ * misma pantalla.
+ *
+ * `columnPrefix` permite aplicarla sobre un embed (ej. "project." cuando se
+ * consulta `seia_record` con `project:project_id!inner`).
+ */
+export async function applyVigenteScope<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- el builder de supabase-js encadena por mutación de tipo; mismo criterio que applyPeriodFilter.
+  T extends { not: (...args: any[]) => T; or: (...args: any[]) => T },
+>(client: SupabaseClient, query: T): Promise<T> {
+  const sets = await resolveConstructionSets(client);
+  const scoped = query.not("status", "in", `(${REJECTED_STATUSES.join(",")})`).or(aliveOrClause(sets));
+  return sets.builtIds.length ? scoped.not("id", "in", `(${sets.builtIds.join(",")})`) : scoped;
+}
+
+/**
+ * La misma regla de vigencia evaluada en Node, para las consultas que no pueden
+ * filtrarla en la base: esta instancia de PostgREST no parsea un `or()` que
+ * referencie una columna de un recurso embebido (mismo límite documentado en
+ * resolveTechnologyIds), así que una query sobre `seia_record` con
+ * `project:project_id!inner(...)` no puede usar applyVigenteScope.
+ */
+export async function buildVigenciaPredicate(
+  client: SupabaseClient,
+): Promise<(project: { id: string; status: string | null; estimated_connection_date: string | null }) => boolean> {
+  const sets = await resolveConstructionSets(client);
+  const built = new Set(sets.builtIds);
+  const underConstruction = new Set(sets.underConstructionIds);
+  const cutoff = graceCutoffIso();
+  const declaredPrefix = DECLARED_CONSTRUCTION_PREFIX.toLowerCase();
+  return (project) => {
+    if (project.status && REJECTED_STATUSES.includes(project.status)) return false;
+    if (built.has(project.id)) return false;
+    if (underConstruction.has(project.id)) return true;
+    if (!project.estimated_connection_date) return true;
+    const normalizedStatus = (project.status ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    if (normalizedStatus.startsWith(declaredPrefix)) return true;
+    return project.estimated_connection_date >= cutoff;
+  };
+}
+
+interface ConstructionSets {
+  /** Obra terminada según PGP (100%) — salen a histórico aunque su fecha declarada sea futura. */
+  builtIds: string[];
+  /** En PGP sin terminar (<100%) — se quedan vigentes hasta que estén construidos, aunque la ventana haya vencido. */
+  underConstructionIds: string[];
+}
+
+/**
+ * Un proyecto es vigente mientras no esté construido. El avance de PGP manda
+ * sobre la fecha declarada en las dos direcciones: si está en PGP y no llegó a
+ * 100% se queda aunque la ventana de observación haya vencido, y si llegó a
+ * 100% sale aunque la fecha declarada sea futura.
+ *
+ * Los ids se resuelven acá y se pasan a la query como listas porque
+ * `latest_pgp_project_progress` es otra relación y PostgREST no puede filtrar
+ * `project` por una columna de un embed (mismo motivo documentado en
+ * resolveTechnologyIds). Son conjuntos chicos y acotados: PGP sólo cubre
+ * proyectos que ya declararon construcción.
+ */
+async function resolveConstructionSets(client: SupabaseClient): Promise<ConstructionSets> {
+  const { data, error } = await client.from("latest_pgp_project_progress").select("project_id, progress_percent");
+  // La vista puede no existir todavía en una base sin la migración aplicada, y
+  // su policy exige rol `authenticated`: en ambos casos se sigue sin PGP en vez
+  // de tumbar el listado — el filtro queda en la ventana de observación sola.
+  if (error) return { builtIds: [], underConstructionIds: [] };
+  const builtIds: string[] = [];
+  const underConstructionIds: string[] = [];
+  for (const row of data ?? []) {
+    const percent = Number(row.progress_percent);
+    if (!Number.isFinite(percent)) continue;
+    (percent >= 100 ? builtIds : underConstructionIds).push(row.project_id as string);
+  }
+  return { builtIds, underConstructionIds };
+}
+
 export interface ProjectListItem {
   id: string;
   name: string;
@@ -170,19 +296,23 @@ export async function listProjects(
       .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
       .order("estimated_connection_date", { ascending: true });
   } else if (filters.connectionPeriod === "upcoming") {
-    // Rechazada/Desistida se excluyen aunque su fecha estimada quede en el futuro —
-    // ya no son parte del pipeline vigente, van a Histórico (hallazgo real: se
-    // colaban acá porque solo se filtraba por fecha, no por estado).
-    query = query
-      .gte("estimated_connection_date", startOfCurrentMonthIso())
-      .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
-      .order("estimated_connection_date", { ascending: true });
+    // Vigente = todavía no está construido, y alguna razón para seguir esperándolo:
+    //   · la ventana de observación sigue abierta (COD + 100 días),
+    //   · o no tiene fecha declarada (no podemos afirmar que se le pasó),
+    //   · o está declarado en construcción (vivo administrativamente aunque no
+    //     tengamos su obra en PGP: la ausencia de PGP es un hueco de cobertura
+    //     nuestro, no evidencia de que no se construye),
+    //   · o está en PGP sin terminar (obra en curso, sigue hasta el 100%).
+    // Rechazada/Desistida se excluyen aunque su fecha quede en el futuro (hallazgo
+    // real: se colaban acá porque sólo se filtraba por fecha, no por estado).
+    const sets = await resolveConstructionSets(client);
+    query = query.not("status", "in", `(${REJECTED_STATUSES.join(",")})`).or(aliveOrClause(sets));
+    if (sets.builtIds.length) query = query.not("id", "in", `(${sets.builtIds.join(",")})`);
+    query = query.order("estimated_connection_date", { ascending: true });
   } else if (filters.connectionPeriod === "historico_completo") {
-    query = query
-      .or(
-        `and(estimated_connection_date.lt.${todayIso()},estimated_connection_date.not.is.null),status.in.(${REJECTED_STATUSES.join(",")})`,
-      )
-      .order("estimated_connection_date", { ascending: false });
+    // Complemento exacto de "upcoming": rechazado/desistido, obra terminada, o
+    // ventana vencida sin ninguna señal de que siga vivo.
+    query = query.or(historicOrClause(await resolveConstructionSets(client))).order("estimated_connection_date", { ascending: false });
   } else if (filters.sortBy) {
     const ascending = (filters.sortDir ?? "asc") === "asc";
     query = filters.sortBy === "capacityMw" ? query.order("capacity_mw", { ascending, nullsFirst: false }) : query.order("name", { ascending });
@@ -276,6 +406,9 @@ export interface ProjectDetail extends ProjectListItem {
   connectionPoint: string | null;
   voltageLevel: string | null;
   requestType: string | null;
+  /** Paño de la subestación y segmento de transmisión — vienen del listado de Acceso Abierto (99% y 97% poblados). */
+  substationBay: string | null;
+  transmissionSegment: string | null;
   countryCode: string | null;
   developerCompanyId: string | null;
   technologyCode: string | null;
@@ -298,7 +431,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
   const { data, error } = await client
     .from("project")
     .select(
-      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, editorial_status, ai_screened_at, ai_data_sanity, ai_data_sanity_reason, ai_seia_pick, ai_seia_pick_reason, project_kind, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type)",
+      "id, name, internal_code, external_reference, nup, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, status, estimated_connection_date, verified_at, editorial_status, ai_screened_at, ai_data_sanity, ai_data_sanity_reason, ai_seia_pick, ai_seia_pick_reason, project_kind, developer_company_id, technology:technology_id(name, code), location:location_id(comuna, region:region_id(name)), country:country_id(code), developer:developer_company_id(name, rut, legal_address), spv:spv_id(name), project_connection(connection_point, voltage_level, request_type, substation_bay, transmission_segment)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -335,7 +468,7 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     country: { code: string } | null;
     developer: { name: string; rut: string | null; legal_address: string | null } | null;
     spv: { name: string } | null;
-    project_connection: Array<{ connection_point: string | null; voltage_level: string | null; request_type: string | null }>;
+    project_connection: Array<{ connection_point: string | null; voltage_level: string | null; request_type: string | null; substation_bay: string | null; transmission_segment: string | null }>;
   };
   const connection = r.project_connection?.[0];
 
@@ -375,6 +508,8 @@ export async function getProjectById(client: SupabaseClient, id: string): Promis
     connectionPoint: connection?.connection_point ?? null,
     voltageLevel: connection?.voltage_level ?? null,
     requestType: connection?.request_type ?? null,
+    substationBay: connection?.substation_bay ?? null,
+    transmissionSegment: connection?.transmission_segment ?? null,
     countryCode: r.country?.code ?? null,
   };
 }
@@ -442,24 +577,25 @@ function mapVerificationQueueRow(row: VerificationQueueRow): VerificationQueueIt
 export type VerificationPeriod = "vigente" | "historico";
 
 /**
- * Mismo criterio "vigente vs histórico" que ya usa /proyectos-esperados (ver
- * connectionPeriod "upcoming"/"historico_completo" en listProjects): vigente = no
- * rechazado/desistido y fecha de conexión desde el inicio de mes; histórico = todo lo
- * demás (rechazado, desistido, vencido, o sin fecha). Aplicado como filtro AND sobre lo
- * que ya traiga `query` — no reemplaza otros filtros.
+ * Exactamente el mismo criterio "vigente vs histórico" que /proyectos-esperados
+ * (connectionPeriod "upcoming"/"historico_completo" en listProjects): comparten
+ * aliveOrClause/historicOrClause, así que no pueden volver a divergir. Vigente =
+ * no rechazado, no construido, y con alguna razón para seguir esperándolo
+ * (ventana de observación abierta, sin fecha, declarado en construcción, o con
+ * obra en curso en PGP). Aplicado como filtro AND sobre lo que ya traiga
+ * `query` — no reemplaza otros filtros.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- el query builder de supabase-js encadena por mutación de tipo, sin un Database tipado no vale la pena reconstruir su firma acá (mismo criterio pragmático que el resto de este archivo con updates dinámicos).
 function applyPeriodFilter<T extends { not: (...args: any[]) => T; gte: (...args: any[]) => T; or: (...args: any[]) => T }>(
   query: T,
   period: VerificationPeriod,
+  sets: ConstructionSets,
 ): T {
-  const startOfMonth = startOfCurrentMonthIso();
   if (period === "vigente") {
-    return query.not("status", "in", `(${REJECTED_STATUSES.join(",")})`).gte("estimated_connection_date", startOfMonth);
+    const alive = query.not("status", "in", `(${REJECTED_STATUSES.join(",")})`).or(aliveOrClause(sets));
+    return sets.builtIds.length ? alive.not("id", "in", `(${sets.builtIds.join(",")})`) : alive;
   }
-  return query.or(
-    `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
-  );
+  return query.or(historicOrClause(sets));
 }
 
 /**
@@ -484,7 +620,7 @@ export async function getVerificationQueue(
       .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
       .eq("editorial_status", "published")
       .is("verified_at", null);
-    if (period) query = applyPeriodFilter(query, period);
+    if (period) query = applyPeriodFilter(query, period, await resolveConstructionSets(client));
 
     if (sort) {
       query = query.order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false });
@@ -656,7 +792,7 @@ export async function getDoubtfulProjects(
     .eq("editorial_status", "published")
     .is("verified_at", null)
     .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null");
-  if (period) query = applyPeriodFilter(query, period);
+  if (period) query = applyPeriodFilter(query, period, await resolveConstructionSets(client));
 
   query = sort
     ? query.order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false })
@@ -707,9 +843,10 @@ export interface VerificationPeriodStats {
 
 /** Cuántos quedan pendientes en cada cola — vigente (verificar hoy) vs histórico (después, con más gente). */
 export async function getVerificationPeriodStats(client: SupabaseClient): Promise<VerificationPeriodStats> {
+  const sets = await resolveConstructionSets(client);
   const [{ count: vigentePending, error: e1 }, { count: historicoPending, error: e2 }] = await Promise.all([
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").eq("editorial_status", "published").is("verified_at", null), "vigente"),
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").eq("editorial_status", "published").is("verified_at", null), "historico"),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").eq("editorial_status", "published").is("verified_at", null), "vigente", sets),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null").eq("editorial_status", "published").is("verified_at", null), "historico", sets),
   ]);
   if (e1) throw new Error(`Error contando cola vigente: ${e1.message}`);
   if (e2) throw new Error(`Error contando cola histórica: ${e2.message}`);
@@ -734,6 +871,7 @@ export async function getAdminVerificationProgress(client: SupabaseClient): Prom
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+  const sets = await resolveConstructionSets(client);
   const startOfDay = `${todayInChile}T00:00:00-04:00`;
   const endOfDay = `${todayInChile}T23:59:59.999-04:00`;
 
@@ -742,14 +880,17 @@ export async function getAdminVerificationProgress(client: SupabaseClient): Prom
       applyPeriodFilter(
         client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null"),
         "vigente",
+        sets,
       ).not("verified_at", "is", null),
       applyPeriodFilter(
         client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null"),
         "vigente",
+        sets,
       ),
       applyPeriodFilter(
         client.from("project").select("id", { count: "exact", head: true }).or("prefilter_status.neq.out_of_scope,prefilter_status.is.null"),
         "vigente",
+        sets,
       )
         .gte("verified_at", startOfDay)
         .lte("verified_at", endOfDay),
@@ -761,12 +902,13 @@ export async function getAdminVerificationProgress(client: SupabaseClient): Prom
 }
 
 export async function getVigenteVerificationProgress(client: SupabaseClient): Promise<VerificationProgress> {
+  const sets = await resolveConstructionSets(client);
   // Mismo shape de query en ambas llamadas a applyPeriodFilter (el filtro de
   // verified_at se encadena DESPUÉS) — pasarle chains con formas distintas dispara
   // "Type instantiation is excessively deep" en el genérico T (hallazgo real).
   const [{ count: verified, error: e1 }, { count: total, error: e2 }] = await Promise.all([
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }), "vigente").not("verified_at", "is", null),
-    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }), "vigente"),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }), "vigente", sets).not("verified_at", "is", null),
+    applyPeriodFilter(client.from("project").select("id", { count: "exact", head: true }), "vigente", sets),
   ]);
   if (e1) throw new Error(`Error contando verificados vigentes: ${e1.message}`);
   if (e2) throw new Error(`Error contando total vigente: ${e2.message}`);
