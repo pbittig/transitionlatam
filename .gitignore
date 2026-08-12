@@ -48,9 +48,17 @@ next-env.d.ts
 # logs de tareas programadas locales (ver scripts/run-daily-sync.bat)
 /logs
 
+# salidas generadas (ver scripts/export-project-fichas-pdf.ts) — el PDF de la
+# cartera pesa ~5 MB y se regenera con un comando; no tiene por qué versionarse.
+/exports
+
 # supabase local
 /supabase/.temp
 /supabase/.branches
 
 # claude code worktrees (isolated feature branches live here on disk)
-/.claude/
+/.claude/*
+# ...salvo los skills: son documentación de dominio del equipo, no estado local.
+# Se usa /.claude/* y no /.claude/ porque git no entra a un directorio excluido,
+# así que la negación de abajo nunca se evaluaría.
+!/.claude/skills/
