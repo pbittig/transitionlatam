@@ -21,9 +21,11 @@ export default async function RevisionDudososPage() {
           Revisión de casos dudosos
         </h1>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          Proyectos que ya verificaste, pero cuyo estado cambió de forma sospechosa (retrocedió de madurez o pasó a
-          rechazado/desistido) en una corrida posterior del sync. El dato nuevo ya se guardó — esto es solo para que
-          confirmes si es correcto o si necesita una revisión completa.
+          Proyectos marcados para que los mires antes de darlos por buenos. Dos casos llegan acá: los que ya
+          verificaste y cuyo estado cambió de forma sospechosa en una corrida posterior del sync (retrocedió de
+          madurez o pasó a rechazado/desistido), y los que tienen un dato que sabemos que falta o que se quitó por
+          ser falso. El motivo de cada uno está en la columna correspondiente. Si el proyecto no estaba verificado,
+          &ldquo;Enviar a re-verificar&rdquo; solo saca la marca: ya estaba en la cola del Verificador.
         </p>
       </div>
 

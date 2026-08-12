@@ -19,6 +19,34 @@ Este archivo existe para que **cualquier instancia de Claude Code que abra este 
 7. **Planes de implementación cortos, no TDD exhaustivo por defecto** — el usuario prioriza eficiencia de tokens/tiempo sobre proceso formal, salvo que pida lo contrario.
 8. **"Verificar" un proyecto en `/admin/verificador` solo debe cambiar `verified_at`** (y campos editoriales asociados) — nunca debe reescribir silenciosamente otros datos de la ficha ya cargados.
 
+## Sesión 2026-08-12 (posterior) — los 27 proyectos sin SPV quedaron marcados
+
+Se disparó lo que la sesión anterior dejó escrito y sin correr:
+`scripts/flag-projects-missing-spv.ts --apply`. Los 27 proyectos que quedaron
+sin sociedad vehículo al borrar las SPV inventadas ahora entran a
+`/admin/revision-dudosos` con el motivo escrito, en vez de perderse entre los
+~925 que están sin SPV por causas normales.
+
+Verificado contra producción, no por la salida del script: 27 de 27 marcados y
+con motivo, 0 recuperaron SPV en el intertanto, y **Parque Eólico Ancud —el
+único verificado del grupo— conserva su `verified_at`**. La cola quedó en 32:
+los 27 más los 5 que ya venían del camino original (cambio sospechoso de estado
+en un sync posterior).
+
+La lista de ids sale del respaldo `logs/fix-template-spvs-backup.json`, no de
+re-derivar "proyectos sin SPV" — esa consulta hoy devuelve ~925 y solo estos 27
+llegaron ahí por esta causa.
+
+Como ahora llegan dos clases de caso a esa página, se reescribió el texto que la
+encabeza. Ojo: el botón se llama "Enviar a re-verificar", y para un proyecto que
+nunca se verificó solo quita la marca (`verified_at` ya era null). Las comillas
+del texto van como `&ldquo;/&rdquo;` — `react/no-unescaped-entities` es error,
+no warning, y frena el build.
+
+Al revisar los pendientes de más abajo: **los Vercel Cron ya están vaciados y las
+tres tareas del VPS quedaron habilitadas** (`Ready`). Ese punto ya no está
+abierto, aunque el texto de la sesión del 2026-08-11 lo describa como pendiente.
+
 ## Sesión 2026-08-12 (cierre) — energía derivada del PELP, y una limpieza que resultó ser mucho más grande
 
 Lo del PELP quedó cerrado y desplegado. Lo de los datos de plantilla **no se
