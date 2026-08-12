@@ -78,14 +78,25 @@ proyectos, y lo hace **también en simulación**. Antes la simulación daba verd
 para una operación que la base rechaza —por eso el `--apply` sorprendió—; una
 simulación que no falla donde falla el borrado no está simulando nada.
 
-### Estado de los tres pasos
+### Estado de los tres pasos — TODO APLICADO el 2026-08-12
 
 1. **Tapar la fuente — HECHO** (`98c14a5`, ya en producción).
-2. **Resolver las 49 SPV — `scripts/fix-template-spvs.ts`, PENDIENTE DE APLICAR.**
-   Escrito y probado en simulación: borra las 46 SPV inventadas soltando antes el
-   `spv_id` de sus 27 proyectos (1 verificado), y a las 3 reales les deja la
-   matriz en null sin tocarlas. Respalda todo en `logs/` antes de escribir.
-3. **Borrar las 13 filas — PENDIENTE**, se destraba solo cuando corra el paso 2.
+2. **Resolver las 49 SPV — APLICADO** (`scripts/fix-template-spvs.ts`): 46 SPV
+   inventadas borradas, 27 proyectos con `spv_id` soltado, 3 SPV reales
+   conservadas con la matriz en null.
+3. **Borrar las 13 filas — APLICADO**: 6 empresas, 6 personas, "PFV Prueba" y
+   134 relaciones. Respaldos en `logs/`.
+
+Verificado contra producción después de aplicar, no solo por la salida de los
+scripts: 0 filas de plantilla restantes; Metro de Santiago intacto; las 3 SPV
+reales siguen colgando de sus proyectos verificados; **0 SPV con nombre de
+plantilla en toda la tabla** (buscado por patrón sobre las 1.640, no solo sobre
+las 49 conocidas); `spv` pasó de 1.686 a 1.640, exactamente las 46 borradas.
+
+Queda abierto, no bloqueante: los 27 proyectos quedaron sin SPV. La que tenían
+era falsa, así que no se perdió información — pero recuperar la verdadera es
+otro trabajo, y depende de releer sus Formularios con el parser posicional, que
+hoy funciona mejor que cuando se ingirieron.
 
 Las dos decisiones que estaban abiertas se resolvieron así: se tapa la fuente
 antes de limpiar (invertirlo obliga a repetir el trabajo), y a las 3 SPV reales

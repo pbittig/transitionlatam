@@ -1,5 +1,6 @@
 // Borra los datos de prueba que entraron con la plantilla de ejemplo del
-// Formulario. HOY ABORTA A PROPÓSITO: falta resolver las SPV, ver más abajo.
+// Formulario. APLICADO el 2026-08-12; se conserva por el registro de qué se
+// borró y por qué, y porque vuelve a abortar solo si algo reaparece.
 //
 // Qué son: la plantilla en blanco del Formulario trae nombres de relleno
 // ("Juan Pérez", "Empresa de Generación S.A.") y RUT de ejemplo
@@ -31,12 +32,13 @@
 //     riesgo que motivó los ids fijos (Metro de Santiago), un nivel más abajo,
 //     en `spv`, donde la primera versión no lo buscó.
 //
-// QUÉ FALTA:
-//   1. Tapar la fuente — HECHO en `98c14a5`.
-//   2. Resolver las 49 SPV — `scripts/fix-template-spvs.ts`, escrito y probado
-//      en simulación, PENDIENTE DE APLICAR.
-//   3. Recién entonces este script borra sus 13 filas sin chocar con nada.
-//      El chequeo de abajo se apaga solo cuando el paso 2 esté aplicado.
+// LOS TRES PASOS, todos aplicados el 2026-08-12:
+//   1. Tapar la fuente — `98c14a5`.
+//   2. Resolver las 49 SPV — `scripts/fix-template-spvs.ts`.
+//   3. Este script: 6 empresas, 6 personas, "PFV Prueba" y 134 relaciones.
+//
+// El chequeo de SPV de abajo quedó dormido porque ya no cuelga ninguna. Si
+// vuelve a saltar, significa que algo está creando estas filas de nuevo.
 //
 // Uso:
 //   node scripts/delete-template-test-data.mjs            # simulación
