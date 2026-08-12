@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isConfirmedSeiaMatch } from "@/lib/shared/seiaMatchTrust";
 
 export interface SeiaRecordForProject {
   nombre: string;
@@ -11,7 +12,15 @@ export interface SeiaRecordForProject {
   matchConfidence: "alta" | "media" | "baja" | null;
 }
 
-/** Igual que getSeiaRecordForProject pero para varios proyectos a la vez — usado en listados (ProjectTable). */
+/**
+ * Igual que getSeiaRecordForProject pero para varios proyectos a la vez — usado
+ * en listados (ProjectTable, seguimiento).
+ *
+ * A diferencia de la versión de un solo proyecto, acá los vínculos sin confirmar
+ * se omiten: un listado no tiene espacio para explicar que el expediente es un
+ * candidato dudoso, así que mostrarlo ahí lo convierte en un hecho. La ficha sí
+ * los muestra, marcados (ver lib/shared/seiaMatchTrust.ts).
+ */
 export async function getSeiaRecordsForProjects(
   client: SupabaseClient,
   projectIds: string[],
@@ -25,6 +34,7 @@ export async function getSeiaRecordsForProjects(
 
   const map = new Map<string, SeiaRecordForProject>();
   for (const row of data ?? []) {
+    if (!isConfirmedSeiaMatch({ matchConfidence: row.match_confidence as "alta" | "media" | "baja" | null })) continue;
     map.set(row.project_id as string, {
       nombre: row.nombre,
       titular: row.titular_name,

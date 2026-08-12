@@ -12,7 +12,16 @@ const STATUS_COLOR: Record<string, { light: string; dark: string; label: string 
   "no calificado": { light: "#898781", dark: "#898781", label: "No calificado" },
 };
 
-export function SeiaStatusCard({ record, locale = "es" }: { record: SeiaRecordForProject; locale?: AppLocale }) {
+export function SeiaStatusCard({
+  record,
+  confirmed = true,
+  locale = "es",
+}: {
+  record: SeiaRecordForProject;
+  /** false = el vínculo proyecto↔expediente lo propuso el matcher automático con confianza baja (ver lib/shared/seiaMatchTrust.ts). */
+  confirmed?: boolean;
+  locale?: AppLocale;
+}) {
   const key = record.status?.toLowerCase().trim() ?? "";
   const color = STATUS_COLOR[key] ?? { light: "#898781", dark: "#898781", label: record.status ?? "Sin estado" };
 
@@ -22,14 +31,27 @@ export function SeiaStatusCard({ record, locale = "es" }: { record: SeiaRecordFo
         <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Environmental assessment (SEIA)" : "Evaluación ambiental (SEIA)"}</h3>
         <span
           className="rounded-full px-2.5 py-1 text-xs font-medium"
-          style={{
-            color: `light-dark(${color.light}, ${color.dark})`,
-            backgroundColor: `light-dark(color-mix(in srgb, ${color.light} 15%, white), color-mix(in srgb, ${color.dark} 25%, black))`,
-          }}
+          style={
+            confirmed
+              ? {
+                  color: `light-dark(${color.light}, ${color.dark})`,
+                  backgroundColor: `light-dark(color-mix(in srgb, ${color.light} 15%, white), color-mix(in srgb, ${color.dark} 25%, black))`,
+                }
+              : // Sin color de estado: el estado del expediente no dice nada del
+                // proyecto mientras el vínculo no esté confirmado.
+                { color: "light-dark(#6B7280, #9CA3AF)", backgroundColor: "light-dark(#F3F4F6, #27272a)" }
+          }
         >
-          {color.label}
+          {confirmed ? color.label : locale === "en" ? "Unconfirmed link" : "Vínculo sin confirmar"}
         </span>
       </div>
+      {!confirmed && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          {locale === "en"
+            ? "Candidate found by automatic name matching with low confidence. It is not used as this project's environmental record until someone confirms it — check the filing before relying on it."
+            : "Candidato encontrado por cruce automático de nombre con confianza baja. No se usa como antecedente ambiental del proyecto hasta que alguien lo confirme — revisá el expediente antes de darlo por válido."}
+        </p>
+      )}
       <p className="mt-2 text-sm font-medium text-neutral-900 dark:text-neutral-50">{record.nombre}</p>
       <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
         {record.titular && (

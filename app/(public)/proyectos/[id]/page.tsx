@@ -5,13 +5,12 @@ import { getProjectById, getRelatedPortfolioProjects, getProjectStakeholders } f
 import { maskName, maskEmail } from "@/lib/shared/maskContact";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
 import { getSeiaRecordForProject } from "@/lib/data-access/seia";
+import { isConfirmedSeiaMatch } from "@/lib/shared/seiaMatchTrust";
 import { isProjectFollowed } from "@/lib/data-access/watchlist";
 import { logProjectView } from "@/lib/data-access/behaviorEvent";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { isAdmin } from "@/lib/auth/session";
-import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
 import { computeHealthScore } from "@/lib/shared/projectHealthScore";
-import { PhaseTimeline, type PgpTimelineMilestone } from "./PhaseTimeline";
 import { ProjectProcessProgress } from "./ProjectProcessProgress";
 import { RelatedProjectsPanel } from "./RelatedProjectsPanel";
 import { SeiaStatusCard } from "../../components/SeiaStatusCard";
@@ -35,11 +34,9 @@ import { InfoTooltip } from "../../components/InfoTooltip";
 import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
-import { getCodSlippageCalibration } from "@/lib/data-access/scheduleCalibration";
-import { dateForExpectedProgress, constructionNotStartedReason, hasConstructionStartGap, interpretPgpProgress, isDeclaredConstructionStatus } from "@/lib/shared/pgpProjectProgress";
+import { hasConstructionStartGap, interpretPgpProgress } from "@/lib/shared/pgpProjectProgress";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 import { FEHACIENTE_AWAITING_SUCTD_MARKER } from "@/lib/ingestion/sources/energia-abierta/listado/load";
-import { parseVoltageKv } from "@/lib/shared/environmentalReviewRules";
 
 export const dynamic = "force-dynamic";
 
@@ -86,28 +83,30 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   if (!project) notFound();
   void logProjectView(client, project.id);
 
-  const [relatedCompanies, seiaRecord, confirmedPertinencia, admin, profile, pgpProgress, scheduleCalibration] = await Promise.all([
+  // isAdmin() se resuelve antes del resto porque decide con qué cliente se lee
+  // el avance PGP: `latest_pgp_project_progress` es una vista security_invoker
+  // cuya policy exige el rol `authenticated`, y una sesión de admin es un JWT
+  // propio (cookie `session`), que para Supabase es anónimo. Leyéndola con el
+  // cliente de usuario, un admin recibía cero filas y la ficha mostraba "sin
+  // registro en PGP" para proyectos que sí tienen avance informado. Mismo
+  // criterio que ya usan la propiedad, la pertinencia y el CRM en esta página.
+  const admin = await isAdmin();
+  const [relatedCompanies, seiaRecord, confirmedPertinencia, profile, pgpProgress] = await Promise.all([
     getRelatedCompaniesByName(client, project.developerCompany),
     getSeiaRecordForProject(client, id),
     getConfirmedPertinenciaForProject(createSupabaseServiceClient(), id),
-    isAdmin(),
     getCurrentUserProfile(client),
-    getLatestPgpProgress(client, id),
-    getCodSlippageCalibration(createSupabaseServiceClient(), project.developerCompanyId),
+    getLatestPgpProgress(admin ? createSupabaseServiceClient() : client, id),
   ]);
+  // Un match automático de confianza baja no es antecedente ambiental: se sigue
+  // mostrando como candidato (y en admin, para poder corregirlo) pero no entra
+  // en el estado ambiental ni en el Health Score — ver
+  // lib/shared/seiaMatchTrust.ts.
+  const seiaConfirmed = isConfirmedSeiaMatch(seiaRecord);
+  const confirmedSeiaRecord = seiaConfirmed ? seiaRecord : null;
   const pgpReading = pgpProgress ? interpretPgpProgress(pgpProgress.progressPercent) : null;
   const constructionStartGap = hasConstructionStartGap(project.status, pgpProgress?.progressPercent ?? null);
   const showSuctdSearch = admin && !!project.status && normalizeForMatch(project.status).includes(normalizeForMatch(FEHACIENTE_AWAITING_SUCTD_MARKER));
-  const pgpTimelineMilestones: PgpTimelineMilestone[] = pgpProgress
-    ? [
-        pgpProgress.serviceEstimateDate
-          ? { label: locale === "en" ? "PES (PGP)" : "PES (PGP)", date: pgpProgress.serviceEstimateDate }
-          : null,
-        pgpProgress.operativeEstimateDate
-          ? { label: locale === "en" ? "EO (PGP)" : "EO (PGP)", date: pgpProgress.operativeEstimateDate }
-          : null,
-      ].filter((milestone): milestone is PgpTimelineMilestone => milestone !== null)
-    : [];
   const isFree = !admin && profile?.planCode !== "premium";
   const teamLocked = !admin && profile?.planCode !== "premium";
   // Solo el nombre/correo enmascarado llega al cliente cuando está bloqueado —
@@ -139,81 +138,10 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
     ? await getProjectOwnershipMap(createSupabaseServiceClient(), project.id)
     : null;
 
-  // Nudges the COD used for the backward schedule calculation using observed
-  // slippage for this developer (or the sector, with enough samples) — see
-  // lib/analytics/scheduleCalibration.ts. projectPhaseDurations.ts itself is
-  // never touched; this only shifts which date the model counts back from.
-  const adjustedConnectionDate = scheduleCalibration && project.estimatedConnectionDate
-    ? new Date(new Date(project.estimatedConnectionDate).getTime() + scheduleCalibration.codSlippageDaysAvg * 86_400_000)
-        .toISOString()
-        .slice(0, 10)
-    : project.estimatedConnectionDate;
-  // capacity_mw a veces queda en 0 para proyectos de almacenamiento (bug de
-  // ingesta real, visto en "BESS Algarrobal 200 MW": capacity_mw=0 pero
-  // storage_capacity_mw=200) — un 0 ahí dispara por error el umbral PMGD
-  // (≤9 MW) y le arma un cronograma con las etapas equivocadas (aparece
-  // "Estudios de Factibilidad / Conexión" en vez de "Compras"). Se usa la
-  // mejor capacidad conocida, no el campo crudo, para clasificar el grupo.
-  const bestKnownCapacityMw =
-    project.capacityMw && project.capacityMw > 0
-      ? project.capacityMw
-      : (project.generationCapacityMw ?? project.storageCapacityMw ?? null);
-  // The detailed PDTE estimator (projectTimelineEstimator.ts) already knows how
-  // to push out the schedule for a DIA (+3mo) or EIA (+9mo) environmental review
-  // and for a SUCTD connection (+2mo, third-party capacity negotiation) — but
-  // no caller ever passed those options in, so the Cronograma never reflected
-  // them even though we already load this same data on this page (audited with
-  // the sector-electrico-chile skill, 2026-08-08). Wire in what we can verify
-  // from real data; connectionType is normalized since Acceso Abierto's raw
-  // request_type has SASC/SUCT variants alongside SAC/SUCTD, and "FEHACIENTE"
-  // isn't equivalent to either so it's left unmapped (no adjustment).
-  const environmentalOption = seiaRecord?.submissionType === "DIA" || seiaRecord?.submissionType === "EIA" ? seiaRecord.submissionType : "None";
-  const connectionTypeOption = (() => {
-    const normalized = normalizeForMatch(project.requestType ?? "");
-    if (normalized === "sac" || normalized === "sasc") return "SAC";
-    if (normalized === "suctd" || normalized === "suct") return "SUCTD";
-    return null;
-  })();
-  const estimatedPhase = computeEstimatedPhase(
-    adjustedConnectionDate,
-    project.technologyCode,
-    project.includesStorage,
-    bestKnownCapacityMw,
-    new Date(),
-    {
-      environmental: environmentalOption,
-      connectionType: connectionTypeOption,
-      voltageLevelKv: parseVoltageKv(project.voltageLevel),
-      storageMwh: project.capacityMwh,
-    },
-  );
-  // The backward date math never sees the project's real reported status, so on
-  // its own it can highlight an earlier phase as "current" for a developer
-  // running ahead of the theoretical schedule. Once the connection status
-  // confirms construction, that real fact should never be contradicted by a
-  // date-only guess — clamp the effective phase (narrative + Gantt highlight)
-  // to at least "construccion".
-  const confirmedInConstruction = isDeclaredConstructionStatus(project.status);
-  const effectiveCurrentPhase = (() => {
-    if (!estimatedPhase || !confirmedInConstruction) return estimatedPhase?.currentPhase ?? null;
-    const constructionIndex = estimatedPhase.milestones.findIndex((m) => m.phase === "construccion");
-    if (constructionIndex === -1) return estimatedPhase.currentPhase;
-    const dateBasedIndex = estimatedPhase.currentPhase
-      ? estimatedPhase.milestones.findIndex((m) => m.phase === estimatedPhase.currentPhase)
-      : -1;
-    return dateBasedIndex >= constructionIndex ? estimatedPhase.currentPhase : "construccion";
-  })();
-  // Where the real (PGP) progress percent would fall if plotted on the same
-  // theoretical date axis — lets the timeline show "how far behind" as a
-  // calendar gap, not just a percentage gap.
-  const constructionPhaseStart = estimatedPhase?.milestones.find((milestone) => milestone.phase === "construccion")?.estimatedStartDate ?? null;
-  const realProgressDate = pgpProgress && constructionPhaseStart && adjustedConnectionDate
-    ? dateForExpectedProgress(constructionPhaseStart, adjustedConnectionDate, pgpProgress.progressPercent)
-    : null;
-  const health = computeHealthScore(project.status, seiaRecord?.status ?? null, project.estimatedConnectionDate, new Date(), {
+  const health = computeHealthScore(project.status, confirmedSeiaRecord?.status ?? null, project.estimatedConnectionDate, new Date(), {
     projectKind: project.projectKind,
     includesStorage: project.includesStorage,
-    seiaSubmissionType: seiaRecord?.submissionType,
+    seiaSubmissionType: confirmedSeiaRecord?.submissionType,
     generationCapacityMw: project.generationCapacityMw ?? project.capacityMw,
     voltageLevel: project.voltageLevel,
   });
@@ -281,11 +209,28 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
         `${descriptionStart}. Según el registro disponible, considera ${technicalDescription} y se conectaría en ${connection}.`,
       ];
   const descriptionIndex = [...project.id].reduce((sum, character) => sum + character.charCodeAt(0), 0) % descriptionVariants.length;
-  const projectDescription = descriptionVariants[descriptionIndex];
+  // La descripción del expediente PGP la escribió el titular y dice cosas que
+  // ninguna plantilla nuestra puede decir (obras asociadas, estructuras donde
+  // secciona la línea, tensión de evacuación). Cuando existe, gana: la plantilla
+  // queda de reserva para los ~1.900 proyectos que no están en PGP.
+  const projectDescription = pgpProgress?.description?.trim() || descriptionVariants[descriptionIndex];
+  const descriptionFromSource = !!pgpProgress?.description?.trim();
+
+  // Dos fechas del mismo titular a la misma autoridad que no coinciden: la
+  // conexión que declaró en Acceso Abierto y la operación que estima en PGP.
+  // Sólo se muestra cuando la brecha es material (>90 días) — un desfase menor
+  // es ruido de planificación, no una señal.
+  const codVsPgpDays =
+    project.estimatedConnectionDate && pgpProgress?.operativeEstimateDate
+      ? Math.round(
+          (new Date(pgpProgress.operativeEstimateDate).getTime() - new Date(project.estimatedConnectionDate).getTime()) / 86_400_000,
+        )
+      : null;
+  const scheduleConflict = codVsPgpDays !== null && Math.abs(codVsPgpDays) > 90 ? codVsPgpDays : null;
 
   const environmentalDetailExtra = (seiaRecord || confirmedPertinencia || admin) && (
     <div className="mt-3 flex flex-col gap-4">
-      {seiaRecord && <SeiaStatusCard record={seiaRecord} locale={locale} />}
+      {seiaRecord && <SeiaStatusCard record={seiaRecord} confirmed={seiaConfirmed} locale={locale} />}
       {confirmedPertinencia && <PertinenciaStatusCard record={confirmedPertinencia} locale={locale} />}
       {admin && (
         <div className="flex items-center gap-3">
@@ -345,11 +290,31 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           />
           <Field label={locale === "en" ? "Connection point" : "Punto de conexión"} value={project.connectionPoint} />
           <Field label={locale === "en" ? "Voltage level" : "Nivel de tensión"} value={project.voltageLevel ? `${project.voltageLevel} kV` : null} />
+          <Field label={locale === "en" ? "Substation bay" : "Paño"} value={project.substationBay} />
+          <Field label={locale === "en" ? "Transmission segment" : "Segmento de transmisión"} value={project.transmissionSegment} />
           <Field
             label={locale === "en" ? "Project connection date (declared)" : "Fecha de conexión del proyecto (declarada)"}
             value={project.estimatedConnectionDate ? new Date(project.estimatedConnectionDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL") : null}
           />
         </dl>
+        {scheduleConflict !== null && (
+          <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <span className="font-semibold">
+              {scheduleConflict > 0
+                ? locale === "en"
+                  ? `Sources disagree by ${scheduleConflict} days`
+                  : `Las fuentes difieren en ${scheduleConflict} días`
+                : locale === "en"
+                  ? `Sources disagree by ${Math.abs(scheduleConflict)} days`
+                  : `Las fuentes difieren en ${Math.abs(scheduleConflict)} días`}
+            </span>
+            <span>
+              {locale === "en"
+                ? `The owner reports this connection date to the Coordinator, but estimates commercial operation on ${new Date(pgpProgress!.operativeEstimateDate!).toLocaleDateString("en-GB")} in the PGP.`
+                : `El titular declara esta fecha de conexión al Coordinador, pero en el PGP estima entrar en operación el ${new Date(pgpProgress!.operativeEstimateDate!).toLocaleDateString("es-CL")}.`}
+            </span>
+          </p>
+        )}
       </div>
 
       <section className="border-b border-neutral-100 pb-8 dark:border-neutral-900" aria-labelledby="project-description-title">
@@ -360,7 +325,15 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
                 {locale === "en" ? "Description" : "Descripción"}
               </h2>
               <InfoTooltip
-                text={locale === "en" ? "Automatically generated summary based on the project's technical and location data." : "Resumen generado automáticamente a partir de los datos técnicos y de ubicación del proyecto."}
+                text={
+                  descriptionFromSource
+                    ? locale === "en"
+                      ? "Description as filed by the owner in the Coordinator's Project Management Platform (PGP). Not written by us."
+                      : "Descripción tal como el titular la presentó en la Plataforma de Gestión de Proyectos (PGP) del Coordinador. No la redactamos nosotros."
+                    : locale === "en"
+                      ? "Automatically generated summary based on the project's technical and location data."
+                      : "Resumen generado automáticamente a partir de los datos técnicos y de ubicación del proyecto."
+                }
                 locale={locale}
               />
             </div>
@@ -404,8 +377,9 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
               projectId={project.id}
               connectionStatus={project.status}
               externalReference={project.externalReference}
-              environmentalStatus={seiaRecord?.status ?? null}
-              seiaUrlFicha={seiaRecord?.urlFicha}
+              environmentalStatus={confirmedSeiaRecord?.status ?? null}
+              seiaUrlFicha={confirmedSeiaRecord?.urlFicha}
+              unconfirmedSeiaCandidate={!seiaConfirmed && !!seiaRecord}
               pertinencia={confirmedPertinencia ? { estado: confirmedPertinencia.estado, subEstado: confirmedPertinencia.subEstado } : null}
               pertinenciaDocUrl={confirmedPertinencia?.documentos[0]?.url ?? null}
               pgpProgress={pgpProgress}
@@ -418,72 +392,6 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           </PlanGate>
         </div>
       </section>
-
-      {estimatedPhase && (
-        <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
-          <SectionLabel
-            info={locale === "en" ? "Probabilistic model that works backward from the estimated connection date to place the project in a typical market development stage." : "Modelo probabilístico que calcula hacia atrás desde la fecha de conexión estimada para ubicar al proyecto en una etapa de desarrollo típica de mercado."}
-            locale={locale}
-          >
-            {locale === "en" ? "Estimated project schedule" : "Cronograma estimado del proyecto"}
-          </SectionLabel>
-          <PlanGate locked={isFree}>
-            <div className="mt-3 flex items-center gap-2">
-              <span className="rounded-full bg-brand-surface px-2 py-0.5 text-xs font-medium text-brand-deep">
-                {locale === "en" ? "Estimated" : "Estimado"} ·{" "}
-                {estimatedPhase.groupLabel === "PMGD" ? technologyLabel : estimatedPhase.groupLabel}
-              </span>
-            </div>
-            {scheduleCalibration && (
-              <p className="mt-2 text-[11px] text-neutral-400">
-                {locale === "en"
-                  ? `Schedule shifted ${scheduleCalibration.codSlippageDaysAvg > 0 ? "+" : ""}${Math.round(scheduleCalibration.codSlippageDaysAvg)} days based on observed connection-date changes for ${scheduleCalibration.scope === "developer" ? "this developer" : "the sector"} (n=${scheduleCalibration.sampleSize}).`
-                  : `Cronograma ajustado ${scheduleCalibration.codSlippageDaysAvg > 0 ? "+" : ""}${Math.round(scheduleCalibration.codSlippageDaysAvg)} días según el historial de cambios de fecha de conexión de ${scheduleCalibration.scope === "developer" ? "esta empresa" : "el sector"} (n=${scheduleCalibration.sampleSize}).`}
-              </p>
-            )}
-            <p className="mt-3 mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-              {locale === "en" ? (
-                estimatedPhase.pastConnectionDate
-                  ? "The estimated connection date has passed; the project should already be operational. "
-                  : confirmedInConstruction
-                    ? `The project has already been declared under construction by the National Electricity Coordinator — confirmed, not estimated. On the probabilistic schedule this corresponds to ${estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label}. `
-                    : effectiveCurrentPhase
-                      ? `Based on the estimated connection date and typical market durations, the project should currently be in ${estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label}. `
-                      : "Development should not have started yet based on the estimated connection date. "
-              ) : estimatedPhase.pastConnectionDate
-                ? "La fecha estimada de conexión ya pasó — el proyecto debería estar en operación."
-                : confirmedInConstruction
-                  ? `El proyecto ya fue declarado en construcción por el Coordinador Eléctrico Nacional — esto es un dato confirmado, no una estimación. En el cronograma probabilístico corresponde a: ${
-                      estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label
-                    }.`
-                  : effectiveCurrentPhase
-                    ? `Con base en la fecha estimada de conexión y duraciones típicas de mercado para este tipo de proyecto (${estimatedPhase.groupLabel}), el proyecto debería estar en: ${
-                        estimatedPhase.milestones.find((m) => m.phase === effectiveCurrentPhase)!.label
-                      }.`
-                    : "Aún no debería haber iniciado desarrollo según la fecha estimada de conexión."}{" "}
-              {locale === "en" ? `This is not confirmed project data; it is a probabilistic model calculated backwards from the connection date reported by the National Electricity Coordinator. Estimated total duration: approximately ${Math.round(estimatedPhase.totalDurationMonths)} months.` : <>No es un dato confirmado del proyecto — es un modelo probabilístico (mínimo / más probable / máximo)
-              calculado hacia atrás desde la fecha estimada de conexión reportada por el Coordinador Eléctrico
-              Nacional. Duración total estimada: ~{Math.round(estimatedPhase.totalDurationMonths)} meses. Las bandas
-              rayadas muestran el rango real (no un ± fijo) de cada etapa, y la confianza de cada una baja mientras
-              más lejos está del COD.</>}
-            </p>
-            <PhaseTimeline
-              milestones={estimatedPhase.milestones}
-              connectionDate={adjustedConnectionDate!}
-              pgpMilestones={pgpTimelineMilestones}
-              constructionNotStarted={constructionNotStartedReason(project.status, pgpProgress?.progressPercent)}
-              constructionProgress={
-                pgpProgress && pgpProgress.expectedProgressPercent !== null
-                  ? { theoreticalPercent: pgpProgress.expectedProgressPercent, realPercent: pgpProgress.progressPercent }
-                  : undefined
-              }
-              realProgressDate={realProgressDate ?? undefined}
-              confirmedMinimumPhase={confirmedInConstruction ? "construccion" : undefined}
-              locale={locale}
-            />
-          </PlanGate>
-        </section>
-      )}
 
       <section className="border-b border-neutral-100 pb-10 dark:border-neutral-900">
         <SectionLabel

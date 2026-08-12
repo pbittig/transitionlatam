@@ -23,6 +23,7 @@ export function ProjectProcessProgress({
   constructionStartGap,
   environmentalDetailExtra,
   showSuctdSearch,
+  unconfirmedSeiaCandidate = false,
   locale = "es",
 }: {
   projectId: string;
@@ -30,6 +31,8 @@ export function ProjectProcessProgress({
   externalReference?: string | null;
   environmentalStatus: string | null;
   seiaUrlFicha?: string | null;
+  /** Hay un expediente candidato que el cruce automático no pudo confirmar — se avisa sin desplegar el detalle. */
+  unconfirmedSeiaCandidate?: boolean;
   pertinencia?: { estado: string | null; subEstado: string | null } | null;
   pertinenciaDocUrl?: string | null;
   pgpProgress?: LatestPgpProgress | null;
@@ -107,9 +110,17 @@ export function ProjectProcessProgress({
   } else {
     secondBar = {
       title: en ? "Environmental status" : "Estado ambiental",
-      status: en ? "No SEIA filing linked yet" : "Sin expediente SEIA asociado todavía",
+      status: unconfirmedSeiaCandidate
+        ? en
+          ? "No confirmed filing — one unconfirmed candidate found"
+          : "Sin expediente confirmado — hay un candidato sin confirmar"
+        : en
+          ? "No SEIA filing linked yet"
+          : "Sin expediente SEIA asociado todavía",
       percentage: null,
-      badgeLabel: en ? "No linked filing" : "Sin expediente asociado",
+      badgeLabel: unconfirmedSeiaCandidate
+        ? en ? "Unconfirmed link" : "Vínculo sin confirmar"
+        : en ? "No linked filing" : "Sin expediente asociado",
       terminal: false,
       detail: (
         <>
@@ -120,10 +131,35 @@ export function ProjectProcessProgress({
     };
   }
 
+  const fmt = (value: string | null | undefined) =>
+    value ? new Date(value).toLocaleDateString(en ? "en-GB" : "es-CL") : null;
+  // Hitos que el expediente PGP tiene registrados. Se listan aparte de las
+  // estimaciones porque no son lo mismo: una fecha registrada es lo que el
+  // expediente dice que pasó, una estimada es lo que el titular proyecta.
+  const reportedMilestones = pgpProgress
+    ? ([
+        [en ? "Received in PGP" : "Recepción en PGP", fmt(pgpProgress.receptionDate)],
+        [en ? "Construction declaration" : "Declaración en construcción", fmt(pgpProgress.constructionDeclarationDate)],
+        [en ? "Entry into Service (recorded)" : "Puesta en Servicio (registrada)", fmt(pgpProgress.serviceDate)],
+        [en ? "Commercial Operation (recorded)" : "Entrada en Operación (registrada)", fmt(pgpProgress.operativeDate)],
+      ] as const).filter(([, value]) => value !== null)
+    : [];
+
   const constructionDetail = pgpProgress ? (
     <>
+      {reportedMilestones.length > 0 && (
+        <div className="mt-2 flex flex-col gap-0.5">
+          <p className="font-medium text-neutral-700 dark:text-neutral-300">{en ? "Recorded in the filing" : "Registrado en el expediente"}</p>
+          {reportedMilestones.map(([label, value]) => (
+            <p key={label}>
+              {label}: {value}
+            </p>
+          ))}
+        </div>
+      )}
       {(pgpProgress.serviceEstimateDate || pgpProgress.operativeEstimateDate) && (
         <div className="mt-2 flex flex-col gap-0.5">
+          <p className="font-medium text-neutral-700 dark:text-neutral-300">{en ? "Estimated by the owner" : "Estimado por el titular"}</p>
           {pgpProgress.serviceEstimateDate && (
             <p>
               {en ? "Entry into Service (estimated)" : "Puesta en Servicio (estimada)"}:{" "}
@@ -187,6 +223,23 @@ export function ProjectProcessProgress({
         percentage={pgpReading ? pgpReading.percent : null}
         badgeLabel={pgpReading ? `${pgpReading.percent}%` : en ? "No record" : "Sin registro"}
         noData={!pgpProgress}
+        // El avance esperado y la desviación son un modelo nuestro, no un dato
+        // del Coordinador — por eso van como marca de referencia sobre la barra
+        // y rotulados "estimado", no como un segundo porcentaje oficial.
+        expected={
+          pgpProgress && pgpProgress.expectedProgressPercent !== null
+            ? {
+                percent: pgpProgress.expectedProgressPercent,
+                label: `${en ? "Expected" : "Esperado"} ${Math.round(pgpProgress.expectedProgressPercent)}% ${
+                  en ? "(estimated)" : "(estimado)"
+                }${
+                  pgpProgress.deviationPp !== null
+                    ? ` · ${pgpProgress.deviationPp > 0 ? "+" : "−"}${Math.abs(Math.round(pgpProgress.deviationPp))} pp`
+                    : ""
+                }`,
+              }
+            : null
+        }
         detail={constructionDetail}
         locale={locale}
       />

@@ -11,6 +11,7 @@ export function ExpandableProgressBar({
   badgeLabel,
   terminal = false,
   noData = false,
+  expected,
   detail,
   locale,
 }: {
@@ -20,11 +21,18 @@ export function ExpandableProgressBar({
   badgeLabel: string;
   terminal?: boolean;
   noData?: boolean;
+  /**
+   * Marca de referencia sobre la misma barra (0-100) con su pie de nota — hoy
+   * la usa el avance de construcción para mostrar dónde debería ir el proyecto
+   * según el modelo, junto al avance real que reporta el titular.
+   */
+  expected?: { percent: number; label: string } | null;
   detail: ReactNode;
   locale: AppLocale;
 }) {
   const [open, setOpen] = useState(false);
   const width = percentage ?? 0;
+  const showExpected = !!expected && !terminal && !noData && percentage !== null;
 
   return (
     <div
@@ -50,27 +58,42 @@ export function ExpandableProgressBar({
         </span>
       </div>
 
-      <div
-        className={`mt-4 h-3 w-full overflow-hidden rounded-full ${
-          noData ? "bg-neutral-200 dark:bg-neutral-800" : "bg-brand-primary/15 ring-1 ring-brand-primary/10 dark:bg-brand-primary/10"
-        }`}
-        role="progressbar"
-        aria-label={`${title}: ${badgeLabel}`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percentage ?? undefined}
-      >
-        {!terminal && !noData && percentage !== null && (
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-[#333333] to-brand-primary shadow-[0_0_14px_rgba(56,215,197,0.28)] transition-[width]"
-            style={{ width: `${width}%` }}
+      {/* `relative` para poder anclar la marca de referencia; sin overflow-hidden
+          en el contenedor externo, así la marca puede sobresalir de la barra. */}
+      <div className="relative mt-4">
+        <div
+          className={`h-3 w-full overflow-hidden rounded-full ${
+            noData ? "bg-neutral-200 dark:bg-neutral-800" : "bg-brand-primary/15 ring-1 ring-brand-primary/10 dark:bg-brand-primary/10"
+          }`}
+          role="progressbar"
+          aria-label={`${title}: ${badgeLabel}`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percentage ?? undefined}
+        >
+          {!terminal && !noData && percentage !== null && (
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#333333] to-brand-primary shadow-[0_0_14px_rgba(56,215,197,0.28)] transition-[width]"
+              style={{ width: `${width}%` }}
+            />
+          )}
+        </div>
+        {showExpected && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -top-1 -bottom-1 w-0.5 rounded-full bg-neutral-500 dark:bg-neutral-400"
+            style={{ left: `calc(${Math.min(100, Math.max(0, expected!.percent))}% - 1px)` }}
           />
         )}
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-[11px] text-neutral-400 dark:text-neutral-500">
+      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-neutral-400 dark:text-neutral-500">
         <span>{locale === "en" ? "Start" : "Inicio"}</span>
-        <span>{locale === "en" ? "Complete" : "Completado"}</span>
+        {showExpected ? (
+          <span className="text-right text-neutral-500 dark:text-neutral-400">{expected!.label}</span>
+        ) : (
+          <span>{locale === "en" ? "Complete" : "Completado"}</span>
+        )}
       </div>
 
       <button
