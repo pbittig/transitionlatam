@@ -43,11 +43,16 @@ const STOPWORDS = new Set([
  */
 const MIN_NAME_MATCH_SCORE = 20;
 
-function tokenize(name: string): Set<string> {
+/**
+ * Exportadas para que otros cruces por nombre de proyecto (ej. la nómina de
+ * Declaración en Construcción de CNE) usen exactamente la misma tokenización y
+ * la misma lista de stopwords. Duplicarlas garantizaría que se desincronicen.
+ */
+export function tokenizeProjectName(name: string): Set<string> {
   return new Set(normalizeForMatch(name).split(" ").filter((w) => w.length > 2 && !STOPWORDS.has(w)));
 }
 
-function jaccardScore(a: Set<string>, b: Set<string>): number {
+export function jaccardScore(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 || b.size === 0) return 0;
   let intersection = 0;
   for (const w of a) if (b.has(w)) intersection++;
@@ -104,12 +109,12 @@ export function suggestProjectMatch(
     if (rutMatch) return { projectId: rutMatch.id, projectName: rutMatch.name, score: 100, matchedBy: "rut" };
   }
 
-  const targetTokens = tokenize(pertinenciaName);
+  const targetTokens = tokenizeProjectName(pertinenciaName);
   if (targetTokens.size === 0) return null;
 
   let best: MatchCandidate | null = null;
   for (const project of candidates) {
-    const score = jaccardScore(targetTokens, tokenize(project.name));
+    const score = jaccardScore(targetTokens, tokenizeProjectName(project.name));
     if (score >= MIN_NAME_MATCH_SCORE && (!best || score > best.score)) {
       best = { projectId: project.id, projectName: project.name, score, matchedBy: "name" };
     }
@@ -164,12 +169,12 @@ export function suggestPertinenciaForProject(
     if (rutMatch) return { pertinenciaId: rutMatch.id, pertinenciaName: rutMatch.name, score: 100, matchedBy: "rut" };
   }
 
-  const targetTokens = tokenize(projectName);
+  const targetTokens = tokenizeProjectName(projectName);
   if (targetTokens.size === 0) return null;
 
   let best: PertinenciaSuggestionForProject | null = null;
   for (const candidate of candidates) {
-    const score = jaccardScore(targetTokens, tokenize(candidate.name));
+    const score = jaccardScore(targetTokens, tokenizeProjectName(candidate.name));
     if (score >= MIN_NAME_MATCH_SCORE && (!best || score > best.score)) {
       best = { pertinenciaId: candidate.id, pertinenciaName: candidate.name, score, matchedBy: "name" };
     }

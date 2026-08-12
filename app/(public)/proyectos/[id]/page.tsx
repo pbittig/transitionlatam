@@ -35,6 +35,7 @@ import { InfoTooltip } from "../../components/InfoTooltip";
 import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { ProjectOwnershipSection } from "./ProjectOwnershipSection";
 import { getLatestPgpProgress } from "@/lib/data-access/pgpProgress";
+import { getConstructionDeclarationForProject } from "@/lib/data-access/construction";
 import { hasConstructionStartGap, interpretPgpProgress } from "@/lib/shared/pgpProjectProgress";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 import { FEHACIENTE_AWAITING_SUCTD_MARKER } from "@/lib/ingestion/sources/energia-abierta/listado/load";
@@ -92,13 +93,14 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   // registro en PGP" para proyectos que sí tienen avance informado. Mismo
   // criterio que ya usan la propiedad, la pertinencia y el CRM en esta página.
   const admin = await isAdmin();
-  const [relatedCompanies, seiaRecord, confirmedPertinencia, profile, pgpProgress, timeline] = await Promise.all([
+  const [relatedCompanies, seiaRecord, confirmedPertinencia, profile, pgpProgress, timeline, cneDeclaration] = await Promise.all([
     getRelatedCompaniesByName(client, project.developerCompany),
     getSeiaRecordForProject(client, id),
     getConfirmedPertinenciaForProject(createSupabaseServiceClient(), id),
     getCurrentUserProfile(client),
     getLatestPgpProgress(admin ? createSupabaseServiceClient() : client, id),
     getProjectTimeline(client, id),
+    getConstructionDeclarationForProject(client, id),
   ]);
   const pulse = computeProjectPulse(timeline);
   // Un match automático de confianza baja no es antecedente ambiental: se sigue
@@ -415,6 +417,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
               environmentalStatus={confirmedSeiaRecord?.status ?? null}
               seiaUrlFicha={confirmedSeiaRecord?.urlFicha}
               unconfirmedSeiaCandidate={!seiaConfirmed && !!seiaRecord}
+              cneDeclaration={cneDeclaration}
               pertinencia={confirmedPertinencia ? { estado: confirmedPertinencia.estado, subEstado: confirmedPertinencia.subEstado } : null}
               pertinenciaDocUrl={confirmedPertinencia?.documentos[0]?.url ?? null}
               pgpProgress={pgpProgress}

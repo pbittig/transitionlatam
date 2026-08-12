@@ -3,6 +3,7 @@ import { getStatusMaturity, isRejectedStatus } from "@/lib/shared/projectStatusM
 import { getPertinenciaMaturity, isPertinenciaNegativeTerminal } from "@/lib/shared/pertinenciaStatusMaturity";
 import { clasificarConclusionPertinencia } from "@/lib/data-access/pertinencias";
 import type { LatestPgpProgress } from "@/lib/data-access/pgpProgress";
+import type { ConstructionDeclaration } from "@/lib/data-access/construction";
 import type { PgpProgressReading } from "@/lib/shared/pgpProjectProgress";
 import type { AppLocale } from "@/lib/i18n";
 import { ExpandableProgressBar } from "./ExpandableProgressBar";
@@ -24,6 +25,7 @@ export function ProjectProcessProgress({
   environmentalDetailExtra,
   showSuctdSearch,
   unconfirmedSeiaCandidate = false,
+  cneDeclaration,
   locale = "es",
 }: {
   projectId: string;
@@ -33,6 +35,8 @@ export function ProjectProcessProgress({
   seiaUrlFicha?: string | null;
   /** Hay un expediente candidato que el cruce automático no pudo confirmar — se avisa sin desplegar el detalle. */
   unconfirmedSeiaCandidate?: boolean;
+  /** Declaración en Construcción de CNE, si la nómina la trae para este proyecto. */
+  cneDeclaration?: ConstructionDeclaration | null;
   pertinencia?: { estado: string | null; subEstado: string | null } | null;
   pertinenciaDocUrl?: string | null;
   pgpProgress?: LatestPgpProgress | null;
@@ -46,6 +50,16 @@ export function ProjectProcessProgress({
   const connectionMaturity = getStatusMaturity(connectionStatus);
   const connectionTerminal = isRejectedStatus(connectionStatus);
 
+  // El estado del Coordinador y la nómina de CNE son dos autoridades distintas
+  // mirando el mismo hecho. Cuando CNE ya declaró el proyecto en construcción y
+  // el trámite de conexión todavía no lo refleja, el hito se da por cumplido
+  // citando a CNE — un hito no retrocede porque otra fuente aún no lo diga
+  // (docs/11 §14, regla R3). El desfase se muestra, no se esconde.
+  const declaredByCoordinador = !!connectionStatus && /proyecto declarado en construc/i.test(
+    connectionStatus.normalize("NFD").replace(/[̀-ͯ]/g, ""),
+  );
+  const cneAheadOfCoordinador = !!cneDeclaration && !declaredByCoordinador;
+
   const connectionDetail = (
     <>
       <p>
@@ -53,6 +67,13 @@ export function ProjectProcessProgress({
           ? "Status reported in the Open Access connection-request portal of the National Electricity Coordinator."
           : "Estado informado en el portal de Acceso Abierto de solicitudes de conexión del Coordinador Eléctrico Nacional."}
       </p>
+      {cneAheadOfCoordinador && (
+        <p className="mt-2 font-medium text-amber-700 dark:text-amber-400">
+          {en
+            ? `The CNE already lists this project as declared under construction (resolution ${cneDeclaration!.resolution ?? cneDeclaration!.currentResolutionNumber}), ahead of the connection status above.`
+            : `La CNE ya lo tiene declarado en construcción (resolución ${cneDeclaration!.resolution ?? cneDeclaration!.currentResolutionNumber}), por delante del estado de conexión de arriba.`}
+        </p>
+      )}
       {externalReference && (
         <p className="mt-1 text-neutral-500">
           {en ? "Request ID" : "ID de solicitud"}: {externalReference}
@@ -145,6 +166,32 @@ export function ProjectProcessProgress({
       ] as const).filter(([, value]) => value !== null)
     : [];
 
+  const cneBlock = cneDeclaration && (
+    <div className="mt-2 flex flex-col gap-0.5 border-t border-neutral-200 pt-2 dark:border-neutral-800">
+      <p className="font-medium text-neutral-700 dark:text-neutral-300">
+        {en ? "Declared under construction (CNE)" : "Declarado en construcción (CNE)"}
+      </p>
+      <p>
+        {en ? "Resolution" : "Resolución"}: {cneDeclaration.resolution ?? cneDeclaration.currentResolutionNumber}
+        {" · "}
+        {en ? "list in force" : "nómina vigente"} {fmt(cneDeclaration.currentResolutionDate)}
+      </p>
+      {cneDeclaration.originalInterconnectionDate && cneDeclaration.estimatedInterconnectionDate &&
+        cneDeclaration.originalInterconnectionDate !== cneDeclaration.estimatedInterconnectionDate && (
+          <p>
+            {en ? "Interconnection moved from" : "Interconexión movida del"} {fmt(cneDeclaration.originalInterconnectionDate)}{" "}
+            {en ? "to" : "al"} {fmt(cneDeclaration.estimatedInterconnectionDate)}
+            <span className="text-neutral-400"> · {en ? "acknowledged by the CNE" : "reconocido por la CNE"}</span>
+          </p>
+        )}
+      {cneDeclaration.matchedBy?.startsWith("auto_") && (
+        <p className="text-neutral-400">
+          {en ? "Link to this project made automatically; pending human review." : "Vínculo con este proyecto hecho automáticamente; pendiente de revisión humana."}
+        </p>
+      )}
+    </div>
+  );
+
   const constructionDetail = pgpProgress ? (
     <>
       {reportedMilestones.length > 0 && (
@@ -187,13 +234,17 @@ export function ProjectProcessProgress({
       <a href={pgpProgress.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block font-medium text-brand-deep underline">
         {en ? "View on PGP" : "Ver en PGP"} · NUP {pgpProgress.nup}
       </a>
+      {cneBlock}
     </>
   ) : (
-    <p>
-      {en
-        ? "This project does not yet have a registered entry in the Major Projects Program (PGP) construction tracking."
-        : "Este proyecto aún no tiene registro en el seguimiento de construcción del Programa de Grandes Proyectos (PGP)."}
-    </p>
+    <>
+      <p>
+        {en
+          ? "This project does not yet have a registered entry in the Coordinator's Project Management Platform (PGP), so we cannot say whether works have started."
+          : "Este proyecto aún no tiene registro en la Plataforma de Gestión de Proyectos (PGP) del Coordinador, así que no podemos decir si las obras empezaron."}
+      </p>
+      {cneBlock}
+    </>
   );
 
   return (
