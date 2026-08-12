@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
-import { getProjectById, getRelatedPortfolioProjects, getProjectStakeholders } from "@/lib/data-access/projects";
+import { getProjectById, getRelatedPortfolioProjects, getProjectStakeholders, getProjectTimeline } from "@/lib/data-access/projects";
+import { computeProjectPulse, formatMonthSpan, formatTimeAgo } from "@/lib/shared/projectPulse";
 import { maskName, maskEmail } from "@/lib/shared/maskContact";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
 import { getSeiaRecordForProject } from "@/lib/data-access/seia";
@@ -91,13 +92,15 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   // registro en PGP" para proyectos que sí tienen avance informado. Mismo
   // criterio que ya usan la propiedad, la pertinencia y el CRM en esta página.
   const admin = await isAdmin();
-  const [relatedCompanies, seiaRecord, confirmedPertinencia, profile, pgpProgress] = await Promise.all([
+  const [relatedCompanies, seiaRecord, confirmedPertinencia, profile, pgpProgress, timeline] = await Promise.all([
     getRelatedCompaniesByName(client, project.developerCompany),
     getSeiaRecordForProject(client, id),
     getConfirmedPertinenciaForProject(createSupabaseServiceClient(), id),
     getCurrentUserProfile(client),
     getLatestPgpProgress(admin ? createSupabaseServiceClient() : client, id),
+    getProjectTimeline(client, id),
   ]);
+  const pulse = computeProjectPulse(timeline);
   // Un match automático de confianza baja no es antecedente ambiental: se sigue
   // mostrando como candidato (y en admin, para poder corregirlo) pero no entra
   // en el estado ambiental ni en el Health Score — ver
@@ -253,6 +256,38 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
               </h1>
             </div>
             <p className="mt-1 text-sm text-neutral-400 dark:text-neutral-500">{project.internalCode}</p>
+            {(pulse.requestAgeMonths !== null || pulse.lastMovement) && (
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+                {pulse.requestAgeMonths !== null && (
+                  <span>
+                    {locale === "en" ? "Application filed" : "Solicitud ingresada"}{" "}
+                    <strong className="font-semibold text-neutral-700 dark:text-neutral-200">
+                      {locale === "en"
+                        ? `${formatMonthSpan(pulse.requestAgeMonths, "en")} ago`
+                        : `hace ${formatMonthSpan(pulse.requestAgeMonths, "es")}`}
+                    </strong>
+                  </span>
+                )}
+                {pulse.requestAgeMonths !== null && pulse.lastMovement && <span aria-hidden>·</span>}
+                {pulse.lastMovement ? (
+                  <span>
+                    {locale === "en" ? "last movement" : "último movimiento"}{" "}
+                    <strong className="font-semibold text-neutral-700 dark:text-neutral-200">
+                      {formatTimeAgo(pulse.lastMovement.occurredAt, locale === "en" ? "en" : "es")}
+                    </strong>
+                    {pulse.lastMovement.description && (
+                      <span className="text-neutral-400 dark:text-neutral-500"> — {pulse.lastMovement.description}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-neutral-400 dark:text-neutral-500">
+                    {locale === "en"
+                      ? "no movement observed since we started tracking it"
+                      : "sin movimientos observados desde que lo seguimos"}
+                  </span>
+                )}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ShareProjectButton projectName={project.name} locale={locale} />
