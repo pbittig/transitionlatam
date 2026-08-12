@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, ShieldCheck } from "lucide-react";
+import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, ShieldCheck, TrendingUp } from "lucide-react";
 import { logout } from "@/app/ingresar/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import type { AppLocale } from "@/lib/i18n";
@@ -19,6 +19,9 @@ function getNavItems(locale: AppLocale) {
         { href: localizedRoute("operations", locale), label: "Projects in operation", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: localizedRoute("owners", locale), label: "Owners", icon: Network, minPlan: "premium" },
         { href: localizedRoute("tracking", locale), label: "Tracking", icon: Eye, minPlan: "premium" },
+        // Va después de las fuentes de proyectos reales a propósito: PELP es
+        // modelamiento de expansión, no un pipeline de proyectos.
+        { href: "/expansion-futura", label: "Future Expansion", icon: TrendingUp, minPlan: "free" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: localizedRoute("services", locale), label: "Additional services", icon: ClipboardList, minPlan: "free" },
       ]
@@ -27,6 +30,7 @@ function getNavItems(locale: AppLocale) {
         { href: "/operacion", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/propietarios", label: "Propietarios", icon: Network, minPlan: "premium" },
         { href: "/seguimiento", label: "Seguimiento", icon: Eye, minPlan: "premium" },
+        { href: "/expansion-futura", label: "Expansión Futura", icon: TrendingUp, minPlan: "free" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: localizedRoute("services", locale), label: "Servicios adicionales", icon: ClipboardList, minPlan: "free" },
       ];
