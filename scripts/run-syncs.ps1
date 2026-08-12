@@ -25,7 +25,8 @@
 .PARAMETER Set
   daily   - los que corrian a diario en Vercel, en el mismo orden.
   weekly  - los semanales, mas los tres SIPUB que nunca tuvieron cron.
-  all     - ambos.
+  monthly - PELP. Se publica por version de informe, no cambia a diario.
+  all     - los tres.
 
 .PARAMETER NodeDir
   Carpeta que contiene node.exe, por si el PATH de la tarea programada no lo
@@ -43,7 +44,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('daily', 'weekly', 'all')]
+  [ValidateSet('daily', 'weekly', 'monthly', 'all')]
   [string]$Set = 'daily',
 
   [string]$NodeDir = ''
@@ -102,11 +103,18 @@ $weekly = @(
   @{ name = 'sync-cne-capacidad-remote'; args = @() },
   @{ name = 'compute-schedule-calibration'; args = @() }
 )
+# PELP: modelo de expansion del Ministerio de Energia. Cadencia mensual porque
+# se publica por version de informe ("Informe Preliminar PELP 2028-2032"), no
+# se actualiza a diario. La corrida es idempotente por clave logica.
+$monthly = @(
+  @{ name = 'sync-pelp'; args = @() }
+)
 
 $jobs = switch ($Set) {
-  'daily'  { $daily }
-  'weekly' { $weekly }
-  'all'    { $daily + $weekly }
+  'daily'   { $daily }
+  'weekly'  { $weekly }
+  'monthly' { $monthly }
+  'all'     { $daily + $weekly + $monthly }
 }
 
 $logDir = Join-Path $repoRoot 'logs'
