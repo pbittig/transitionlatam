@@ -1,5 +1,5 @@
 // Borra los datos de prueba que entraron con la plantilla de ejemplo del
-// Formulario en los primeros días del proyecto (20-26 de julio de 2026).
+// Formulario. HOY ABORTA A PROPÓSITO: falta resolver las SPV, ver más abajo.
 //
 // Qué son: la plantilla en blanco del Formulario trae nombres de relleno
 // ("Juan Pérez", "Empresa de Generación S.A.") y RUT de ejemplo
@@ -13,6 +13,29 @@
 // habría borrado. Los ids se fijaron tras revisar caso por caso, y el script
 // vuelve a verificar el nombre de cada uno antes de tocar nada: si algún id ya
 // no corresponde a lo esperado, aborta sin borrar.
+//
+// ALCANCE REAL, medido contra producción el 2026-08-12. La versión anterior de
+// esta cabecera decía "primeros días del proyecto (20-26 de julio)" y es falso:
+//
+//   - Las SPV con nombre de plantilla se siguieron creando hasta el 2026-08-10
+//     (la última, en el reprocesamiento del 9-10 de agosto). Lo que las escribe
+//     sigue vivo, así que limpiar sin tapar la fuente no dura.
+//   - 49 filas de `spv` tienen una de estas empresas como matriz, y 30 proyectos
+//     reales —4 de ellos verificados— cuelgan de esas SPV por `project.spv_id`,
+//     que es ON DELETE NO ACTION. Por eso `--apply` moría con una violación de
+//     `spv_parent_company_id_fkey` y revertía sin borrar nada.
+//   - 3 de esas SPV son REALES: Bridge Almacenamiento Uno SpA, Bridge
+//     Almacenamiento 2 SpA y CMS SPV III SpA. Tienen la sociedad correcta y la
+//     matriz inventada: hay que soltarles la matriz, no borrarlas. Es el mismo
+//     riesgo que motivó los ids fijos (Metro de Santiago), un nivel más abajo,
+//     en `spv`, donde la primera versión no lo buscó.
+//
+// QUÉ FALTA, en este orden — invertirlo obliga a repetir el trabajo:
+//   1. Tapar en la ingesta del Formulario lo que escribe los valores de la
+//      plantilla, y rechazarlos en la escritura.
+//   2. Resolver las 49 SPV: soltar el `spv_id` de sus proyectos y borrar las 46
+//      inventadas; a las 3 reales, dejarlas sin matriz.
+//   3. Recién entonces este script borra sus 13 filas sin chocar con nada.
 //
 // Uso:
 //   node scripts/delete-template-test-data.mjs            # simulación
@@ -101,6 +124,31 @@ async function main() {
   );
   if (conProyectos.rows[0].n > 0) {
     throw new Error(`${conProyectos.rows[0].n} proyectos reales tienen una de estas empresas como desarrolladora. Abortado.`);
+  }
+
+  // Salvaguarda: ninguna de estas empresas debe ser matriz de una SPV.
+  //
+  // Va acá, entre las verificaciones y no dentro del `if (apply)`, porque la
+  // simulación tiene que fallar en lo mismo que falla el borrado o no está
+  // simulando nada: sin este chequeo la corrida sin `--apply` informaba éxito
+  // para una operación que la base rechaza, y el `--apply` recién lo descubría
+  // como una violación de FK cruda al fondo de un stack trace.
+  const spvDependientes = await client.query(
+    `select s.name, count(distinct p.id)::int as proyectos
+       from spv s
+       left join project p on p.spv_id = s.id
+      where s.parent_company_id = any($1::uuid[])
+      group by s.name
+      order by proyectos desc, s.name`,
+    [companyIds],
+  );
+  if (spvDependientes.rowCount > 0) {
+    const proyectos = spvDependientes.rows.reduce((n, r) => n + r.proyectos, 0);
+    const detalle = spvDependientes.rows.map((r) => `    - ${r.name}: ${r.proyectos} proyecto(s)`).join("\n");
+    throw new Error(
+      `${spvDependientes.rowCount} nombres de SPV tienen una de estas empresas como matriz, con ${proyectos} proyectos reales colgando de ellas. ` +
+        `Resolver las SPV antes de borrar las empresas (ver la cabecera de este archivo). Abortado.\n${detalle}`,
+    );
   }
 
   const relaciones = await client.query(

@@ -19,12 +19,11 @@ Este archivo existe para que **cualquier instancia de Claude Code que abra este 
 7. **Planes de implementación cortos, no TDD exhaustivo por defecto** — el usuario prioriza eficiencia de tokens/tiempo sobre proceso formal, salvo que pida lo contrario.
 8. **"Verificar" un proyecto en `/admin/verificador` solo debe cambiar `verified_at`** (y campos editoriales asociados) — nunca debe reescribir silenciosamente otros datos de la ficha ya cargados.
 
-## Sesión 2026-08-12 (cierre) — dos cosas quedaron listas pero SIN ejecutar
+## Sesión 2026-08-12 (cierre) — energía derivada del PELP, y una limpieza que resultó ser mucho más grande
 
-Ojo antes de tocar nada: hay **4 commits en `main` sin pushear** y **un borrado de
-datos de producción preparado y no aplicado**. Ninguna de las dos se pudo
-ejecutar desde la sesión —el clasificador de permisos bloqueó tanto `git push`
-como correr el script— así que esperan a que alguien las corra a mano.
+Lo del PELP quedó cerrado y desplegado. Lo de los datos de plantilla **no se
+borró y no hay que borrarlo todavía**: al intentarlo apareció que el problema es
+otro, bastante más ancho. Está en el punto 2.
 
 ### 1. Energía derivada del PELP (commit `1cf6b7a`)
 
@@ -45,21 +44,46 @@ Verificado antes de commitear: `tsc --noEmit` limpio, `npm run lint` 0 errores
 (queda 1 warning preexistente, `_capacityMw` en `projectPhaseDurations.ts`) y
 `npm run build` completo.
 
-### 2. Datos de plantilla en producción — PENDIENTE DE BORRAR
+### 2. Datos de plantilla: el alcance real es la ficha de 30 proyectos, no 13 filas
 
-`scripts/delete-template-test-data.mjs` (commit `2850c8c`). La plantilla en
-blanco del Formulario se procesó como documento real en la primera semana del
-proyecto, y sus nombres de relleno quedaron cargados como datos productivos.
-**Confirmado el 2026-08-12 que siguen ahí**: 6 empresas, 6 personas ("Juan
-Pérez" ×2, "María López" ×2, "Carlos Díaz", "Carlos Rojas") y el proyecto "PFV
-Prueba". Un usuario Prime los ve como reales.
+`scripts/delete-template-test-data.mjs` (commits `2850c8c` y el de esta
+corrección). Se escribió para borrar 6 empresas, 6 personas y un proyecto de
+relleno que dejó la plantilla en blanco del Formulario. Se corrió con `--apply`
+y **murió en una violación de FK sin borrar nada** — la transacción revirtió,
+que es lo que tenía que pasar. Lo que apareció al investigar el choque:
 
-Borra por **ids fijos, nunca por patrón de nombre**: `name ilike 'empresa de %'`
-también captura "Empresa de Transporte de Pasajeros Metro S.A.", que es Metro de
-Santiago y es real. El script revalida cada nombre antes de tocar nada, aborta
-si alguna de esas empresas es desarrolladora de un proyecto real, respalda filas
-y relaciones en `logs/` y borra dentro de una transacción que revierte si los
-conteos no cuadran. Simula por defecto; `--apply` es lo que borra.
+- **49 filas de `spv` tienen una de esas empresas como matriz**, y **30
+  proyectos reales** —4 verificados— cuelgan de esas SPV por `project.spv_id`,
+  que es `ON DELETE NO ACTION`. Borrar las empresas obliga a decidir qué pasa
+  con esos 30 proyectos; no es cosa de agregarle un `delete` más al script.
+- **27 de esos 30 proyectos muestran hoy una SPV inventada.** "BESS BRIDGE 5",
+  "Parque Eólico Kumleufú", "Apolo" y 24 más aparecen con una sociedad vehículo
+  llamada "Empresa de Energía S.A.", que no existe. Es el mismo problema que
+  motivó el script, treinta veces más ancho de lo que el script cubría.
+- **3 de las SPV son reales**: Bridge Almacenamiento Uno SpA, Bridge
+  Almacenamiento 2 SpA y CMS SPV III SpA, colgadas de BESS Río Llanco, BESS
+  Bridge 4 y PFV Los Llanos (los tres verificados). Tienen la sociedad correcta
+  y la matriz inventada: hay que soltarles la matriz, no borrarlas. Es el mismo
+  riesgo que motivó usar ids fijos en vez de un patrón de nombre (Metro de
+  Santiago), un nivel más abajo, donde la primera versión no lo buscó.
+- **No es un residuo de la primera semana.** La cabecera original decía "20-26
+  de julio"; las SPV con nombre de plantilla se crearon hasta el **2026-08-10**,
+  la última en el reprocesamiento del 9-10 de agosto. Lo que las escribe sigue
+  vivo: limpiar sin tapar la fuente no dura.
+
+El script ahora **aborta a propósito**, con la lista de SPV bloqueantes y sus
+proyectos, y lo hace **también en simulación**. Antes la simulación daba verde
+para una operación que la base rechaza —por eso el `--apply` sorprendió—; una
+simulación que no falla donde falla el borrado no está simulando nada.
+
+Orden para retomarlo (invertirlo obliga a repetir el trabajo): **(1)** tapar en
+la ingesta del Formulario lo que escribe los valores de la plantilla; **(2)**
+resolver las 49 SPV — soltar el `spv_id` de sus proyectos y borrar las 46
+inventadas, dejar sin matriz las 3 reales; **(3)** recién ahí correr este script.
+
+Dos decisiones quedaron abiertas, sin respuesta del usuario: si se arranca por
+tapar la fuente o por limpiar, y si a las 3 SPV reales se las deja sin matriz o
+se investiga a qué empresa pertenecen de verdad.
 
 ## Sesión 2026-08-12 — PELP: nueva fuente de expansión modelada
 
