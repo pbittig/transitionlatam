@@ -9,6 +9,16 @@ interface RawPgpRequest {
   name?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  // Hitos y contexto que el listado ya devolvía y que sólo quedaban dentro de
+  // `raw` (guardado como source_payload). Ver la migración
+  // 20260812000001_pgp_reported_milestones.sql.
+  reception_date?: string | null;
+  construction_declaration_date?: string | null;
+  service_date?: string | null;
+  operative_date?: string | null;
+  description?: string | null;
+  applicant?: { name?: string | null } | null;
+  project_type?: { name?: string | null } | null;
 }
 
 export interface PgpProjectProgress {
@@ -18,6 +28,18 @@ export interface PgpProjectProgress {
   progressPercent: number;
   serviceEstimateDate: string | null;
   operativeEstimateDate: string | null;
+  /** Fecha de recepción de la solicitud en PGP. */
+  receptionDate: string | null;
+  /** Fecha en que el expediente registra la declaración en construcción. */
+  constructionDeclarationDate: string | null;
+  /** Puesta en servicio registrada en el expediente — no es prueba de que ocurrió, ver la migración. */
+  serviceDate: string | null;
+  /** Entrada en operación registrada en el expediente — misma advertencia. */
+  operativeDate: string | null;
+  applicantName: string | null;
+  projectType: string | null;
+  /** Descripción técnica redactada del proyecto, tal como la publica el expediente. */
+  description: string | null;
   sourceUrl: string;
   raw: RawPgpRequest;
 }
@@ -139,6 +161,13 @@ export async function fetchPgpProjectProgress(nups: string[]): Promise<PgpProjec
       progressPercent: progress,
       serviceEstimateDate: null,
       operativeEstimateDate: null,
+      receptionDate: toDateOnly(row.reception_date),
+      constructionDeclarationDate: toDateOnly(row.construction_declaration_date),
+      serviceDate: toDateOnly(row.service_date),
+      operativeDate: toDateOnly(row.operative_date),
+      applicantName: row.applicant?.name ?? null,
+      projectType: row.project_type?.name ?? null,
+      description: row.description ?? null,
       sourceUrl: `${PGP_BASE_URL}/irequests/${id}`,
       raw: row,
     }];

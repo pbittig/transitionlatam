@@ -25,12 +25,54 @@ function normalizeNup(value: string): string {
 
 const CURSOR_KEY = "pgp_progress_sync_cursor";
 
+const PROJECT_PAGE_SIZE = 1000;
+
+const ELIGIBLE_PROJECT_SELECT =
+  "id, nup, status, estimated_connection_date, capacity_mw, includes_storage, technology:technology_id(code)";
+
+interface EligibleProjectRow {
+  id: string;
+  nup: string | null;
+  status: string | null;
+  estimated_connection_date: string | null;
+  capacity_mw: number | string | null;
+  includes_storage: boolean;
+  technology: { code: string } | null;
+}
+
+/**
+ * La elegibilidad (declarado en construcción / finalizado) se evalúa en Node
+ * sobre el texto del estado, porque la fuente mezcla variantes de tildes y
+ * mayúsculas que PostgREST no puede comparar normalizadas — así que hay que
+ * traerse todos los proyectos con NUP, no una página.
+ *
+ * Sin paginar, esta lectura devolvía sólo las primeras 1000 filas de `project`
+ * (tope de la instancia de PostgREST) y la elegibilidad se calculaba sobre ese
+ * tramo: el job reportaba 88 proyectos elegibles cuando la base tenía 229 que
+ * cumplían su propio criterio (219 declarados en construcción con NUP + 10
+ * finalizados). Dos tercios de los proyectos declarados nunca se consultaban
+ * contra PGP, y el resultado se veía como un vacío de la fuente en vez de un
+ * bug nuestro. `order("id")` fija el orden: sin él la paginación puede repetir
+ * y saltarse filas entre páginas.
+ */
+async function fetchProjectsWithNup(client: SupabaseClient): Promise<EligibleProjectRow[]> {
+  const rows: EligibleProjectRow[] = [];
+  for (let from = 0; ; from += PROJECT_PAGE_SIZE) {
+    const { data, error } = await client
+      .from("project")
+      .select(ELIGIBLE_PROJECT_SELECT)
+      .not("nup", "is", null)
+      .order("id")
+      .range(from, from + PROJECT_PAGE_SIZE - 1);
+    if (error) throw new Error(`Error leyendo proyectos elegibles para PGP: ${error.message}`);
+    const batch = (data ?? []) as unknown as EligibleProjectRow[];
+    rows.push(...batch);
+    if (batch.length < PROJECT_PAGE_SIZE) return rows;
+  }
+}
+
 export async function runPgpProgressSync(client: SupabaseClient, batchSize = 20): Promise<PgpSyncSummary> {
-  const { data: projects, error: projectsError } = await client
-    .from("project")
-    .select("id, nup, status, estimated_connection_date, capacity_mw, includes_storage, technology:technology_id(code)")
-    .not("nup", "is", null);
-  if (projectsError) throw new Error(`Error leyendo proyectos elegibles para PGP: ${projectsError.message}`);
+  const projects = await fetchProjectsWithNup(client);
 
   const projectByNup = new Map<string, {
     id: string;
@@ -125,6 +167,14 @@ export async function runPgpProgressSync(client: SupabaseClient, batchSize = 20)
       model_version: expectedProgress === null ? null : PDTE_PROGRESS_MODEL_VERSION,
       service_estimate_date: reading.serviceEstimateDate,
       operative_estimate_date: reading.operativeEstimateDate,
+      reception_date: reading.receptionDate,
+      construction_declaration_date: reading.constructionDeclarationDate,
+      service_date: reading.serviceDate,
+      operative_date: reading.operativeDate,
+      applicant_name: reading.applicantName,
+      pgp_project_name: reading.projectName,
+      pgp_project_type: reading.projectType,
+      pgp_description: reading.description,
       source_url: reading.sourceUrl,
       source_payload: reading.raw,
     });
