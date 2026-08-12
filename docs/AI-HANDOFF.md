@@ -19,6 +19,79 @@ Este archivo existe para que **cualquier instancia de Claude Code que abra este 
 7. **Planes de implementación cortos, no TDD exhaustivo por defecto** — el usuario prioriza eficiencia de tokens/tiempo sobre proceso formal, salvo que pida lo contrario.
 8. **"Verificar" un proyecto en `/admin/verificador` solo debe cambiar `verified_at`** (y campos editoriales asociados) — nunca debe reescribir silenciosamente otros datos de la ficha ya cargados.
 
+## Sesión 2026-08-12 — PELP: nueva fuente de expansión modelada
+
+### Qué se integró
+
+La Planificación Energética de Largo Plazo del Ministerio de Energía
+(`energia.gob.cl/pelp/proyecciones-electricas`), modelo de expansión del SEN
+(PyPSA-CL). **15.600 registros**, 5 escenarios, 2026–2057, 234 nodos, 91 comunas.
+Nueva sección `/expansion-futura` y sync mensual (`scripts/sync-pelp.ts`).
+
+### Cómo se accede a la fuente (no es scraping)
+
+La página embebe un Power BI publicado con "Publicar en la web". En ese modo el
+bootstrap declara `powerBIAccessToken = 'any'` y `reportId = 'any'`: **la
+resource key sola autentica**, no hay OAuth. Tres llamadas REST anónimas:
+
+```
+Host  wabi-south-central-us-api.analysis.windows.net    <- el -api, NO el -redirect (403 en todo)
+Auth  X-PowerBI-ResourceKey: 8cd41d5d-f70d-4dc3-8549-ff5bbee44509
+      + Referer: https://app.powerbi.com/
+
+GET  /public/reports/{resourceKey}/modelsAndExploration   -> modelId 13117170
+POST /public/reports/conceptualschema  {"modelIds":[...]} -> las 22 tablas del modelo
+POST /public/reports/querydata                            -> los datos
+```
+
+Esto se descubrió con **captura CDP sobre el Chrome ya instalado** (no hace falta
+Playwright: Node 22 trae `WebSocket` global). Adivinar endpoints no funcionó.
+La respuesta viene en DSR comprimido —bitmask `R` de repetición + diccionarios de
+valores— y hay que decodificarlo o la tabla sale corrida (ver `fetch.ts`).
+
+### Lo que el descubrimiento evitó
+
+La tabla visible del reporte muestra **476 filas de 15.600**. Power BI aplica dos
+filtros que el usuario no ve: escenario E2 y expansión ≥ 0,01 GW. Scrapear lo
+renderizado habría capturado el 3% de la fuente. Validación: extrayendo *con*
+esos dos filtros salen exactamente 476 filas, igual que Power BI.
+
+### Trampas de los datos, ya resueltas
+
+- **12.153 de 15.600 filas traen 0 MW.** No son datos faltantes: el modelo emite
+  una fila por candidato y año, y 0 significa "no se expandió ese año". Se
+  guardan (es información real) pero la tabla las oculta por defecto.
+- **`capacity_expansion_MWh` viene vacío en el 100%** — cadena vacía en el
+  origen, no pérdida nuestra. La duración de BESS sale de `max_hours` del
+  diccionario de almacenamiento (244 de 245 activos) y **nunca se asume**.
+- **Los escenarios no se suman.** Son futuros alternativos; sumarlos da 207 GW
+  solares, que no ocurre en ninguno. `getPelpExpansionForScenario` no tiene
+  variante sin escenario para que el error no esté disponible.
+- El acumulado por tecnología se recalcula; `capacity_expansion_cumulative_MW`
+  acumula *por activo* y sumarlo entre activos contaría de más.
+
+### Por qué NO está en `project`
+
+Son candidatos de optimización, no proyectos: la fuente los agrupa bajo
+"2. [resultados]" y marca `p_nom_extendable` / `candidate`. Un activo llamado
+`solar PV_Antofagasta_39` es un identificador sintético, no una sociedad. Viven
+en tablas `pelp_*` para que ninguna consulta del dashboard, el mapa, el CRM o
+Transition AI tenga que acordarse de excluirlos.
+
+### Pendiente
+
+El ministerio publica la base en SharePoint
+(`minenergia-my.sharepoint.com/.../PELP 2028-2032 - Dashboard...`), pero exige
+autenticación del tenant. Falta un enlace público para contrastar si el MWh de
+BESS está poblado en el archivo base.
+
+### Lección de esta sesión (costó un build roto)
+
+**No editar archivos fuente con reemplazos de PowerShell.** `Get-Content -Raw`
+sin `-Encoding` lee UTF-8 como ANSI en PS 5.1, y `Set-Content -Encoding utf8`
+reescribe el mojibake y agrega BOM: "Expansión" llegó a la página como
+"ExpansiÃ³n". Usar el editor.
+
 ## Sesión 2026-08-11 — el entorno se mudó a un VPS y los syncs salieron de Vercel
 
 ### Dónde corre ahora el desarrollo
