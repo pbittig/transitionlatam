@@ -25,6 +25,22 @@ export interface PelpExpansionRow {
   capacityMw: number;
   capacityCumulativeMw: number;
   durationHours: number | null;
+  /**
+   * Energía derivada (MW × horas), NO entregada por PELP.
+   *
+   * `capacity_expansion_MWh` viene vacío en el 100% de las filas del reporte, así
+   * que la energía se calcula. La duración es dato de la fuente, no un supuesto:
+   * sale de `max_hours` del diccionario de almacenamiento, y se validó contra la
+   * convención de nombres del propio modelo — los 69 activos BESS codifican sus
+   * horas en el nombre (`BESS_Itahue220_8h`) y coinciden con `max_hours` en los
+   * 69 casos, sin una sola discrepancia.
+   *
+   * Se calcula al leer y no se guarda en la tabla, para que
+   * `capacity_expansion_mwh` siga reflejando exactamente lo que entregó la
+   * fuente (vacío) y no se confunda un cálculo nuestro con un dato oficial.
+   * Debe mostrarse siempre rotulado como derivado.
+   */
+  energyMwhDerived: number | null;
   regionRaw: string | null;
   comunaRaw: string | null;
   latitude: number | null;
@@ -108,20 +124,25 @@ export async function getPelpExpansionForScenario(
     .eq("scenario_id", scenarioId)
     .order("year");
   if (error) throw new Error(`Error leyendo expansión PELP: ${error.message}`);
-  return (data ?? []).map((r) => ({
-    assetNameRaw: r.asset_name_raw as string,
-    technologyRaw: r.technology_raw as string,
-    technologyCode: r.technology_code as string,
-    nodeRaw: r.node_raw as string,
-    year: Number(r.year),
-    capacityMw: Number(r.capacity_expansion_mw ?? 0),
-    capacityCumulativeMw: Number(r.capacity_expansion_cumulative_mw ?? 0),
-    durationHours: r.duration_hours === null ? null : Number(r.duration_hours),
-    regionRaw: (r.region_raw as string | null) ?? null,
-    comunaRaw: (r.comuna_raw as string | null) ?? null,
-    latitude: r.latitude === null ? null : Number(r.latitude),
-    longitude: r.longitude === null ? null : Number(r.longitude),
-  }));
+  return (data ?? []).map((r) => {
+    const capacityMw = Number(r.capacity_expansion_mw ?? 0);
+    const durationHours = r.duration_hours === null ? null : Number(r.duration_hours);
+    return {
+      assetNameRaw: r.asset_name_raw as string,
+      technologyRaw: r.technology_raw as string,
+      technologyCode: r.technology_code as string,
+      nodeRaw: r.node_raw as string,
+      year: Number(r.year),
+      capacityMw,
+      capacityCumulativeMw: Number(r.capacity_expansion_cumulative_mw ?? 0),
+      durationHours,
+      energyMwhDerived: durationHours === null ? null : capacityMw * durationHours,
+      regionRaw: (r.region_raw as string | null) ?? null,
+      comunaRaw: (r.comuna_raw as string | null) ?? null,
+      latitude: r.latitude === null ? null : Number(r.latitude),
+      longitude: r.longitude === null ? null : Number(r.longitude),
+    };
+  });
 }
 
 export interface PelpAggregates {

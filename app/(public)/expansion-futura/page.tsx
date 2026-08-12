@@ -257,7 +257,7 @@ export default async function ExpansionFuturaPage({
         <div className="overflow-x-auto">
           {/* Densidad de tabla: texto chico y filas compactas, para que entren
               las ocho columnas sin scroll horizontal en pantallas normales. */}
-          <table className="w-full min-w-[820px] text-xs">
+          <table className="w-full min-w-[940px] text-xs">
             <thead className="border-b border-neutral-200 text-left text-[11px] text-neutral-500 dark:border-neutral-800">
               <tr>
                 <th className="px-3 py-2 font-medium">{en ? "Asset" : "Activo"}</th>
@@ -266,6 +266,10 @@ export default async function ExpansionFuturaPage({
                 <th className="px-3 py-2 text-right font-medium">{en ? "Expansion [MW]" : "Expansión [MW]"}</th>
                 <th className="px-3 py-2 text-right font-medium">
                   {en ? "Cumulative [MW]" : "Acumulada [MW]"}
+                </th>
+                {/* Rotulada como derivada: PELP no entrega MWh, se calcula MW x horas. */}
+                <th className="px-3 py-2 text-right font-medium">
+                  {en ? "Energy [MWh] ·calc" : "Energía [MWh] ·calc"}
                 </th>
                 <th className="px-3 py-2 font-medium">{en ? "Region" : "Región"}</th>
                 <th className="px-3 py-2 font-medium">Comuna</th>
@@ -284,6 +288,12 @@ export default async function ExpansionFuturaPage({
                   <td className="px-3 py-1.5 text-right tabular-nums text-neutral-900 dark:text-neutral-100">{mw(r.capacityMw)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
                     {mw(r.capacityCumulativeMw)}
+                  </td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
+                    {r.energyMwhDerived === null ? "—" : mw(r.energyMwhDerived)}
+                    {r.durationHours !== null && (
+                      <span className="ml-1 text-[10px] text-neutral-400">({r.durationHours}h)</span>
+                    )}
                   </td>
                   <td className="px-3 py-1.5 text-neutral-600 dark:text-neutral-400">{r.regionRaw ?? "—"}</td>
                   <td className="px-3 py-1.5 text-neutral-600 dark:text-neutral-400">{r.comunaRaw ?? "—"}</td>
