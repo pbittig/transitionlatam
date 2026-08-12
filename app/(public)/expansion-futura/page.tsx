@@ -41,6 +41,7 @@ export default async function ExpansionFuturaPage({
     region?: string;
     pagina?: string;
     todos?: string;
+    ceros?: string;
   }>;
 }) {
   const locale = await getAppLocale();
@@ -96,9 +97,23 @@ export default async function ExpansionFuturaPage({
 
   const regions = [...new Set(allRows.map((r) => r.regionRaw).filter(Boolean))].sort() as string[];
 
+  // El modelo emite una fila por activo y año aunque no expanda nada: 12.153 de
+  // las 15.600 filas traen 0 MW, y significan "candidato no expandido ese año".
+  // Son dato legítimo (por eso se guardan), pero no son expansiones, así que la
+  // tabla las oculta salvo que se pidan. Es la misma razón por la que la
+  // visualización oficial filtra todo lo menor a 0,01 GW.
+  const incluirCeros = sp.ceros === "1";
   const tableRows = rows
-    .filter((r) => (!sp.tec || r.technologyCode === sp.tec) && (!sp.region || r.regionRaw === sp.region))
+    .filter(
+      (r) =>
+        (incluirCeros || r.capacityMw > 0) &&
+        (!sp.tec || r.technologyCode === sp.tec) &&
+        (!sp.region || r.regionRaw === sp.region),
+    )
     .sort((a, b) => a.year - b.year || a.assetNameRaw.localeCompare(b.assetNameRaw));
+  const cerosOcultos = rows.filter(
+    (r) => r.capacityMw === 0 && (!sp.tec || r.technologyCode === sp.tec) && (!sp.region || r.regionRaw === sp.region),
+  ).length;
 
   const verTodos = sp.todos === "1";
   const pagina = Math.max(1, Number(sp.pagina) || 1);
@@ -116,6 +131,7 @@ export default async function ExpansionFuturaPage({
       hasta: String(hasta),
       tec: sp.tec,
       region: sp.region,
+      ceros: incluirCeros ? "1" : undefined,
       todos: verTodos ? "1" : undefined,
       pagina: paginaActual > 1 ? String(paginaActual) : undefined,
       ...patch,
@@ -289,6 +305,24 @@ export default async function ExpansionFuturaPage({
             {en
               ? `${visibles.length.toLocaleString(loc)} of ${tableRows.length.toLocaleString(loc)} modelled records`
               : `${visibles.length.toLocaleString(loc)} de ${tableRows.length.toLocaleString(loc)} registros modelados`}
+            {cerosOcultos > 0 && !incluirCeros && (
+              <>
+                {" · "}
+                <Link href={qs({ ceros: "1", pagina: undefined })} className="underline hover:text-neutral-600 dark:hover:text-neutral-300">
+                  {en
+                    ? `${cerosOcultos.toLocaleString(loc)} years with no expansion hidden`
+                    : `${cerosOcultos.toLocaleString(loc)} años sin expansión ocultos`}
+                </Link>
+              </>
+            )}
+            {incluirCeros && (
+              <>
+                {" · "}
+                <Link href={qs({ ceros: undefined, pagina: undefined })} className="underline hover:text-neutral-600 dark:hover:text-neutral-300">
+                  {en ? "Hide years with no expansion" : "Ocultar años sin expansión"}
+                </Link>
+              </>
+            )}
           </p>
 
           <div className="ml-auto flex items-center gap-2">
