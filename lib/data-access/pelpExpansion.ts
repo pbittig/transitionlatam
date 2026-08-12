@@ -1,13 +1,13 @@
-﻿import "server-only";
+import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Acceso a la expansiÃ³n modelada de PELP.
+ * Acceso a la expansión modelada de PELP.
  *
  * Todo se consulta SIEMPRE acotado a un escenario. Los cinco escenarios de PELP
- * son futuros alternativos, no partes de un total: sumarlos darÃ­a ~207 GW
- * solares, una cifra que no ocurre en ninguno de ellos. Por eso no existe acÃ¡
- * ninguna funciÃ³n que agregue sin `scenarioId`.
+ * son futuros alternativos, no partes de un total: sumarlos daría ~207 GW
+ * solares, una cifra que no ocurre en ninguno de ellos. Por eso no existe acá
+ * ninguna función que agregue sin `scenarioId`.
  */
 
 export interface PelpScenario {
@@ -31,14 +31,14 @@ export interface PelpExpansionRow {
   longitude: number | null;
 }
 
-/** CategorÃ­as canÃ³nicas de la paleta de marca (ver lib/shared/chartColors.ts). */
+/** Categorías canónicas de la paleta de marca (ver lib/shared/chartColors.ts). */
 export function techCategoryFor(technologyCode: string): string {
   switch (technologyCode) {
     case "solar_PV":
       return "Solar";
     case "onshore_wind":
     case "offshore_wind":
-      return "EÃ³lico";
+      return "Eólico";
     case "BESS":
       return "BESS";
     default:
@@ -47,25 +47,25 @@ export function techCategoryFor(technologyCode: string): string {
 }
 
 /**
- * Offshore comparte categorÃ­a de marca con onshore (ambas son eÃ³licas y deben
- * leerse como tal), pero la visualizaciÃ³n oficial del ministerio las separa y
+ * Offshore comparte categoría de marca con onshore (ambas son eólicas y deben
+ * leerse como tal), pero la visualización oficial del ministerio las separa y
  * conviene poder distinguirlas: en E3 y N2 el offshore aparece y en los otros
  * tres escenarios no, que es justamente el hallazgo interesante.
  *
- * Se resuelve con un paso mÃ¡s claro del MISMO verde, no con un color nuevo: la
- * skill de dataviz prohÃ­be generar una hue adicional, pero un escalÃ³n dentro de
- * una familia ya validada es la forma estÃ¡ndar de separar dos miembros de la
- * misma categorÃ­a.
+ * Se resuelve con un paso más claro del MISMO verde, no con un color nuevo: la
+ * skill de dataviz prohíbe generar una hue adicional, pero un escalón dentro de
+ * una familia ya validada es la forma estándar de separar dos miembros de la
+ * misma categoría.
  */
 export const OFFSHORE_WIND_TINT = { light: "#4fb84f", dark: "#5cc95c" };
 
 export function techLabelFor(technologyCode: string, locale: "es" | "en"): string {
   const es: Record<string, string> = {
     solar_PV: "Solar fotovoltaica",
-    onshore_wind: "EÃ³lica onshore",
-    offshore_wind: "EÃ³lica offshore",
+    onshore_wind: "Eólica onshore",
+    offshore_wind: "Eólica offshore",
     BESS: "Almacenamiento BESS",
-    geothermal: "GeotÃ©rmica",
+    geothermal: "Geotérmica",
     other: "Otras",
   };
   const en: Record<string, string> = {
@@ -92,8 +92,8 @@ export async function getPelpScenarios(client: SupabaseClient): Promise<PelpScen
 }
 
 /**
- * Trae las filas de un escenario. Son ~3.100 por escenario, asÃ­ que se agrega en
- * memoria en vez de mantener vistas materializadas que habrÃ­a que refrescar en
+ * Trae las filas de un escenario. Son ~3.100 por escenario, así que se agrega en
+ * memoria en vez de mantener vistas materializadas que habría que refrescar en
  * cada sync mensual.
  */
 export async function getPelpExpansionForScenario(
@@ -107,7 +107,7 @@ export async function getPelpExpansionForScenario(
     )
     .eq("scenario_id", scenarioId)
     .order("year");
-  if (error) throw new Error(`Error leyendo expansiÃ³n PELP: ${error.message}`);
+  if (error) throw new Error(`Error leyendo expansión PELP: ${error.message}`);
   return (data ?? []).map((r) => ({
     assetNameRaw: r.asset_name_raw as string,
     technologyRaw: r.technology_raw as string,
@@ -168,7 +168,7 @@ export function aggregatePelp(rows: PelpExpansionRow[]): PelpAggregates {
   });
 
   // Acumulado propio y no `capacity_expansion_cumulative_mw`: esa columna acumula
-  // por activo, no por tecnologÃ­a, y sumarla entre activos contarÃ­a de mÃ¡s.
+  // por activo, no por tecnología, y sumarla entre activos contaría de más.
   const running: Record<string, number> = {};
   for (const code of techCodes) running[code] = 0;
   const cumulative = byYear.map(({ year, byTech }) => {

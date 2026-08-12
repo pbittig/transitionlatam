@@ -17,8 +17,8 @@ import { getAppLocale } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Expansión Futura" };
 
-/** Tope de filas renderizadas: son ~3.100 por escenario y el navegador no necesita todas de una. */
-const TABLE_LIMIT = 250;
+/** Página de 20 filas. Con `?todos=1` se renderizan todas las del filtro. */
+const PAGE_SIZE = 20;
 
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -33,7 +33,15 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
 export default async function ExpansionFuturaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ escenario?: string; desde?: string; hasta?: string; tec?: string; region?: string }>;
+  searchParams: Promise<{
+    escenario?: string;
+    desde?: string;
+    hasta?: string;
+    tec?: string;
+    region?: string;
+    pagina?: string;
+    todos?: string;
+  }>;
 }) {
   const locale = await getAppLocale();
   const en = locale === "en";
@@ -78,10 +86,11 @@ export default async function ExpansionFuturaPage({
     color: code === "offshore_wind" ? OFFSHORE_WIND_TINT.light : undefined,
   }));
 
-  // Sin decimales, como pidió el usuario. En MW y no GW porque una expansión de
-  // 0,02 GW redondeada a GW quedaría en "0" y la fila no diría nada.
-  const mw = (v: number) => Math.round(v).toLocaleString(en ? "en-US" : "es-CL");
-  const gw = (v: number) => `${Math.round(v / 1000).toLocaleString(en ? "en-US" : "es-CL")} GW`;
+  // Totales grandes en GW entero; la tabla en MW con dos decimales, porque a esa
+  // escala el decimal sí distingue un activo de otro (0,02 GW se pierde, 20,00 MW no).
+  const loc = en ? "en-US" : "es-CL";
+  const mw = (v: number) => v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const gw = (v: number) => `${Math.round(v / 1000).toLocaleString(loc)} GW`;
   const mwOf = (code: string) => agg.totalMwByTech.find((t) => t.code === code)?.mw ?? 0;
   const windMw = mwOf("onshore_wind") + mwOf("offshore_wind");
 
@@ -91,9 +100,26 @@ export default async function ExpansionFuturaPage({
     .filter((r) => (!sp.tec || r.technologyCode === sp.tec) && (!sp.region || r.regionRaw === sp.region))
     .sort((a, b) => a.year - b.year || a.assetNameRaw.localeCompare(b.assetNameRaw));
 
+  const verTodos = sp.todos === "1";
+  const pagina = Math.max(1, Number(sp.pagina) || 1);
+  const totalPaginas = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const visibles = verTodos
+    ? tableRows
+    : tableRows.slice((paginaActual - 1) * PAGE_SIZE, paginaActual * PAGE_SIZE);
+
   const qs = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    const base = { escenario: selected.scenarioId, desde: String(desde), hasta: String(hasta), tec: sp.tec, region: sp.region, ...patch };
+    const base = {
+      escenario: selected.scenarioId,
+      desde: String(desde),
+      hasta: String(hasta),
+      tec: sp.tec,
+      region: sp.region,
+      todos: verTodos ? "1" : undefined,
+      pagina: paginaActual > 1 ? String(paginaActual) : undefined,
+      ...patch,
+    };
     for (const [k, v] of Object.entries(base)) if (v) p.set(k, v);
     return `/expansion-futura?${p.toString()}`;
   };
@@ -213,40 +239,42 @@ export default async function ExpansionFuturaPage({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="border-b border-neutral-200 text-left text-xs text-neutral-500 dark:border-neutral-800">
+          {/* Densidad de tabla: texto chico y filas compactas, para que entren
+              las ocho columnas sin scroll horizontal en pantallas normales. */}
+          <table className="w-full min-w-[820px] text-xs">
+            <thead className="border-b border-neutral-200 text-left text-[11px] text-neutral-500 dark:border-neutral-800">
               <tr>
-                <th className="px-4 py-3 font-medium">{en ? "Asset" : "Activo"}</th>
-                <th className="px-4 py-3 font-medium">{en ? "Node" : "Nodo"}</th>
-                <th className="px-4 py-3 font-medium">{en ? "Year" : "Año"}</th>
-                <th className="px-4 py-3 text-right font-medium">{en ? "Expansion [MW]" : "Expansión [MW]"}</th>
-                <th className="px-4 py-3 text-right font-medium">
-                  {en ? "Cumulative [MW]" : "Expansión acumulada [MW]"}
+                <th className="px-3 py-2 font-medium">{en ? "Asset" : "Activo"}</th>
+                <th className="px-3 py-2 font-medium">{en ? "Node" : "Nodo"}</th>
+                <th className="px-3 py-2 font-medium">{en ? "Year" : "Año"}</th>
+                <th className="px-3 py-2 text-right font-medium">{en ? "Expansion [MW]" : "Expansión [MW]"}</th>
+                <th className="px-3 py-2 text-right font-medium">
+                  {en ? "Cumulative [MW]" : "Acumulada [MW]"}
                 </th>
-                <th className="px-4 py-3 font-medium">{en ? "Region" : "Región"}</th>
-                <th className="px-4 py-3 font-medium">Comuna</th>
-                <th className="px-4 py-3 font-medium">{en ? "Status" : "Estado"}</th>
+                <th className="px-3 py-2 font-medium">{en ? "Region" : "Región"}</th>
+                <th className="px-3 py-2 font-medium">Comuna</th>
+                <th className="px-3 py-2 font-medium">{en ? "Status" : "Estado"}</th>
               </tr>
             </thead>
             <tbody>
-              {tableRows.slice(0, TABLE_LIMIT).map((r) => (
+              {visibles.map((r) => (
                 <tr
                   key={`${r.assetNameRaw}-${r.nodeRaw}-${r.year}`}
-                  className="border-b border-neutral-50 last:border-0 dark:border-neutral-900/60"
+                  className="border-b border-neutral-50 last:border-0 odd:bg-neutral-50/40 dark:border-neutral-900/60 dark:odd:bg-neutral-900/25"
                 >
-                  <td className="px-4 py-2.5 font-medium text-neutral-900 dark:text-neutral-100">{r.assetNameRaw}</td>
-                  <td className="px-4 py-2.5 text-neutral-600 dark:text-neutral-400">{r.nodeRaw}</td>
-                  <td className="px-4 py-2.5 text-neutral-600 dark:text-neutral-400">{r.year}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-neutral-900 dark:text-neutral-100">{mw(r.capacityMw)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
+                  <td className="px-3 py-1.5 font-medium text-neutral-900 dark:text-neutral-100">{r.assetNameRaw}</td>
+                  <td className="px-3 py-1.5 text-neutral-600 dark:text-neutral-400">{r.nodeRaw}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-neutral-600 dark:text-neutral-400">{r.year}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-neutral-900 dark:text-neutral-100">{mw(r.capacityMw)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
                     {mw(r.capacityCumulativeMw)}
                   </td>
-                  <td className="px-4 py-2.5 text-neutral-600 dark:text-neutral-400">{r.regionRaw ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-neutral-600 dark:text-neutral-400">{r.comunaRaw ?? "—"}</td>
+                  <td className="px-3 py-1.5 text-neutral-600 dark:text-neutral-400">{r.regionRaw ?? "—"}</td>
+                  <td className="px-3 py-1.5 text-neutral-600 dark:text-neutral-400">{r.comunaRaw ?? "—"}</td>
                   {/* La etiqueta va en CADA fila a propósito: es lo que impide leer
                       "solar PV_Antofagasta_39" como un proyecto real de esa comuna. */}
-                  <td className="px-4 py-2.5">
-                    <span className="whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
+                  <td className="px-3 py-1.5">
+                    <span className="whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
                       {en ? "PELP MODELLED" : "MODELADO PELP"}
                     </span>
                   </td>
@@ -256,11 +284,45 @@ export default async function ExpansionFuturaPage({
           </table>
         </div>
 
-        <p className="border-t border-neutral-100 px-4 py-3 text-[11px] text-neutral-400 dark:border-neutral-900">
-          {en
-            ? `Showing ${Math.min(tableRows.length, TABLE_LIMIT).toLocaleString("en-US")} of ${tableRows.length.toLocaleString("en-US")} modelled records`
-            : `Mostrando ${Math.min(tableRows.length, TABLE_LIMIT).toLocaleString("es-CL")} de ${tableRows.length.toLocaleString("es-CL")} registros modelados`}
-        </p>
+        <div className="flex flex-wrap items-center gap-2 border-t border-neutral-100 px-3 py-2.5 dark:border-neutral-900">
+          <p className="text-[11px] text-neutral-400">
+            {en
+              ? `${visibles.length.toLocaleString(loc)} of ${tableRows.length.toLocaleString(loc)} modelled records`
+              : `${visibles.length.toLocaleString(loc)} de ${tableRows.length.toLocaleString(loc)} registros modelados`}
+          </p>
+
+          <div className="ml-auto flex items-center gap-2">
+            {!verTodos && totalPaginas > 1 && (
+              <>
+                {paginaActual > 1 && (
+                  <Link href={qs({ pagina: String(paginaActual - 1) })} className={chip(false)}>
+                    ← {en ? "Previous" : "Anterior"}
+                  </Link>
+                )}
+                <span className="text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400">
+                  {paginaActual} / {totalPaginas}
+                </span>
+                {paginaActual < totalPaginas && (
+                  <Link href={qs({ pagina: String(paginaActual + 1) })} className={chip(false)}>
+                    {en ? "Next" : "Siguiente"} →
+                  </Link>
+                )}
+              </>
+            )}
+            <Link
+              href={qs({ todos: verTodos ? undefined : "1", pagina: undefined })}
+              className={chip(verTodos)}
+            >
+              {verTodos
+                ? en
+                  ? "Paginate"
+                  : "Paginar"
+                : en
+                  ? `Show all (${tableRows.length.toLocaleString(loc)})`
+                  : `Ver todos (${tableRows.length.toLocaleString(loc)})`}
+            </Link>
+          </div>
+        </div>
       </Panel>
 
       <p className="text-center text-[11px] text-neutral-400">
