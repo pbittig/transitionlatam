@@ -47,6 +47,38 @@ Al revisar los pendientes de más abajo: **los Vercel Cron ya están vaciados y 
 tres tareas del VPS quedaron habilitadas** (`Ready`). Ese punto ya no está
 abierto, aunque el texto de la sesión del 2026-08-11 lo describa como pendiente.
 
+### El hallazgo Crítico de la auditoría: escrito y probado, NO aplicado
+
+`supabase/migrations/20260812000005_restrict_public_reads_to_authenticated.sql`
+está commiteada pero **no corrió contra producción**. Aplicarla con
+`node scripts/run-migrations.mjs --only 20260812000005_restrict_public_reads_to_authenticated.sql`.
+Falta eso y nada más: no lleva cambio de código asociado.
+
+Lo que se midió contra producción antes de escribirla, con la anon key, como lo
+haría un tercero: **`anon` lee 23 tablas** — company (936), spv (1.640),
+entity_relationship (9.518), data_attribution (10.065), project (2.021 de 2.095,
+39 columnas), transmission_line (1.656), coordinador_empresa (1.303),
+power_plant (1.245), substation (973), seia_record (234), y el resto.
+
+**La lista de la auditoría estaba desactualizada en los dos sentidos.** `person`
+ya está cerrado (lo arregló `20260811000000`, verificado: anon recibe
+`permission denied`), igual que `opportunity`. Pero nadie había anotado
+`entity_relationship` ni `data_attribution`, que son las dos más grandes.
+
+Por qué cerrarlo es barato y no rompe nada: **la app entera ya está detrás de
+login**. `proxy.ts` manda a /ingresar todo lo que no sean siete rutas, y ninguna
+de esas siete lee estas tablas — /planes solo pide el perfil, /registro busca el
+plan `free` con el cliente de servicio. Las políticas `using (true)` no le
+servían a ninguna pantalla; solo a quien llamara al REST directo. Se verificó
+corriendo la migración dentro de una transacción con `set local role anon` /
+`authenticated` y `rollback`: anon pasa a 0 filas en las 10 tablas medidas,
+authenticated no cambia en ninguna, y `plan`/`feature` siguen públicas.
+
+**Lo que NO resuelve, y sigue abierto:** un usuario del plan gratuito
+autenticado puede leer por REST lo que la UI le esconde. Eso necesita vistas o
+RPC de proyección mínima y toca el modelo de planes — es la recomendación de
+fondo de la auditoría. Esta migración cierra la puerta que no tenía dueño.
+
 ## Sesión 2026-08-12 (cierre) — energía derivada del PELP, y una limpieza que resultó ser mucho más grande
 
 Lo del PELP quedó cerrado y desplegado. Lo de los datos de plantilla **no se
