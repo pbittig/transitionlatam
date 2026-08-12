@@ -67,23 +67,36 @@ que es lo que tenía que pasar. Lo que apareció al investigar el choque:
   riesgo que motivó usar ids fijos en vez de un patrón de nombre (Metro de
   Santiago), un nivel más abajo, donde la primera versión no lo buscó.
 - **No es un residuo de la primera semana.** La cabecera original decía "20-26
-  de julio"; las SPV con nombre de plantilla se crearon hasta el **2026-08-10**,
-  la última en el reprocesamiento del 9-10 de agosto. Lo que las escribe sigue
-  vivo: limpiar sin tapar la fuente no dura.
+  de julio"; las SPV con nombre de plantilla se crearon hasta el **2026-08-10**.
+  Pero la fuente **ya está tapada**: el guard entró en `98c14a5` el 2026-08-11,
+  justo después de la última fila mala, y ese commit documenta el mismo hallazgo
+  (49 SPV, 30 proyectos). Ojo con la trampa en la que caí: deducir del rango de
+  fechas de los datos que el bug sigue abierto, sin abrir el código. No lo está.
 
 El script ahora **aborta a propósito**, con la lista de SPV bloqueantes y sus
 proyectos, y lo hace **también en simulación**. Antes la simulación daba verde
 para una operación que la base rechaza —por eso el `--apply` sorprendió—; una
 simulación que no falla donde falla el borrado no está simulando nada.
 
-Orden para retomarlo (invertirlo obliga a repetir el trabajo): **(1)** tapar en
-la ingesta del Formulario lo que escribe los valores de la plantilla; **(2)**
-resolver las 49 SPV — soltar el `spv_id` de sus proyectos y borrar las 46
-inventadas, dejar sin matriz las 3 reales; **(3)** recién ahí correr este script.
+### Estado de los tres pasos
 
-Dos decisiones quedaron abiertas, sin respuesta del usuario: si se arranca por
-tapar la fuente o por limpiar, y si a las 3 SPV reales se las deja sin matriz o
-se investiga a qué empresa pertenecen de verdad.
+1. **Tapar la fuente — HECHO** (`98c14a5`, ya en producción).
+2. **Resolver las 49 SPV — `scripts/fix-template-spvs.ts`, PENDIENTE DE APLICAR.**
+   Escrito y probado en simulación: borra las 46 SPV inventadas soltando antes el
+   `spv_id` de sus 27 proyectos (1 verificado), y a las 3 reales les deja la
+   matriz en null sin tocarlas. Respalda todo en `logs/` antes de escribir.
+3. **Borrar las 13 filas — PENDIENTE**, se destraba solo cuando corra el paso 2.
+
+Las dos decisiones que estaban abiertas se resolvieron así: se tapa la fuente
+antes de limpiar (invertirlo obliga a repetir el trabajo), y a las 3 SPV reales
+se les deja `parent_company_id` en null en vez de buscarles la matriz verdadera
+— null afirma "no sabemos", que es cierto; adivinar cambiaría un dato falso por
+otro sin fuente, justo lo que este episodio entero vino a corregir.
+
+El predicado que decide qué nombre es de plantilla **se importa de la ingesta**
+(`isPlaceholderCompanyName` en `load.ts`), no se copia: si los patrones cambian,
+la ingesta y la limpieza cambian juntas. Una regex duplicada que se desincroniza
+acá termina borrando una sociedad real.
 
 ## Sesión 2026-08-12 — PELP: nueva fuente de expansión modelada
 

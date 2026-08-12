@@ -100,7 +100,13 @@ function normalizeRut(value: string): string {
   return value.replace(/[^0-9kK]/g, "").toLowerCase();
 }
 
-function isPlaceholderCompanyName(name: string): boolean {
+/**
+ * Exportada para que la limpieza de lo que entró antes del guard
+ * (`scripts/fix-template-spvs.ts`) use exactamente este criterio y no una copia.
+ * Si los patrones cambian, la ingesta y la limpieza cambian juntas — una regex
+ * duplicada que se desincroniza acá termina borrando una sociedad real.
+ */
+export function isPlaceholderCompanyName(name: string): boolean {
   return PLACEHOLDER_COMPANY_PATTERNS.some((re) => re.test(name.trim()));
 }
 

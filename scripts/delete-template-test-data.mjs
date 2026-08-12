@@ -17,9 +17,10 @@
 // ALCANCE REAL, medido contra producción el 2026-08-12. La versión anterior de
 // esta cabecera decía "primeros días del proyecto (20-26 de julio)" y es falso:
 //
-//   - Las SPV con nombre de plantilla se siguieron creando hasta el 2026-08-10
-//     (la última, en el reprocesamiento del 9-10 de agosto). Lo que las escribe
-//     sigue vivo, así que limpiar sin tapar la fuente no dura.
+//   - Las SPV con nombre de plantilla se crearon hasta el 2026-08-10, no solo
+//     en julio. La fuente ya está tapada: el guard entró en `98c14a5` el
+//     2026-08-11, justo después de la última fila mala, y hoy la ingesta
+//     descarta estos nombres y RUT en vez de guardarlos.
 //   - 49 filas de `spv` tienen una de estas empresas como matriz, y 30 proyectos
 //     reales —4 de ellos verificados— cuelgan de esas SPV por `project.spv_id`,
 //     que es ON DELETE NO ACTION. Por eso `--apply` moría con una violación de
@@ -30,12 +31,12 @@
 //     riesgo que motivó los ids fijos (Metro de Santiago), un nivel más abajo,
 //     en `spv`, donde la primera versión no lo buscó.
 //
-// QUÉ FALTA, en este orden — invertirlo obliga a repetir el trabajo:
-//   1. Tapar en la ingesta del Formulario lo que escribe los valores de la
-//      plantilla, y rechazarlos en la escritura.
-//   2. Resolver las 49 SPV: soltar el `spv_id` de sus proyectos y borrar las 46
-//      inventadas; a las 3 reales, dejarlas sin matriz.
+// QUÉ FALTA:
+//   1. Tapar la fuente — HECHO en `98c14a5`.
+//   2. Resolver las 49 SPV — `scripts/fix-template-spvs.ts`, escrito y probado
+//      en simulación, PENDIENTE DE APLICAR.
 //   3. Recién entonces este script borra sus 13 filas sin chocar con nada.
+//      El chequeo de abajo se apaga solo cuando el paso 2 esté aplicado.
 //
 // Uso:
 //   node scripts/delete-template-test-data.mjs            # simulación
