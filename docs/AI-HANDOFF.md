@@ -47,6 +47,34 @@ Al revisar los pendientes de más abajo: **los Vercel Cron ya están vaciados y 
 tres tareas del VPS quedaron habilitadas** (`Ready`). Ese punto ya no está
 abierto, aunque el texto de la sesión del 2026-08-11 lo describa como pendiente.
 
+### Todos los jobs del runner registran en `cron_run_log`
+
+Eran 12 en `run-syncs.ps1` y **5 no dejaban rastro**: `preverify-projects` y
+`screen-verification-queue` (diarios) y los tres SIPUB (semanales). Corrían
+bien, pero `/admin/operacion` no los veía ni corriendo ni fallando — el mismo
+agujero por el que `daily-project-report` estuvo fallando en silencio. Ahora los
+12 usan `startCronRun`/`finishCronRun`.
+
+Los dos que ya existían en Vercel conservan **el nombre de job de su ruta**
+(`screen-queue`, `preverify-editorial`) para que el panel muestre una sola
+historia continua en vez de dos mitades según dónde corrió.
+
+**Una corrida en simulación no se registra con el nombre del job real.**
+`preverify-projects` sin `--apply` gasta los mismos ~10 min de IA y no escribe
+nada; anotarla como `preverify-editorial` dejaría el panel diciendo "correcto,
+hace 5 min" por una pasada que no aplicó ningún campo. Va como
+`preverify-editorial-simulacion`. Es la convención que ya usaba
+`sync-listado-local`: un nombre por camino de ejecución, no por script.
+
+De paso, `JOB_LABELS` en `/admin/operacion` no tenía etiqueta para `sync-pelp`
+ni para los tres SIPUB (salían con el nombre crudo), y llamaba "corrida manual"
+a `sync-listado-local`, que desde la mudanza al VPS es el sync diario de verdad.
+
+Probado corriendo los dos scripts diarios contra producción: ambos escribieron
+su fila, ninguna quedó en `running`. Quedan dos filas de prueba en el log
+(`screen-queue` y `preverify-editorial-simulacion` del 2026-08-13 ~17:30), las
+dos con 0 proyectos porque la cola está vacía.
+
 ### El hallazgo Crítico de la auditoría: escrito y probado, NO aplicado
 
 `supabase/migrations/20260812000005_restrict_public_reads_to_authenticated.sql`

@@ -9,16 +9,24 @@ import { Panel } from "../../components/Panel";
 export const metadata: Metadata = { title: "Operación · Admin" };
 export const dynamic = "force-dynamic";
 
+// Un nombre por camino de ejecución, no por script: `sync-listado-local` y
+// `preverify-editorial-simulacion` existen para que una corrida que no es la
+// del cron no se lea como si lo fuera. Ver la cabecera de preverify-projects.ts.
 const JOB_LABELS: Record<string, string> = {
-  "sync-listado": "Acceso Abierto (listado)",
-  "sync-listado-local": "Acceso Abierto (corrida manual)",
+  "sync-listado": "Acceso Abierto (listado, Vercel)",
+  "sync-listado-local": "Acceso Abierto (listado)",
   "sync-pgp-progress": "Avance físico PGP",
   "screen-queue": "Tamizado con IA",
   "preverify-editorial": "Pre-verificación editorial",
+  "preverify-editorial-simulacion": "Pre-verificación editorial (simulación)",
   "daily-project-report": "Reporte diario por correo",
   "sync-cne-capacidad": "Capacidad instalada CNE",
   "sync-sea-pertinencia": "Pertinencias SEA",
   "compute-schedule-calibration": "Calibración de cronograma",
+  "sync-sipub-empresas": "Empresas coordinadas (SIPUB)",
+  "sync-sipub-centrales": "Centrales (SIPUB)",
+  "sync-sipub-transmision": "Transmisión y subestaciones (SIPUB)",
+  "sync-pelp": "Expansión PELP",
 };
 
 function timeAgo(iso: string): string {
