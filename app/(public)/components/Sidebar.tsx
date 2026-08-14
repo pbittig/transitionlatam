@@ -12,6 +12,13 @@ import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
 // `gated: true` = la página ya maneja su propio candado para plan Free (ver
 // PlanGate en cada page.tsx) — acá solo se refleja visualmente en el nav, nunca
 // se decide acceso (mismo principio que docs/08-modelo-suscripciones.md §8.4).
+
+// Secciones que no se le muestran a ningún cliente, ni Free ni Prime. No es un
+// candado de plan: un candado invita a pagar por algo que existe, y esto todavía
+// no se ofrece. Por eso se filtra el ítem en vez de marcarlo `minPlan:
+// "premium"` — el usuario no debería enterarse de que la sección está ahí.
+// El nav no decide acceso: la página también corta por su cuenta (notFound).
+const ADMIN_ONLY_HREFS = new Set(["/expansion-futura"]);
 function getNavItems(locale: AppLocale) {
   return locale === "en"
     ? [
@@ -50,7 +57,7 @@ export function Sidebar({
   const pathname = usePathname();
   const planCode = userProfile?.planCode ?? "free";
   const isFree = !isAdmin && planCode !== "premium";
-  const baseNavItems = getNavItems(locale);
+  const baseNavItems = getNavItems(locale).filter((item) => isAdmin || !ADMIN_ONLY_HREFS.has(item.href));
   const navItems = isAdmin ? [...baseNavItems, { href: "/admin", label: "Admin", icon: ShieldCheck, minPlan: "free" }] : baseNavItems;
 
   return (

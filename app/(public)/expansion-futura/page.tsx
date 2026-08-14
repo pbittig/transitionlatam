@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import {
   OFFSHORE_WIND_TINT,
@@ -44,6 +46,13 @@ export default async function ExpansionFuturaPage({
     ceros?: string;
   }>;
 }) {
+  // Oculta para todos los clientes, Free y Prime — decisión del 2026-08-13.
+  // `notFound` y no una redirección al plan Prime a propósito: esta sección no
+  // se está ofreciendo, así que anunciarla con un candado sería vender algo que
+  // no está a la venta. El nav ya la esconde (ADMIN_ONLY_HREFS en Sidebar.tsx);
+  // esto es lo que corta a quien llegue por la URL directa.
+  if (!(await isAdmin())) notFound();
+
   const locale = await getAppLocale();
   const en = locale === "en";
   const sp = await searchParams;
