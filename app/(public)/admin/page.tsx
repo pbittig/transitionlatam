@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert, FileSearch, BarChart3, Gauge, Archive } from "lucide-react";
+import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert, FileSearch, BarChart3, Gauge, Archive, Wrench } from "lucide-react";
 import { countUnverifiedProjects, countNeedsReverification, countFallenProjects } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../components/Panel";
@@ -8,6 +8,8 @@ import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-
 import { getEditorialCounts } from "@/lib/data-access/editorialQueue";
 import { countPertinenciasPending } from "@/lib/data-access/pertinencias";
 import { CollapsibleSection } from "../components/CollapsibleSection";
+import { AppSettingToggle } from "../components/AppSettingToggle";
+import { MAINTENANCE_SETTING_KEY, isMaintenanceMode } from "@/lib/maintenance";
 
 export const metadata: Metadata = { title: "Admin" };
 export const dynamic = "force-dynamic";
@@ -30,6 +32,7 @@ export default async function AdminPage() {
   const reverificationCount = reverificationResult.status === "fulfilled" ? reverificationResult.value : null;
   const pertinenciaCount = pertinenciaResult.status === "fulfilled" ? pertinenciaResult.value : null;
   const fallenCount = fallenResult.status === "fulfilled" ? fallenResult.value : null;
+  const maintenanceOn = await isMaintenanceMode();
   const hasUnavailableMetrics = pendingCount === null || editorialCounts === null || requestCount === null;
 
   return (
@@ -38,6 +41,25 @@ export default async function AdminPage() {
         <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Admin</h1>
         <p className="mt-2 text-neutral-600 dark:text-neutral-400">Herramientas internas de mantenimiento de datos.</p>
       </div>
+      <Panel className={maintenanceOn ? "border-amber-400 bg-amber-50/60 dark:bg-amber-950/20" : ""}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              <Wrench size={18} /> Modo mantenimiento
+            </div>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              {maintenanceOn
+                ? "Encendido: los clientes ven el aviso en /ingresar y no pueden entrar. Tú sigues entrando por /admin/acceso."
+                : "Apagado. Enciéndelo antes de aplicar cambios grandes a los datos: tapa el ingreso de clientes sin afectar el acceso de admin."}
+            </p>
+          </div>
+          <AppSettingToggle
+            settingKey={MAINTENANCE_SETTING_KEY}
+            initiallyOn={maintenanceOn}
+            label={maintenanceOn ? "Encendido" : "Apagado"}
+          />
+        </div>
+      </Panel>
       {hasUnavailableMetrics && (
         <div className="flex items-start gap-2 border-y border-neutral-200 py-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
           <TriangleAlert size={17} className="mt-0.5 shrink-0 text-brand-deep" />

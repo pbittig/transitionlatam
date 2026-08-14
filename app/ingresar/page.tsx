@@ -6,6 +6,8 @@ import { IngresarForm } from "./IngresarForm";
 import { EnergyVisual } from "./EnergyVisual";
 import { getAppLocale } from "@/lib/i18n";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { isMaintenanceMode } from "@/lib/maintenance";
+import { MantenimientoModal } from "./MantenimientoModal";
 
 export const metadata: Metadata = {
   title: "Ingresar",
@@ -14,7 +16,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function IngresarPage() {
-  const locale = await getAppLocale();
+  const [locale, mantenimiento] = await Promise.all([getAppLocale(), isMaintenanceMode()]);
   return (
     <ViewTransition
       name="auth-flow"
@@ -85,6 +87,7 @@ export default async function IngresarPage() {
           </div>
         </div>
       </div>
+      {mantenimiento && <MantenimientoModal locale={locale === "en" ? "en" : "es"} />}
     </ViewTransition>
   );
 }

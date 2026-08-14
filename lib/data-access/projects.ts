@@ -576,6 +576,76 @@ function mapVerificationQueueRow(row: VerificationQueueRow): VerificationQueueIt
 
 export type VerificationPeriod = "vigente" | "historico";
 
+export type VerificationPack = "pack1" | "pack2" | "recover";
+/** Dentro de un pack: lo que falta, lo que toca repasar, o todo junto. */
+export type VerificationScope = "pendientes" | "verificados" | "todos";
+
+/**
+ * Los paquetes de trabajo del Verificador, por fecha de conexión estimada.
+ *
+ * La cola completa son ~963 proyectos vivos y en alcance: demasiados para
+ * atacarlos como una sola lista, y sin ningún orden que diga cuál importa
+ * primero. Se parte por cuándo entra en operación, que es lo que le da urgencia
+ * comercial a verificar una ficha.
+ *
+ * `pack2` se lleva los que no tienen fecha estimada. Es a propósito: son 23 y
+ * dejarlos sin pack los volvería invisibles, que es justo lo que este corte
+ * viene a evitar. Si alguna vez se les puebla la fecha, se reubican solos.
+ *
+ * `recover` son los que ya deberían estar operando y no lo están. Van al final
+ * por decisión del usuario (2026-08-13): la fecha vencida hace sospechar que
+ * muchos están muertos sin que nadie lo haya declarado.
+ */
+export const VERIFICATION_PACKS: Record<
+  VerificationPack,
+  { label: string; hint: string; desde: string | null; hasta: string | null; incluyeSinFecha: boolean }
+> = {
+  pack1: {
+    label: "Pack 1",
+    hint: "Entran en operación entre junio 2026 y diciembre 2027",
+    desde: "2026-06-01",
+    hasta: "2027-12-31",
+    incluyeSinFecha: false,
+  },
+  pack2: {
+    label: "Pack 2",
+    hint: "Entran en operación desde enero 2028, más los que no tienen fecha",
+    desde: "2028-01-01",
+    hasta: null,
+    incluyeSinFecha: true,
+  },
+  recover: {
+    label: "Recover",
+    hint: "Fecha de conexión ya vencida — se revisan al final",
+    desde: null,
+    hasta: "2026-05-31",
+    incluyeSinFecha: false,
+  },
+};
+
+/**
+ * Acota la consulta al pack pedido. Se aplica como AND sobre lo que ya traiga
+ * `query`, igual que applyPeriodFilter.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- misma razón que applyPeriodFilter: el builder de supabase-js encadena por mutación de tipo.
+function applyPackFilter<T extends { gte: (...args: any[]) => T; lte: (...args: any[]) => T; or: (...args: any[]) => T }>(
+  query: T,
+  pack: VerificationPack,
+): T {
+  const { desde, hasta, incluyeSinFecha } = VERIFICATION_PACKS[pack];
+  if (incluyeSinFecha) {
+    // `or` y no `gte` + `is`: sin el or, los nulos se caen del resultado.
+    const partes = [desde ? `estimated_connection_date.gte.${desde}` : null, "estimated_connection_date.is.null"].filter(
+      Boolean,
+    );
+    return query.or(partes.join(","));
+  }
+  let scoped = query;
+  if (desde) scoped = scoped.gte("estimated_connection_date", desde);
+  if (hasta) scoped = scoped.lte("estimated_connection_date", hasta);
+  return scoped;
+}
+
 /**
  * Exactamente el mismo criterio "vigente vs histórico" que /proyectos-esperados
  * (connectionPeriod "upcoming"/"historico_completo" en listProjects): comparten
@@ -598,6 +668,44 @@ function applyPeriodFilter<T extends { not: (...args: any[]) => T; gte: (...args
   return query.or(historicOrClause(sets));
 }
 
+export interface VerificationPackStats {
+  pack: VerificationPack;
+  pendientes: number;
+  verificados: number;
+  total: number;
+}
+
+/**
+ * Cuántos proyectos hay en cada pack — para los botones de /admin/verificador.
+ *
+ * Cuenta sobre la misma base que la cola (publicado, en alcance, no caído), así
+ * que el número del botón es el número de filas que va a mostrar. Se pide en
+ * paralelo y con `head: true`: son 6 conteos y ninguno trae filas.
+ */
+export async function getVerificationPackStats(client: SupabaseClient): Promise<VerificationPackStats[]> {
+  const packs: VerificationPack[] = ["pack1", "pack2", "recover"];
+  const contar = async (pack: VerificationPack, scope: Exclude<VerificationScope, "todos">) => {
+    let query = client
+      .from("project")
+      .select("id", { count: "exact", head: true })
+      .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
+      .eq("editorial_status", "published")
+      .not("status", "in", `(${ESTADOS_CAIDOS.map((e) => `"${e}"`).join(",")})`);
+    query = scope === "pendientes" ? query.is("verified_at", null) : query.not("verified_at", "is", null);
+    const { count, error } = await applyPackFilter(query, pack);
+    if (error) throw new Error(`Error contando el ${pack}: ${error.message}`);
+    return count ?? 0;
+  };
+
+  const resultados = await Promise.all(
+    packs.map(async (pack) => {
+      const [pendientes, verificados] = await Promise.all([contar(pack, "pendientes"), contar(pack, "verificados")]);
+      return { pack, pendientes, verificados, total: pendientes + verificados };
+    }),
+  );
+  return resultados;
+}
+
 /**
  * Cola del Verificador: proyectos con verified_at null. Sin `period` ni `sort`, usa el
  * criterio histórico "esperados primero" que scripts/sync-formulario-bulk.ts — vigentes
@@ -612,18 +720,32 @@ export async function getVerificationQueue(
   limit = 500,
   sort?: VerificationSort,
   period?: VerificationPeriod,
+  pack?: VerificationPack,
+  scope: VerificationScope = "pendientes",
 ): Promise<VerificationQueueItem[]> {
-  if (sort || period) {
+  if (sort || period || pack) {
     let query = client
       .from("project")
       .select(VERIFICATION_QUEUE_SELECT)
       .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
-      .eq("editorial_status", "published")
-      .is("verified_at", null);
+      .eq("editorial_status", "published");
+
+    // Los caídos viven en /admin/boveda y ni siquiera se le muestran al cliente
+    // (ver 20260813000000_restrict_project_visibility.sql). Verificarlos es
+    // trabajo que nadie va a mirar.
+    if (pack) query = query.not("status", "in", `(${ESTADOS_CAIDOS.map((e) => `"${e}"`).join(",")})`);
+
+    if (scope === "pendientes") query = query.is("verified_at", null);
+    else if (scope === "verificados") query = query.not("verified_at", "is", null);
+
+    if (pack) query = applyPackFilter(query, pack);
     if (period) query = applyPeriodFilter(query, period, await resolveConstructionSets(client));
 
     if (sort) {
       query = query.order(VERIFICATION_SORT_COLUMNS[sort.column], { ascending: sort.direction === "asc", nullsFirst: false });
+    } else if (pack) {
+      // Dentro de un pack manda la fecha de conexión: primero lo que entra antes.
+      query = query.order("estimated_connection_date", { ascending: true, nullsFirst: false });
     } else if (period === "vigente") {
       query = query.order("estimated_connection_date", { ascending: true });
     } else {
@@ -877,6 +999,7 @@ export async function getDoubtfulProjects(
   limit = 100,
   sort?: VerificationSort,
   period?: VerificationPeriod,
+  pack?: VerificationPack,
 ): Promise<VerificationQueueItem[]> {
   let query = client
     .from("project")
@@ -885,6 +1008,12 @@ export async function getDoubtfulProjects(
     .eq("editorial_status", "published")
     .is("verified_at", null)
     .or("ai_data_sanity.eq.sospechoso,ai_seia_pick.not.is.null");
+  // Acepta pack para que "solo dudosos" siga siendo un filtro DENTRO del pack
+  // que se está trabajando, y no un salto a otra lista.
+  if (pack) {
+    query = query.not("status", "in", `(${ESTADOS_CAIDOS.map((e) => `"${e}"`).join(",")})`);
+    query = applyPackFilter(query, pack);
+  }
   if (period) query = applyPeriodFilter(query, period, await resolveConstructionSets(client));
 
   query = sort

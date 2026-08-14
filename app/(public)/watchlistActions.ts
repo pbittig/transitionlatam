@@ -33,6 +33,10 @@ export async function toggleAppSetting(key: string, value: boolean): Promise<{ s
   try {
     await setAppSetting(createSupabaseServiceClient(), key, value);
     revalidatePath("/seguimiento");
+    // El modo mantenimiento se lee en la pantalla de ingreso, que es
+    // force-dynamic pero igual se cachea por request: sin esto, prenderlo no
+    // se refleja hasta la siguiente navegación.
+    revalidatePath("/ingresar");
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
