@@ -27,6 +27,7 @@ const JOB_LABELS: Record<string, string> = {
   "sync-sipub-centrales": "Centrales (SIPUB)",
   "sync-sipub-transmision": "Transmisión y subestaciones (SIPUB)",
   "sync-pelp": "Expansión PELP",
+  "check-project-visibility": "Qué ve un cliente (control)",
 };
 
 function timeAgo(iso: string): string {

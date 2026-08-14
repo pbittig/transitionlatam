@@ -92,6 +92,12 @@ $daily = @(
       '--output', 'logs\preverification-ultima.md'
     ) },
   @{ name = 'sync-sea-pertinencia';      args = @() },
+  # Va al final y despues de los syncs: pregunta que ve un cliente DESPUES de
+  # que los datos del dia entraron. Sale con codigo 1 si alguna regla de
+  # visibilidad se incumple, y el runner sigue con el resto igual. Existe
+  # porque el filtro por tecnologia desaparecio dentro de un reemplazo de
+  # policy el 2026-07-29 y nadie se entero por dos semanas.
+  @{ name = 'check-project-visibility';  args = @() },
   @{ name = 'send-daily-project-report'; args = @() }
 )
 $weekly = @(

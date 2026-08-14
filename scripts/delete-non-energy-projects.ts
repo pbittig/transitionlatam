@@ -1,5 +1,4 @@
 import { config } from "dotenv";
-// @ts-expect-error pg no incluye tipos en este proyecto; el uso está acotado a este script operativo.
 import { Client } from "pg";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
