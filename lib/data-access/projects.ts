@@ -713,6 +713,99 @@ function mapReverificationQueueRow(row: ReverificationQueueRow): ReverificationQ
   };
 }
 
+/**
+ * Los estados que sacan a un proyecto de la vista del cliente por estar caído.
+ *
+ * Vive acá y no en la policy solamente porque la bóveda tiene que listar
+ * exactamente lo mismo que la policy esconde. Si los dos lados se escriben por
+ * separado, el día que aparezca un tercer estado terminal la bóveda deja de
+ * mostrar lo que el cliente dejó de ver, y nadie se entera.
+ * Ver `supabase/migrations/20260813000000_restrict_project_visibility.sql`.
+ */
+export const ESTADOS_CAIDOS = ["Rechazada", "Desistida"] as const;
+
+export interface FallenProjectItem {
+  id: string;
+  name: string;
+  internalCode: string;
+  comuna: string | null;
+  region: string | null;
+  status: string | null;
+  technology: string | null;
+  capacityMw: number | null;
+  developer: string | null;
+  editorialStatus: string | null;
+}
+
+const FALLEN_PROJECT_SELECT =
+  "id, name, internal_code, status, capacity_mw, editorial_status, technology:technology_id(name), developer:developer_company_id(name), location:location_id(comuna, region:region_id(name))";
+
+type FallenProjectRow = {
+  id: string;
+  name: string;
+  internal_code: string;
+  status: string | null;
+  capacity_mw: number | null;
+  editorial_status: string | null;
+  technology: { name: string } | null;
+  developer: { name: string } | null;
+  location: { comuna: string | null; region: { name: string } | null } | null;
+};
+
+/**
+ * Proyectos rechazados o desistidos — la bóveda de /admin/boveda.
+ *
+ * Se consulta siempre con el cliente de servicio: la policy de `project` los
+ * esconde, así que con la sesión del usuario esta función devolvería vacío.
+ */
+export async function getFallenProjects(
+  client: SupabaseClient,
+  options: { status?: string; search?: string; page?: number; pageSize?: number } = {},
+): Promise<{ items: FallenProjectItem[]; total: number }> {
+  const pageSize = options.pageSize ?? 50;
+  const page = Math.max(1, options.page ?? 1);
+  const estados = options.status && (ESTADOS_CAIDOS as readonly string[]).includes(options.status)
+    ? [options.status]
+    : [...ESTADOS_CAIDOS];
+
+  let query = client
+    .from("project")
+    .select(FALLEN_PROJECT_SELECT, { count: "exact" })
+    .in("status", estados);
+
+  const search = options.search?.trim();
+  if (search) query = query.or(`name.ilike.%${search}%,internal_code.ilike.%${search}%`);
+
+  const { data, error, count } = await query
+    .order("name", { ascending: true })
+    .range((page - 1) * pageSize, page * pageSize - 1);
+  if (error) throw new Error(`Error obteniendo proyectos caídos: ${error.message}`);
+
+  const items = ((data ?? []) as unknown as FallenProjectRow[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    internalCode: row.internal_code,
+    comuna: row.location?.comuna ?? null,
+    region: row.location?.region?.name ?? null,
+    status: row.status,
+    technology: row.technology?.name ?? null,
+    capacityMw: row.capacity_mw,
+    developer: row.developer?.name ?? null,
+    editorialStatus: row.editorial_status,
+  }));
+  return { items, total: count ?? 0 };
+}
+
+/** Conteo de la bóveda — para la tarjeta de /admin. */
+export async function countFallenProjects(client: SupabaseClient): Promise<number> {
+  const { count, error } = await client
+    .from("project")
+    .select("id", { count: "exact", head: true })
+    .in("status", [...ESTADOS_CAIDOS]);
+  if (error) throw new Error(`Error contando proyectos caídos: ${error.message}`);
+  return count ?? 0;
+}
+
 /** Proyectos ya verificados cuyo estado cambió de forma sospechosa desde entonces (ver load.ts). */
 export async function getReverificationQueue(client: SupabaseClient, limit = 200): Promise<ReverificationQueueItem[]> {
   const { data, error } = await client

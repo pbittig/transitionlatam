@@ -19,6 +19,84 @@ Este archivo existe para que **cualquier instancia de Claude Code que abra este 
 7. **Planes de implementación cortos, no TDD exhaustivo por defecto** — el usuario prioriza eficiencia de tokens/tiempo sobre proceso formal, salvo que pida lo contrario.
 8. **"Verificar" un proyecto en `/admin/verificador` solo debe cambiar `verified_at`** (y campos editoriales asociados) — nunca debe reescribir silenciosamente otros datos de la ficha ya cargados.
 
+## Sesión 2026-08-13 — qué ve un cliente: el filtro por tecnología se había perdido
+
+### El hallazgo: una regla que existía dejó de existir en un `drop policy`
+
+Las migraciones del 2026-07-22 ocultaban transmisión, minería, desaladora y
+consumo reescribiendo la policy `public_read` de `project`. El 2026-07-29,
+`20260729000000` introdujo el flujo editorial con `drop policy public_read` +
+`create policy public_read_published`, y **la condición nueva quedó siendo solo
+`editorial_status = 'published'`**. El filtro por tecnología se fue con el drop
+y nadie lo notó durante dos semanas. Desde entonces lo único que escondía un
+proyecto era que alguien lo marcara `excluded` a mano.
+
+Apareció porque el usuario preguntó por qué veía data centers y térmicas en
+`/admin/revision-dudosos`. La respuesta a eso era inocente —ese panel usa el
+cliente de servicio, que ignora RLS a propósito— pero al ir a comprobar qué
+veía un cliente de verdad, salió esto.
+
+**Lección: una policy que se reemplaza no avisa qué condiciones se perdieron.**
+Al hacer `drop policy` + `create policy` con el mismo nombre, la condición vieja
+desaparece sin conflicto ni error. Antes de reescribir una policy, leer la que
+está puesta (`select qual from pg_policies`) y confirmar que la nueva conserva
+lo que corresponda.
+
+### La regla nueva (`20260813000000_restrict_project_visibility.sql`)
+
+**NO APLICADA todavía.** Un cliente ve un proyecto si está publicado, es de una
+tecnología que ofrecemos, y no está caído.
+
+- Filtra **por tecnología Y por patrón de nombre**. Solo por `technology_id` no
+  habría tapado nada: `thermal`, `data_center` y `transmission` tienen **0
+  proyectos publicados**. Los que se escapan lo hacen por estar mal clasificados
+  (una termoeléctrica marcada `hybrid`) o sin clasificar.
+- **Los Data Center pasan a ocultos**, revirtiendo la excepción explícita de
+  `20260722000006`. Decisión del usuario el 2026-08-13.
+- **Rechazados y desistidos dejan de verse.** No son de interés comercial.
+- **Ojo con geotérmica:** `unaccent('geotérmica')` contiene "termica". Los
+  patrones térmicos van con límites de palabra (`\m...\M`) o la policy esconde
+  la geotermia. Verificado en la simulación.
+
+Impacto simulado con `rollback`, diffeando ids visibles como rol
+`authenticated`: **2.021 → 954, salen 1.067 (52,8%)** — 1.058 caídos, 8 de
+consumo, 1 termoeléctrica viva. El usuario aceptó el impacto sabiendo que los
+KPIs del dashboard bajan a la mitad.
+
+**Queda sin resolver:** 24 proyectos publicados no tienen `technology_id`. El
+patrón de nombre alcanza a uno; del resto no se puede afirmar nada sin mirarlos.
+
+### La bóveda (`/admin/boveda`)
+
+Los caídos no se borran: 1.075 filas siguen ahí, ahora listadas en una sección
+de admin con búsqueda, filtro por estado y paginación. Por ahora **solo admin**
+— el usuario dejó abierto si algún día la ve Prime.
+
+`ESTADOS_CAIDOS` vive en `lib/data-access/projects.ts` y lo usan la bóveda y
+—conceptualmente— la policy. Si aparece un tercer estado terminal hay que
+tocarlo en los dos lados: si se desincronizan, la bóveda deja de mostrar lo que
+el cliente dejó de ver.
+
+### Expansión Futura escondida para clientes
+
+El PELP no se ofrece por ahora: se filtra el ítem del nav (`ADMIN_ONLY_HREFS` en
+`Sidebar.tsx`) y la página corta con `notFound()`. Se filtra en vez de marcarlo
+`minPlan: "premium"` porque un candado invita a pagar por algo que existe, y
+esto no se vende todavía.
+
+### Un error propio, para no repetirlo
+
+Los 27 proyectos marcados por SPV se eligieron por una sola condición —"tenía
+una SPV falsa"— sin mirar el estado. **18 de los 27 están rechazados o
+desistidos**, así que la cola manda a un humano a buscar la sociedad vehículo
+verdadera de proyectos muertos. Queda pendiente sacarlos de la cola.
+
+Otro: al verificar que el nav escondía el PELP, se probó con un token sin rol
+admin y se leyó "el link no aparece" como éxito. Falso — `proxy.ts` redirige ese
+token a `/ingresar`, una página sin sidebar. **Para probar el camino de un
+cliente hace falta una sesión real de Supabase Auth; no existe cuenta de prueba
+en el repo.**
+
 ## Sesión 2026-08-12 (posterior) — los 27 proyectos sin SPV quedaron marcados
 
 Se disparó lo que la sesión anterior dejó escrito y sin correr:
