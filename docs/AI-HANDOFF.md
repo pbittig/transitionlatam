@@ -87,9 +87,13 @@ esto no se vende todavía.
 ### Un error propio, para no repetirlo
 
 Los 27 proyectos marcados por SPV se eligieron por una sola condición —"tenía
-una SPV falsa"— sin mirar el estado. **18 de los 27 están rechazados o
-desistidos**, así que la cola manda a un humano a buscar la sociedad vehículo
-verdadera de proyectos muertos. Queda pendiente sacarlos de la cola.
+una SPV falsa"— sin mirar el estado. **18 de los 27 estaban rechazados o
+desistidos**, así que la cola mandaba a un humano a buscarle la sociedad
+vehículo a proyectos muertos. Corregido con
+`scripts/unflag-dead-spv-projects.ts --apply`: la cola quedó en **14 = 9 por SPV
+(todos vivos) + 5 por cambio sospechoso**. Uno de esos 5 está caído y se deja a
+propósito: ahí el flag existe justamente porque un proyecto verificado pasó a
+rechazado, y eso es lo que hay que confirmar. `verified_at` no se tocó (198).
 
 Otro: al verificar que el nav escondía el PELP, se probó con un token sin rol
 admin y se leyó "el link no aparece" como éxito. Falso — `proxy.ts` redirige ese
