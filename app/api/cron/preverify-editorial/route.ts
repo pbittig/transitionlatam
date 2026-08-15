@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
   const client = createSupabaseServiceClient();
-  const run = await startCronRun(client, "preverify-editorial");
+  const run = await startCronRun(client, "preverify-editorial", "scheduled");
   try {
     process.env.PREVERIFICATION_REVIEW_PROVIDER = "nemotron";
     const result = await runPreverificationBatch(client, {

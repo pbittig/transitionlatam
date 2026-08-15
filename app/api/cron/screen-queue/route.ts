@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   }
 
   const client = createSupabaseServiceClient();
-  const run = await startCronRun(client, "screen-queue");
+  const run = await startCronRun(client, "screen-queue", "scheduled");
   try {
     const summary = await runScreeningQueue(client, 15);
     await finishCronRun(client, run, {

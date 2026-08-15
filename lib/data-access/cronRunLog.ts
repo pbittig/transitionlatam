@@ -21,11 +21,44 @@ export interface CronRunLog {
   errorMessage: string | null;
 }
 
-export async function startCronRun(client: SupabaseClient, jobName: string): Promise<{ id: number; startedAt: number }> {
+export type CronRunOrigin = "scheduled" | "manual";
+
+/**
+ * Quién disparó esta corrida.
+ *
+ * `run-syncs.ps1` exporta TL_RUN_ORIGIN=scheduled antes de invocar sus jobs.
+ * Cualquier otra invocación —la consola, una prueba, un script que todavía
+ * nadie conectó al runner— cae en "manual" y no cuenta para el semáforo de
+ * /admin/operacion.
+ *
+ * El default es "manual" a propósito: una corrida se declara operativa, no se
+ * asume. Al revés, un job que se olvidara de declararse se contaría como
+ * operativo y su silencio se leería como salud — que es exactamente el modo de
+ * falla que este registro existe para evitar.
+ */
+export function currentRunOrigin(): CronRunOrigin {
+  return process.env.TL_RUN_ORIGIN === "scheduled" ? "scheduled" : "manual";
+}
+
+export async function startCronRun(
+  client: SupabaseClient,
+  jobName: string,
+  /**
+   * Se pasa explícito desde las rutas de cron: ahí el disparo lo hace el
+   * planificador de la plataforma, no un proceso hijo del runner, así que no
+   * hay variable de entorno que heredar.
+   */
+  origin: CronRunOrigin = currentRunOrigin(),
+): Promise<{ id: number; startedAt: number }> {
   const startedAt = Date.now();
   const { data, error } = await client
     .from("cron_run_log")
-    .insert({ job_name: jobName, status: "running", started_at: new Date(startedAt).toISOString() })
+    .insert({
+      job_name: jobName,
+      status: "running",
+      started_at: new Date(startedAt).toISOString(),
+      origin,
+    })
     .select("id")
     .single();
   if (error || !data) throw new Error(`No se pudo iniciar el log del cron: ${error?.message}`);

@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
   const client = createSupabaseServiceClient();
-  const run = await startCronRun(client, "sync-pgp-progress");
+  const run = await startCronRun(client, "sync-pgp-progress", "scheduled");
   try {
     const summary = await runPgpProgressSync(client, 20);
     await finishCronRun(client, run, {

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
   const client = createSupabaseServiceClient();
-  const run = await startCronRun(client, "daily-project-report");
+  const run = await startCronRun(client, "daily-project-report", "scheduled");
   try {
     const summary = await sendDailyProjectUpdatesReport();
     // Un envío omitido por falta de RESEND_API_KEY no es un éxito.

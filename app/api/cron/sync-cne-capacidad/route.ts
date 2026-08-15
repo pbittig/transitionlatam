@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
   const client = createSupabaseServiceClient();
-  const run = await startCronRun(client, "sync-cne-capacidad");
+  const run = await startCronRun(client, "sync-cne-capacidad", "scheduled");
   try {
     const summary = await runCneCapacitySync(client);
     await finishCronRun(client, run, { status: "success", metadata: summary });

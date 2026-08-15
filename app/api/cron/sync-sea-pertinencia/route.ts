@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   }
 
   const client = createSupabaseServiceClient();
-  const run = await startCronRun(client, "sync-sea-pertinencia");
+  const run = await startCronRun(client, "sync-sea-pertinencia", "scheduled");
   try {
     const summary = await runPertinenciaSync(client);
     await finishCronRun(client, run, {

@@ -54,6 +54,12 @@ $ErrorActionPreference = 'Continue'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
+# Marca estas corridas como operativas en cron_run_log. Lo heredan los procesos
+# hijos que lanza este script. Sin esto una corrida cae en 'manual' y no cuenta
+# para el semaforo de /admin/operacion — que es lo que queremos para una prueba
+# desde la consola, y lo que NO queremos para el runner.
+$env:TL_RUN_ORIGIN = 'scheduled'
+
 if ($NodeDir -and (Test-Path (Join-Path $NodeDir 'node.exe'))) {
   $env:PATH = "$NodeDir;$env:PATH"
 }

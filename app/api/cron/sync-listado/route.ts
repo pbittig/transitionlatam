@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   }
 
   const client = createSupabaseServiceClient();
-  const run = await startCronRun(client, "sync-listado");
+  const run = await startCronRun(client, "sync-listado", "scheduled");
   try {
     const summary = await runListadoSyncBatch(client, 15);
     await finishCronRun(client, run, {
