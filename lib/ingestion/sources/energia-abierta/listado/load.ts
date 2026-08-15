@@ -89,6 +89,8 @@ export interface LoadSummary {
   projectsCreated: number;
   projectsUpdated: number;
   projectsPromotedFromSibling: number;
+  /** Cuántas de esas promociones cayeron sobre una ficha ya verificada a mano. */
+  projectsPromotedOverVerified: number;
   solicitudesDiscardedAsInferior: number;
   companiesCreated: number;
   locationsCreated: number;
@@ -109,6 +111,7 @@ export async function loadNormalizedProjects(
     projectsCreated: 0,
     projectsUpdated: 0,
     projectsPromotedFromSibling: 0,
+    projectsPromotedOverVerified: 0,
     solicitudesDiscardedAsInferior: 0,
     companiesCreated: 0,
     locationsCreated: 0,
@@ -443,12 +446,20 @@ export async function loadNormalizedProjects(
     const sibling = projectsByNormalizedName.get(normalizedIncomingName);
 
     if (sibling && sibling.externalReference !== row.externalId) {
-      if (sibling.verifiedAt) {
-        // Fila ya verificada a mano: nunca se toca ni se reemplaza automáticamente
-        // (mismo criterio de "congelado tras verificar" que el resto de este archivo).
-        summary.solicitudesDiscardedAsInferior += 1;
-        return;
-      }
+      // Antes, una ficha verificada a mano nunca se promovía: la solicitud
+      // hermana se descartaba en silencio, sumando uno a un contador que nadie
+      // mira. El efecto real, medido el 2026-08-15: 3 de 198 proyectos
+      // verificados llevaban semanas congelados con una SUCTD más avanzada
+      // esperando — BESS Mirlo seguía en "Fehaciente debe presentar SUCTD"
+      // mientras la fuente ya lo daba autorizado para declararse en
+      // construcción.
+      //
+      // Decisión del usuario (2026-08-15): la promoción es avance del trámite,
+      // no una corrección de lo que el humano validó, así que se aplica también
+      // sobre fichas verificadas. `verified_at` NO se toca: quitarlo sacaría al
+      // proyecto de Proyectos Futuros, que filtra por verificados, y un avance
+      // regulatorio no puede despublicar un proyecto. Queda el evento en la
+      // ficha para que el traspaso de expediente sea rastreable.
       const incomingRank = statusRank(row.statusLabel);
       const siblingRank = statusRank(sibling.status);
       if (incomingRank <= siblingRank) {
@@ -484,9 +495,15 @@ export async function loadNormalizedProjects(
         new_value: { status: row.statusLabel, externalReference: row.externalId },
         data_source_id: dataSourceId,
         confidence_level: CONFIDENCE_PUBLIC,
-        description: `Nueva solicitud ${row.externalId} (${row.requestType ?? "sin tipo"}) reemplaza a la anterior para el mismo proyecto`,
+        description:
+          `Nueva solicitud ${row.externalId} (${row.requestType ?? "sin tipo"}) reemplaza a la anterior para el mismo proyecto` +
+          // Se distingue en el texto porque no es lo mismo revisar el historial
+          // de una ficha que nadie miró que el de una que alguien validó: en la
+          // segunda, el traspaso ocurrió después de la revisión humana.
+          (sibling.verifiedAt ? `. La ficha ya estaba verificada — el traspaso de expediente se aplicó igual` : ""),
       });
       summary.projectsPromotedFromSibling += 1;
+      if (sibling.verifiedAt) summary.projectsPromotedOverVerified += 1;
       projectsByNormalizedName.set(normalizedIncomingName, {
         id: sibling.id, externalReference: row.externalId, status: row.statusLabel, verifiedAt: null,
       });

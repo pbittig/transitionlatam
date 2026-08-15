@@ -85,6 +85,7 @@ function emptyLoadSummary(): LoadSummary {
     projectsCreated: 0,
     projectsUpdated: 0,
     projectsPromotedFromSibling: 0,
+    projectsPromotedOverVerified: 0,
     solicitudesDiscardedAsInferior: 0,
     companiesCreated: 0,
     locationsCreated: 0,

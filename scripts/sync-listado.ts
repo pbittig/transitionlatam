@@ -31,6 +31,7 @@ async function main() {
     console.log("Proyectos creados:                 ", summary.projectsCreated);
     console.log("Proyectos actualizados (backfill):  ", summary.projectsUpdated);
     console.log("Promovidos desde hermano (Fehaciente/SUCTD):", summary.projectsPromotedFromSibling);
+    console.log("  de esos, sobre fichas ya verificadas:      ", summary.projectsPromotedOverVerified);
     console.log("Solicitudes descartadas (inferiores):", summary.solicitudesDiscardedAsInferior);
     console.log("Omitidos (no vigentes, etapa posterior): ", summary.skippedNotVigente);
     console.log("Empresas creadas:                   ", summary.companiesCreated);
