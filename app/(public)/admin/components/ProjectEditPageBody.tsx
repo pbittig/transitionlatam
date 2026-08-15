@@ -4,6 +4,7 @@ import { getProjectStakeholders, type ProjectDetail } from "@/lib/data-access/pr
 import { getConfirmedPertinenciaForProject } from "@/lib/data-access/pertinencias";
 import { ProjectEditForm } from "./ProjectEditForm";
 import { UnassignSeiaButton } from "./UnassignSeiaButton";
+import { UnassignPertinenciaButton } from "./UnassignPertinenciaButton";
 import { DeleteProjectButton } from "./DeleteProjectButton";
 import { ProjectContactsEditor } from "./ProjectContactsEditor";
 import { FormularioDocumentLink } from "../verificador/FormularioDocumentLink";
@@ -62,7 +63,12 @@ export async function ProjectEditPageBody({
           <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
             Pertinencia SEA
           </h2>
-          <PertinenciaMatchModal projectId={project.id} projectName={project.name} hasExistingMatch={!!confirmedPertinencia} isAdmin />
+          <div className="flex items-center gap-3">
+            <PertinenciaMatchModal projectId={project.id} projectName={project.name} hasExistingMatch={!!confirmedPertinencia} isAdmin />
+            {/* Solo cuando hay algo que quitar: un botón para soltar lo que no
+                está asociado no hace nada y confunde sobre si lo estaba. */}
+            {confirmedPertinencia && <UnassignPertinenciaButton projectId={project.id} />}
+          </div>
         </div>
         <div className="mt-3">
           {confirmedPertinencia ? (

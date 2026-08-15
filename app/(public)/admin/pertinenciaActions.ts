@@ -75,6 +75,57 @@ export async function rejectPertinenciaMatch(pertinenciaId: string): Promise<voi
   revalidatePath("/admin");
 }
 
+/**
+ * Suelta la pertinencia que está colgada de un proyecto: la asociación estaba mal.
+ *
+ * Es el equivalente de `unassignSeiaMatch` para el otro trámite. Hasta ahora,
+ * desde la ficha se podía asociar y corregir una pertinencia, pero no quitarla:
+ * si estaba mal asociada, la única salida era buscarle otra, y para una ficha
+ * cuya pertinencia correcta no existe eso obligaba a dejar el dato equivocado.
+ *
+ * VUELVE A `pending` Y SIN SUGERENCIA, no a `rejected`. Son cosas distintas:
+ * `rejected` dice "la sugerencia automática estaba mal", y acá lo que estaba
+ * mal es una confirmación humana. Dejarla pendiente la devuelve a la cola de
+ * /admin/pertinencias para que alguien le busque su proyecto de verdad; borrar
+ * la sugerencia evita que el próximo que la mire vuelva a confirmar el mismo
+ * error con un clic.
+ *
+ * No marca "este proyecto no tiene pertinencia": no lo sabemos. Una corrida
+ * futura del matcher puede volver a proponerle una — mismo criterio que dejó
+ * escrito `unassignSeiaMatch`.
+ */
+export async function unassignPertinenciaFromProject(projectId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    const { error } = await createSupabaseServiceClient()
+      .from("pertinencia_consulta")
+      .update({
+        match_status: "pending",
+        matched_project_id: null,
+        suggested_project_id: null,
+        suggested_match_score: null,
+        // Se limpia el rastro de la confirmación que se está deshaciendo. Dejar
+        // quién y cuándo confirmó junto a un match_status "pending" describiría
+        // un estado que no existe, y el próximo que lo lea va a creer que hay
+        // una confirmación humana detrás de una fila que nadie confirmó.
+        match_confirmed_by: null,
+        match_confirmed_at: null,
+      })
+      .eq("matched_project_id", projectId)
+      .eq("match_status", "confirmed");
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/admin/verificador/${projectId}`);
+    revalidatePath(`/admin/editar-data/${projectId}`);
+    revalidatePath(`/proyectos/${projectId}`);
+    revalidatePath("/admin/pertinencias");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
 /** No corresponde a ningún proyecto en el sistema todavía (ej. modificación de un proyecto que no hemos cargado). */
 export async function markPertinenciaNoMatch(pertinenciaId: string): Promise<void> {
   await requireAdmin();
