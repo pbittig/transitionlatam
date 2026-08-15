@@ -18,6 +18,8 @@ import { Panel } from "../../components/Panel";
 import { DeleteProjectButton } from "../components/DeleteProjectButton";
 import { SortableHeader } from "../components/SortableHeader";
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
+import { getReverificationPassStart } from "@/lib/data-access/reverificationPass";
+import { iniciarRepaso } from "../reverificationPassActions";
 
 export const metadata: Metadata = { title: "Verificador de proyecto" };
 export const dynamic = "force-dynamic";
@@ -70,6 +72,7 @@ export default async function VerificadorPage({
     getAdminVerificationProgress(client),
   ]);
   const packActual = packStats.find((p) => p.pack === pack);
+  const inicioRepaso = await getReverificationPassStart(client);
   const queueIds = queue.map((project) => project.id);
   const { data: preverificationRows, error: preverificationError } = queueIds.length
     ? await client
@@ -188,6 +191,21 @@ export default async function VerificadorPage({
             Repasar verificados {packActual ? `· ${packActual.verificados.toLocaleString("es-CL")}` : ""}
           </Link>
         </div>
+
+        {scope === "verificados" && (
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
+            <span>
+              {inicioRepaso
+                ? `Repaso iniciado el ${formatDateOnly(inicioRepaso)}. Al guardar una ficha sale de esta cola.`
+                : "Sin repaso iniciado: se listan todas las fichas verificadas y la cola no baja al guardar."}
+            </span>
+            <form action={iniciarRepaso}>
+              <button className="rounded-full border border-neutral-300 px-3 py-1 font-medium text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800">
+                {inicioRepaso ? "Empezar otra vuelta" : "Iniciar repaso"}
+              </button>
+            </form>
+          </div>
+        )}
 
         <div className="mt-2 flex gap-2 text-xs">
           <Link

@@ -4,6 +4,7 @@ import { contactRoleLabelEs } from "@/lib/shared/contactRoleLabels";
 import { PMGD_CAPACITY_THRESHOLD_MW } from "@/lib/shared/projectPhaseDurations";
 import type { VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
+import { getReverificationPassStart } from "@/lib/data-access/reverificationPass";
 
 const MAX_PAGE_SIZE = 100;
 
@@ -684,6 +685,8 @@ export interface VerificationPackStats {
  */
 export async function getVerificationPackStats(client: SupabaseClient): Promise<VerificationPackStats[]> {
   const packs: VerificationPack[] = ["pack1", "pack2", "recover"];
+  // Se lee una sola vez: son 6 conteos y el corte es el mismo para todos.
+  const inicioRepaso = await getReverificationPassStart(client);
   const contar = async (pack: VerificationPack, scope: Exclude<VerificationScope, "todos">) => {
     let query = client
       .from("project")
@@ -691,7 +694,15 @@ export async function getVerificationPackStats(client: SupabaseClient): Promise<
       .or("prefilter_status.neq.out_of_scope,prefilter_status.is.null")
       .eq("editorial_status", "published")
       .not("status", "in", `(${ESTADOS_CAIDOS.map((e) => `"${e}"`).join(",")})`);
-    query = scope === "pendientes" ? query.is("verified_at", null) : query.not("verified_at", "is", null);
+    if (scope === "pendientes") {
+      query = query.is("verified_at", null);
+    } else {
+      // El contador tiene que decir lo que FALTA repasar, no cuántas fichas
+      // están verificadas: si dijera lo segundo, no bajaría al trabajar y el
+      // número sería exactamente igual de inútil que la lista que no se vaciaba.
+      query = query.not("verified_at", "is", null);
+      if (inicioRepaso) query = query.lt("verified_at", inicioRepaso);
+    }
     const { count, error } = await applyPackFilter(query, pack);
     if (error) throw new Error(`Error contando el ${pack}: ${error.message}`);
     return count ?? 0;
@@ -736,7 +747,14 @@ export async function getVerificationQueue(
     if (pack) query = query.not("status", "in", `(${ESTADOS_CAIDOS.map((e) => `"${e}"`).join(",")})`);
 
     if (scope === "pendientes") query = query.is("verified_at", null);
-    else if (scope === "verificados") query = query.not("verified_at", "is", null);
+    else if (scope === "verificados") {
+      query = query.not("verified_at", "is", null);
+      // La cola del repaso es lo verificado ANTES de que empezara la vuelta:
+      // al re-verificar, verified_at pasa a ser posterior y la ficha sale sola.
+      // Sin corte, todo lo verificado cuenta como pendiente de repasar.
+      const inicio = await getReverificationPassStart(client);
+      if (inicio) query = query.lt("verified_at", inicio);
+    }
 
     if (pack) query = applyPackFilter(query, pack);
     if (period) query = applyPeriodFilter(query, period, await resolveConstructionSets(client));
