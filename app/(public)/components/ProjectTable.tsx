@@ -191,14 +191,17 @@ export function ProjectTable({
                 </td>
                 <td className="px-3 py-3 text-neutral-600">
                   {p.estimatedConnectionDate ? (() => {
-                    const date = new Date(p.estimatedConnectionDate);
+                    // Se parte el texto en vez de usar Date: es una columna
+                    // `date`, y pasarla por un huso la corre un día (ver
+                    // lib/shared/formatDateOnly.ts).
+                    const [anio, mes, dia] = p.estimatedConnectionDate.slice(0, 10).split("-");
                     return (
                       <time dateTime={p.estimatedConnectionDate} className="inline-flex min-w-14 flex-col leading-none">
                         <span className="text-base font-semibold tracking-tight tabular-nums text-neutral-900">
-                          {date.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit" })}
+                          {dia}-{mes}
                         </span>
                         <span className="mt-1 text-[10px] font-medium tracking-[0.12em] tabular-nums text-neutral-400">
-                          {date.getFullYear()}
+                          {anio}
                         </span>
                       </time>
                     );

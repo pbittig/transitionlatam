@@ -1,3 +1,4 @@
+import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import Link from "next/link";
 import type { AppLocale } from "@/lib/i18n";
 import type { RelatedPortfolioProject, RelatedProjectReason } from "@/lib/data-access/projects";
@@ -94,9 +95,7 @@ export function RelatedProjectsPanel({
               {[
                 relationshipLabels[locale][project.reason],
                 powerBreakdown(project, locale),
-                project.estimatedConnectionDate
-                  ? new Date(project.estimatedConnectionDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL")
-                  : null,
+                formatDateOnly(project.estimatedConnectionDate, locale === "en" ? "en" : "es"),
               ]
                 .filter(Boolean)
                 .join(" · ")}

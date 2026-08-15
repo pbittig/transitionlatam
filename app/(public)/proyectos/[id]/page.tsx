@@ -1,3 +1,4 @@
+import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
@@ -331,7 +332,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           <Field label={locale === "en" ? "Transmission segment" : "Segmento de transmisión"} value={project.transmissionSegment} />
           <Field
             label={locale === "en" ? "Project connection date (declared)" : "Fecha de conexión del proyecto (declarada)"}
-            value={project.estimatedConnectionDate ? new Date(project.estimatedConnectionDate).toLocaleDateString(locale === "en" ? "en-GB" : "es-CL") : null}
+            value={formatDateOnly(project.estimatedConnectionDate, locale === "en" ? "en" : "es")}
           />
         </dl>
         {scheduleConflict !== null && (

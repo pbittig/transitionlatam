@@ -6,15 +6,18 @@ import {
   getVerificationQueue,
   getDoubtfulProjects,
   getVerificationScreeningStats,
-  getVerificationPeriodStats,
+  getVerificationPackStats,
+  VERIFICATION_PACKS,
   type VerificationQueueItem,
   type VerificationSortColumn,
-  type VerificationPeriod,
+  type VerificationPack,
+  type VerificationScope,
 } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../../components/Panel";
 import { DeleteProjectButton } from "../components/DeleteProjectButton";
 import { SortableHeader } from "../components/SortableHeader";
+import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 
 export const metadata: Metadata = { title: "Verificador de proyecto" };
 export const dynamic = "force-dynamic";
@@ -31,15 +34,24 @@ function isDoubtful(item: VerificationQueueItem): boolean {
   return item.aiDataSanity === "sospechoso" || item.aiSeiaPick !== null;
 }
 
+const PACK_ORDER: VerificationPack[] = ["pack1", "pack2", "recover"];
+
+function isPack(value: string | undefined): value is VerificationPack {
+  return !!value && (PACK_ORDER as readonly string[]).includes(value);
+}
+
 export default async function VerificadorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dudosos?: string; sort?: string; dir?: string; periodo?: string }>;
+  searchParams: Promise<{ dudosos?: string; sort?: string; dir?: string; pack?: string; scope?: string }>;
 }) {
   if (!(await isAdmin())) return null;
   const params = await searchParams;
   const onlyDoubtful = params.dudosos === "1";
-  const period: VerificationPeriod = params.periodo === "historico" ? "historico" : "vigente";
+  // Pack 1 es el default: es el paquete que se está trabajando. Quien quiera
+  // otro lo elige, pero nadie cae por accidente en Recover.
+  const pack: VerificationPack = isPack(params.pack) ? params.pack : "pack1";
+  const scope: VerificationScope = params.scope === "verificados" ? "verificados" : "pendientes";
   const sortColumn = isSortColumn(params.sort) ? params.sort : undefined;
   const sortDirection: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
   const sort = sortColumn ? { column: sortColumn, direction: sortDirection } : undefined;
@@ -47,14 +59,17 @@ export default async function VerificadorPage({
   // no es legible por anon. Esta página ya validó isAdmin(), por eso consulta
   // server-side con service_role.
   const client = createSupabaseServiceClient();
-  const [stats, periodStats, queue, progress] = await Promise.all([
+  const [stats, packStats, queue, progress] = await Promise.all([
     getVerificationScreeningStats(client),
-    getVerificationPeriodStats(client),
+    getVerificationPackStats(client),
     onlyDoubtful
-      ? getDoubtfulProjects(client, QUEUE_PAGE_LIMIT, sort, period)
-      : getVerificationQueue(client, QUEUE_PAGE_LIMIT, sort, period),
+      ? // Los dudosos solo existen entre los que faltan: el tamizado con IA
+        // corre sobre la cola pendiente, no sobre lo ya verificado.
+        getDoubtfulProjects(client, QUEUE_PAGE_LIMIT, sort, undefined, pack)
+      : getVerificationQueue(client, QUEUE_PAGE_LIMIT, sort, undefined, pack, scope),
     getAdminVerificationProgress(client),
   ]);
+  const packActual = packStats.find((p) => p.pack === pack);
   const queueIds = queue.map((project) => project.id);
   const { data: preverificationRows, error: preverificationError } = queueIds.length
     ? await client
@@ -72,39 +87,33 @@ export default async function VerificadorPage({
   const dailyGoal = 50;
   const dailyProgressPct = Math.min(100, Math.round((progress.verifiedToday / dailyGoal) * 100));
 
-  function buildCurrentQueueHref(): string {
+  /** Un solo constructor de URL para no perder el pack al ordenar o filtrar. */
+  function buildHref(
+    overrides: { pack?: VerificationPack; scope?: VerificationScope; dudosos?: boolean; sort?: string; dir?: "asc" | "desc" } = {},
+  ): string {
     const qs = new URLSearchParams();
-    if (period === "historico") qs.set("periodo", "historico");
-    if (onlyDoubtful) qs.set("dudosos", "1");
-    if (sortColumn) {
-      qs.set("sort", sortColumn);
-      qs.set("dir", sortDirection);
+    const nextPack = overrides.pack ?? pack;
+    const nextScope = overrides.scope ?? scope;
+    const nextDoubtful = overrides.dudosos ?? onlyDoubtful;
+    const nextSort = overrides.sort ?? sortColumn;
+    const nextDir = overrides.dir ?? sortDirection;
+    if (nextPack !== "pack1") qs.set("pack", nextPack);
+    if (nextScope !== "pendientes") qs.set("scope", nextScope);
+    if (nextDoubtful) qs.set("dudosos", "1");
+    if (nextSort) {
+      qs.set("sort", nextSort);
+      qs.set("dir", nextDir);
     }
     const query = qs.toString();
     return query ? `/admin/verificador?${query}` : "/admin/verificador";
+  }
+
+  function buildCurrentQueueHref(): string {
+    return buildHref();
   }
 
   function buildSortHref(column: string, direction: "asc" | "desc"): string {
-    const qs = new URLSearchParams();
-    qs.set("periodo", period);
-    if (onlyDoubtful) qs.set("dudosos", "1");
-    qs.set("sort", column);
-    qs.set("dir", direction);
-    return `/admin/verificador?${qs.toString()}`;
-  }
-
-  function buildTabHref(overrides: { periodo?: VerificationPeriod; dudosos?: boolean }): string {
-    const qs = new URLSearchParams();
-    const nextPeriod = overrides.periodo ?? period;
-    const nextDoubtful = overrides.dudosos ?? onlyDoubtful;
-    if (nextPeriod === "historico") qs.set("periodo", "historico");
-    if (nextDoubtful) qs.set("dudosos", "1");
-    if (sortColumn) {
-      qs.set("sort", sortColumn);
-      qs.set("dir", sortDirection);
-    }
-    const query = qs.toString();
-    return query ? `/admin/verificador?${query}` : "/admin/verificador";
+    return buildHref({ sort: column, dir: direction });
   }
 
   return (
@@ -114,8 +123,8 @@ export default async function VerificadorPage({
           Verificador de proyecto
         </h1>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          {periodStats.vigentePending.toLocaleString("es-CL")} vigentes y{" "}
-          {periodStats.historicoPending.toLocaleString("es-CL")} históricos pendientes — mostrando los primeros{" "}
+          {VERIFICATION_PACKS[pack].hint}. {packActual?.pendientes.toLocaleString("es-CL") ?? "—"} por verificar y{" "}
+          {packActual?.verificados.toLocaleString("es-CL") ?? "—"} ya verificados — mostrando los primeros{" "}
           {queue.length.toLocaleString("es-CL")}
           {onlyDoubtful ? ", solo dudosos" : ""}.
         </p>
@@ -128,41 +137,61 @@ export default async function VerificadorPage({
           Pre-verificado con IA y listo para revisión humana.
         </p>
 
-        <div className="mt-4 flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="mt-4 flex flex-wrap gap-1 border-b border-neutral-200 dark:border-neutral-800">
+          {PACK_ORDER.map((p) => {
+            const s = packStats.find((x) => x.pack === p);
+            const activo = p === pack;
+            return (
+              <Link
+                key={p}
+                href={buildHref({ pack: p })}
+                title={VERIFICATION_PACKS[p].hint}
+                className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+                  activo
+                    ? "border-neutral-900 text-neutral-900 dark:border-neutral-50 dark:text-neutral-50"
+                    : "border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+                }`}
+              >
+                {VERIFICATION_PACKS[p].label}
+                <span className="ml-1.5 tabular-nums text-xs text-neutral-400">
+                  {s ? s.pendientes.toLocaleString("es-CL") : "—"}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+          Se ordenan por fecha de conexión: primero lo que entra antes. No aparecen rechazados ni desistidos — esos
+          viven en la <Link href="/admin/boveda" className="underline underline-offset-2">bóveda</Link>.
+        </p>
+
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
           <Link
-            href={buildTabHref({ periodo: "vigente" })}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
-              period === "vigente"
-                ? "border-neutral-900 text-neutral-900 dark:border-neutral-50 dark:text-neutral-50"
-                : "border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+            href={buildHref({ scope: "pendientes", dudosos: false })}
+            className={`rounded-full border px-3 py-1 font-medium ${
+              scope === "pendientes"
+                ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+                : "border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
             }`}
           >
-            Vigentes
+            Por verificar {packActual ? `· ${packActual.pendientes.toLocaleString("es-CL")}` : ""}
           </Link>
           <Link
-            href={buildTabHref({ periodo: "historico" })}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
-              period === "historico"
-                ? "border-neutral-900 text-neutral-900 dark:border-neutral-50 dark:text-neutral-50"
-                : "border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+            href={buildHref({ scope: "verificados", dudosos: false })}
+            className={`rounded-full border px-3 py-1 font-medium ${
+              scope === "verificados"
+                ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+                : "border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
             }`}
+            title="Repasar fichas ya verificadas — el segundo pase es más rápido"
           >
-            Histórico
+            Repasar verificados {packActual ? `· ${packActual.verificados.toLocaleString("es-CL")}` : ""}
           </Link>
         </div>
-        {period === "vigente" ? (
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            No rechazados/desistidos, desde el día 1 de este mes en adelante — verificar hoy.
-          </p>
-        ) : (
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Rechazados, desistidos, vencidos o sin fecha — se puede dejar para después, con más gente.
-          </p>
-        )}
 
-        <div className="mt-3 flex gap-2 text-xs">
+        <div className="mt-2 flex gap-2 text-xs">
           <Link
-            href={buildTabHref({ dudosos: false })}
+            href={buildHref({ dudosos: false })}
             className={`rounded-full border px-3 py-1 font-medium ${
               !onlyDoubtful
                 ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
@@ -172,7 +201,7 @@ export default async function VerificadorPage({
             Todos
           </Link>
           <Link
-            href={buildTabHref({ dudosos: true })}
+            href={buildHref({ dudosos: true, scope: "pendientes" })}
             className={`rounded-full border px-3 py-1 font-medium ${
               onlyDoubtful
                 ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
@@ -184,7 +213,9 @@ export default async function VerificadorPage({
         </div>
       </div>
 
-      {period === "vigente" && <Panel className="grid gap-6 border-brand-primary/25 md:grid-cols-2">
+      {/* El avance y la meta diaria son globales, no del pack: cambiar de pestaña
+          no debería hacer desaparecer el termómetro del día. */}
+      {scope === "pendientes" && <Panel className="grid gap-6 border-brand-primary/25 md:grid-cols-2">
         <div>
           <div className="flex items-end justify-between gap-3">
             <div>
@@ -223,10 +254,10 @@ export default async function VerificadorPage({
         <Panel>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
             {onlyDoubtful
-              ? "No hay proyectos dudosos tamizados todavía en esta cola."
-              : period === "vigente"
-                ? "No quedan proyectos vigentes pendientes de verificar."
-                : "No quedan proyectos históricos pendientes de verificar."}
+              ? `No hay proyectos dudosos tamizados todavía en el ${VERIFICATION_PACKS[pack].label}.`
+              : scope === "verificados"
+                ? `Todavía no hay nada verificado en el ${VERIFICATION_PACKS[pack].label}.`
+                : `El ${VERIFICATION_PACKS[pack].label} está al día — no quedan proyectos por verificar.`}
           </p>
         </Panel>
       ) : (
@@ -278,7 +309,7 @@ export default async function VerificadorPage({
                     {[p.comuna, p.region].filter(Boolean).join(", ") || "—"}
                   </td>
                   <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
-                    {p.estimatedConnectionDate ? new Date(p.estimatedConnectionDate).toLocaleDateString("es-CL") : "—"}
+                    {formatDateOnly(p.estimatedConnectionDate) ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">{p.status ?? "—"}</td>
                   <td className="px-4 py-3">
