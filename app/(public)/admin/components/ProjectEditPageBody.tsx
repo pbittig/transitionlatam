@@ -8,6 +8,7 @@ import { UnassignPertinenciaButton } from "./UnassignPertinenciaButton";
 import { DeleteProjectButton } from "./DeleteProjectButton";
 import { ProjectContactsEditor } from "./ProjectContactsEditor";
 import { FormularioDocumentLink } from "../verificador/FormularioDocumentLink";
+import { ProjectDocumentsBox } from "../verificador/ProjectDocumentsBox";
 import { SeiaMatchModal } from "../../proyectos/[id]/SeiaMatchModal";
 import { PertinenciaMatchModal } from "../../proyectos/[id]/PertinenciaMatchModal";
 import { SeiaStatusCard } from "../../components/SeiaStatusCard";
@@ -36,8 +37,11 @@ export async function ProjectEditPageBody({
 
   return (
     <>
-      <div className="flex justify-end">
-        <FormularioDocumentLink projectId={project.id} />
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-wrap items-start justify-end gap-2">
+          <FormularioDocumentLink projectId={project.id} />
+          <ProjectDocumentsBox projectId={project.id} />
+        </div>
       </div>
       <ProjectEditForm project={project} connectionStatusOptions={connectionStatuses.map((s) => s.label)} />
       <div>
