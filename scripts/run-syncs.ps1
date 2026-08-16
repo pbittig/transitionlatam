@@ -104,6 +104,10 @@ $daily = @(
   # porque el filtro por tecnologia desaparecio dentro de un reemplazo de
   # policy el 2026-07-29 y nadie se entero por dos semanas.
   @{ name = 'check-project-visibility';  args = @() },
+  # Mismo motivo, otra pregunta: este comprueba QUIEN puede leer, no QUE se ve.
+  # Una policy recreada sin 'to authenticated' reabre una tabla sin que el otro
+  # chequeo lo note (paso el 2026-08-15 con project).
+  @{ name = 'check-anon-access';          args = @() },
   @{ name = 'send-daily-project-report'; args = @() }
 )
 $weekly = @(

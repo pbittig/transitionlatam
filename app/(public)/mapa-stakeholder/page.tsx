@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Building2, ContactRound, Fingerprint, FolderKanban, GitBranch, Network, ShieldCheck, UserRoundCog } from "lucide-react";
-import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getCompanyById, getCompanyShareholders, getTopCompaniesByProjectCount } from "@/lib/data-access/companies";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
 import { Panel } from "../components/Panel";
@@ -26,7 +26,7 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
   const locale = await getAppLocale();
   const en = locale === "en";
   const params = await searchParams;
-  const client = await createSupabaseServerClient();
+  const client = await createSupabasePageClient();
   const admin = await isAdmin();
   const profile = admin ? null : await getCurrentUserProfile(client);
   const premiumLocked = !admin && profile?.planCode !== "premium";

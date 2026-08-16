@@ -22,6 +22,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, "..", ".env.local") });
 
 import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServiceClient } from "../lib/data-access/supabase-service-client";
+import { finishCronRun, startCronRun } from "../lib/data-access/cronRunLog";
+
+const JOB_NAME = "check-anon-access";
 
 // Se espera que `anon` pueda leer esto y solo esto: es el catálogo comercial y
 // la página de precios es pública. Cualquier otra tabla en la salida es un
@@ -46,6 +50,13 @@ async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+
+  // Registra en cron_run_log desde que entró al set diario (2026-08-16). Corría
+  // a mano, y por eso una policy reabierta el 15-08 pasó un día sin detectarse:
+  // `project` volvió a quedar legible por anon cuando una migración la recreó
+  // sin repetir el `to authenticated`.
+  const service = createSupabaseServiceClient();
+  const run = await startCronRun(service, JOB_NAME);
 
   const anon = createClient(url, anonKey);
   const abiertas: Array<{ tabla: string; filas: number; columnas: number; esperada: boolean }> = [];
@@ -72,13 +83,23 @@ async function main() {
     console.log(`  ${t.esperada ? "ok " : "!! "} ${t.tabla.padEnd(26)} ${String(t.filas).padStart(7)} filas, ${t.columnas} columnas`);
   }
 
+  await finishCronRun(service, run, {
+    status: inesperadas.length ? "error" : "success",
+    eligible_rows: abiertas.length,
+    events_failed: inesperadas.length,
+    error_message: inesperadas.length
+      ? `${inesperadas.length} tabla(s) legibles por anon: ${inesperadas.map((t) => t.tabla).join(", ")}`
+      : null,
+    metadata: { abiertas: abiertas.map((t) => ({ tabla: t.tabla, filas: t.filas, esperada: t.esperada })) },
+  });
+
   if (inesperadas.length === 0) {
     console.log("\nSolo queda abierto el catálogo de planes. Es lo esperado.");
     return;
   }
 
   console.log(`\n${inesperadas.length} tabla(s) fuera del catálogo de planes siguen abiertas a cualquiera sin cuenta.`);
-  console.log("Si esto sale después de aplicar 20260812000005, la migración no está puesta o no cubre estas tablas.");
+  console.log("Una policy recreada sin `to authenticated` basta para reabrir una tabla — revisar la última migración que la tocó.");
   process.exitCode = 1;
 }
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Activity, BatteryCharging, Building2 } from "lucide-react";
-import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getLatestCapacitySourceDate, getPowerPlantRegionBubbles, getPowerPlantsForMap, getPowerPlantStats, listPowerPlants } from "@/lib/data-access/powerPlants";
 import { getConstructionStats, getConstructionProjects } from "@/lib/data-access/construction";
 import { chipsToNamePatterns, chipsToPlantTypes, parseChipKeys, TECH_CHIPS } from "../components/techChips";
@@ -50,7 +50,7 @@ export default async function MercadoPage({
   const search = params.q;
   const hasFilter = plantTypes.length > 0 || namePatterns.length > 0 || !!params.estado || !!search;
 
-  const client = await createSupabaseServerClient();
+  const client = await createSupabasePageClient();
 
   const [stats, regionBubbles, plantList, operatingPlantsMap, capacitySourceDate, constructionStats, constructionProjects] = await Promise.all([
     getPowerPlantStats(client),

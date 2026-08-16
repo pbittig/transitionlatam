@@ -12,7 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { isAdmin } from "@/lib/auth/session";
-import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
 import { getSeiaStatusesForUpcomingProjects, getUpcomingScheduleInputs } from "@/lib/data-access/pipeline";
 import { computeEstimatedPhase } from "@/lib/shared/computeEstimatedPhase";
@@ -52,7 +52,7 @@ export default async function AnalisisDinamicoPage({
   const etapas = params.etapa?.split(",").filter(Boolean) as PhaseGroup[] | undefined;
   const hasTechnologyFilter = technologyCodes.length > 0 || namePatterns.length > 0;
 
-  const client = await createSupabaseServerClient();
+  const client = await createSupabasePageClient();
   const admin = await isAdmin();
   const isFree = !admin && (await getIsFreeTier(client));
   if (isFree) return <LockedAnalysisPage />;

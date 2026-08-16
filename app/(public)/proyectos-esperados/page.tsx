@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getProjectsForMap, listProjects } from "@/lib/data-access/projects";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
 import { getLatestPgpProgressForProjects } from "@/lib/data-access/pgpProgress";
@@ -106,7 +106,9 @@ export default async function ProyectosEsperadosPage({
   const mesHasta = Number(params.mesHasta ?? String(MONTHS_HORIZON)) || MONTHS_HORIZON;
   const hasDateRangeFilter = tab === "esperados" && (mesDesde > 0 || mesHasta < MONTHS_HORIZON);
 
-  const client = await createSupabaseServerClient();
+  // Para un admin devuelve el cliente de servicio: su sesión no es de Supabase
+  // y sin esto la página le sale vacía (ver supabase-page-client.ts).
+  const client = await createSupabasePageClient();
 
   // Instrumentación anti-scraping (docs/09-seguridad.md §9.4/9.6) — best-effort,
   // nunca debe romper el render de la página si falla.
