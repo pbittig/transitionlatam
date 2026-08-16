@@ -94,7 +94,9 @@ export async function getProjectDocumentUrl(
     const doc = (await listDocumentsForSolicitud(solicitudId)).find((d) => d.id === documentId);
     if (!doc) return { success: false, error: "El documento ya no está disponible en Acceso Abierto." };
 
-    return { success: true, url: await getSignedDocumentUrl(doc) };
+    // inline: para que el PDF se vea en la pestaña en vez de descargarse y
+    // dejarla en blanco. Ver la cabecera de getSignedDocumentUrl.
+    return { success: true, url: await getSignedDocumentUrl(doc, { inline: true }) };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }

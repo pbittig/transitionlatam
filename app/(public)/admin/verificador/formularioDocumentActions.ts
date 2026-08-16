@@ -40,7 +40,7 @@ export async function getFormularioDocumentLink(projectId: string): Promise<Form
       return { success: false, error: "El documento ya no está disponible en Acceso Abierto." };
     }
 
-    const url = await getSignedDocumentUrl(doc);
+    const url = await getSignedDocumentUrl(doc, { inline: true });
     return { success: true, url, filename: doc.nombre };
   } catch (err) {
     return { success: false, error: (err as Error).message };

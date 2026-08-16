@@ -51,16 +51,30 @@ export function ProjectDocumentsBox({ projectId }: { projectId: string }) {
   function handleOpen(documentId: number) {
     setError(null);
     setAbriendo(documentId);
-    // La pestaña se abre ANTES del await: si se abriera después, el navegador
-    // lo trata como popup no solicitado y lo bloquea.
-    const tab = window.open("", "_blank", "noopener,noreferrer");
+    // La pestaña se abre ANTES de pedir la firma: si se abriera después del
+    // await, el navegador la trata como popup no solicitado y la bloquea.
+    //
+    // SIN "noopener" a propósito. Con esa opción `window.open` devuelve null
+    // —está en la especificación— así que no queda referencia a la que
+    // asignarle la URL y la pestaña se queda en about:blank para siempre. Fue
+    // exactamente el bug que reportó el usuario. La protección equivalente se
+    // aplica abajo poniendo `opener = null` una vez que la pestaña existe.
+    const tab = window.open("about:blank", "_blank");
+    if (tab) tab.opener = null;
+
     getProjectDocumentUrl(projectId, documentId)
       .then((result) => {
-        if (result.success && result.url) {
-          if (tab) tab.location.href = result.url;
-        } else {
+        if (!result.success || !result.url) {
           tab?.close();
           setError(result.error ?? "No se pudo abrir el documento.");
+          return;
+        }
+        if (tab) {
+          tab.location.replace(result.url);
+        } else {
+          // El navegador bloqueó la pestaña: se avisa en vez de dejar el clic
+          // sin efecto aparente.
+          setError("El navegador bloqueó la ventana emergente. Permítelas para este sitio y vuelve a intentar.");
         }
       })
       .finally(() => setAbriendo(null));

@@ -59,8 +59,23 @@ export async function listDocumentsForSolicitud(solicitudId: string): Promise<Ac
  * `X-Amz-Expires=30` real observado), así que hay que usarla de inmediato
  * (descargarla server-side, o pasarla a un cliente que la abra al toque).
  */
-export async function getSignedDocumentUrl(doc: AccesoAbiertoDocument): Promise<string> {
-  const signUrl = `${API_BASE}/documentos/s3?app=aa&key=${encodeURIComponent(doc.rutaS3)}&download=${encodeURIComponent(doc.nombre)}`;
+export async function getSignedDocumentUrl(
+  doc: AccesoAbiertoDocument,
+  options: { inline?: boolean } = {},
+): Promise<string> {
+  // El parámetro `download` es lo que hace que S3 responda con
+  // `Content-Disposition: attachment`. Con él, abrir la URL en una pestaña
+  // descarga el archivo y deja la pestaña en blanco — el síntoma que reportó el
+  // usuario el 2026-08-16. Omitirlo devuelve el PDF sin disposition y el
+  // navegador lo muestra (verificado: content-type application/pdf, sin
+  // Content-Disposition). Un .xlsx se descarga igual, porque el navegador no
+  // sabe mostrarlo; eso es correcto.
+  //
+  // El default sigue siendo la descarga para no cambiarle el comportamiento a
+  // `downloadDocument`, que es de la ingesta y no le importa la disposition.
+  const signUrl =
+    `${API_BASE}/documentos/s3?app=aa&key=${encodeURIComponent(doc.rutaS3)}` +
+    (options.inline ? "" : `&download=${encodeURIComponent(doc.nombre)}`);
   const signRes = await fetch(signUrl, {
     headers: { "User-Agent": "Mozilla/5.0" },
     signal: AbortSignal.timeout(20_000),
