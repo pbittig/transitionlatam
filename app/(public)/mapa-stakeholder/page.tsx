@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Building2, ContactRound, Fingerprint, FolderKanban, GitBranch, Network, ShieldCheck, UserRoundCog } from "lucide-react";
+import { ContactRound, FolderKanban, GitBranch, Network, ShieldCheck, UserRoundCog } from "lucide-react";
 import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getCompanyById, getCompanyShareholders, getTopCompaniesByProjectCount } from "@/lib/data-access/companies";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
 import { Panel } from "../components/Panel";
-import { getOwnerOverviewStats, getOwnerPortfolio, getSimilarCompanyNames } from "@/lib/data-access/ownerPortfolio";
+import { getOwnerPortfolio, getSimilarCompanyNames } from "@/lib/data-access/ownerPortfolio";
 import { OwnerPortfolioPanels } from "./OwnerPortfolioPanels";
+import { OwnershipChainDiagram } from "./OwnershipChainDiagram";
 import { StakeholderMap } from "../components/StakeholderMap";
 import { PlanGate } from "../components/PlanGate";
 import { isAdmin } from "@/lib/auth/session";
@@ -16,6 +17,7 @@ import { FreeFeaturePreview } from "../components/FreeFeaturePreview";
 import { OwnershipNetworkPreview } from "./OwnershipNetworkPreview";
 import { getAppLocale } from "@/lib/i18n";
 import { formatRutForDisplay } from "@/lib/shared/formatRut";
+import { GENERIC_CATEGORICAL, lightDark, PRINCIPAL_COLOR } from "@/lib/shared/chartColors";
 import { formatPersonName } from "@/lib/shared/formatContact";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,9 +40,11 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
   const [related, shareholders] = company
     ? await Promise.all([getRelatedCompaniesByName(client, company.name), getCompanyShareholders(client, company.id)])
     : [null, []];
-  const overview = await getOwnerOverviewStats(client);
   const [portfolio, similares] = company
-    ? await Promise.all([getOwnerPortfolio(client, company.id), getSimilarCompanyNames(client, company.id, company.name)])
+    ? await Promise.all([
+        getOwnerPortfolio(client, company.id, company.name),
+        getSimilarCompanyNames(client, company.id, company.name),
+      ])
     : [null, []];
 
   return (
@@ -73,23 +77,27 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
               icon: GitBranch,
               question: en ? "Owners" : "Propietarios",
               answer: en ? "Identify the group, operating company or related entity behind the SPV formally listed for the project." : "Identifique el grupo, empresa operativa o sociedad relacionada detrás de la SPV que aparece formalmente en el proyecto.",
-              color: "bg-brand-surface text-brand-deep dark:bg-brand-primary/10 dark:text-brand-primary",
+              color: lightDark(GENERIC_CATEGORICAL[0]),
             },
             {
               icon: FolderKanban,
               question: en ? "Related projects" : "Proyectos relacionados",
               answer: en ? "Consolidate projects, MW, technologies, regions and stages of companies linked to the same owners." : "Consolida los proyectos, MW, tecnologías, regiones y etapas de las empresas vinculadas al mismo grupo.",
-              color: "bg-brand-surface text-brand-deep",
+              color: lightDark(GENERIC_CATEGORICAL[2]),
             },
             {
               icon: ContactRound,
               question: en ? "Who to contact" : "A quién contactar",
               answer: en ? "Organize contacts by role: development, engineering, connection, permitting, procurement, construction and finance." : "Organice contactos por función: desarrollo, ingeniería, conexión, permisos, compras, construcción y finanzas.",
-              color: "bg-brand-primary/15 text-brand-deep",
+              color: lightDark(PRINCIPAL_COLOR),
             },
+            // Color por posición, no por significado: son tres conceptos
+            // nominales, y el manual reserva el mapeo por nombre para las
+            // tecnologías (ver GENERIC_CATEGORICAL en chartColors.ts).
           ].map(({ icon: Icon, question, answer, color }) => (
-            <article key={question} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-              <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}><Icon size={18} /></span>
+            <article key={question} className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <span aria-hidden className="absolute inset-x-0 top-0 h-1" style={{ background: color }} />
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}><Icon size={18} /></span>
               <h3 className="mt-4 text-base font-semibold text-neutral-950 dark:text-white">{question}</h3>
               <p className="mt-2 text-sm leading-6 text-neutral-500 dark:text-neutral-400">{answer}</p>
             </article>
@@ -157,24 +165,6 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
         </div>
       </section>
 
-      {/* Indicadores reales, no estimaciones: todos se cuentan sobre proyectos
-          publicados, la misma base que la cartera de más abajo. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { valor: overview.empresasConProyectos, etiqueta: en ? "Companies with projects" : "Empresas con proyectos" },
-          { valor: overview.proyectos, etiqueta: en ? "Projects with a developer" : "Proyectos con desarrollador" },
-          { valor: overview.contactos, etiqueta: en ? "Registered contacts" : "Contactos registrados" },
-          { valor: overview.spvConMatriz, etiqueta: en ? "SPVs declaring a parent" : "SPV con matriz declarada" },
-        ].map((item) => (
-          <Panel key={item.etiqueta} className="p-4">
-            <p className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">
-              {item.valor.toLocaleString("es-CL")}
-            </p>
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{item.etiqueta}</p>
-          </Panel>
-        ))}
-      </div>
-
       <form className="flex flex-wrap items-end gap-3" action="/propietarios">
         <label className="flex min-w-[280px] flex-1 flex-col gap-1.5 text-sm font-medium text-neutral-700 dark:text-neutral-300">{en ? "Company / developer" : "Empresa / desarrollador"}
           <select name="empresa" defaultValue={selectedId ?? ""} className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm font-normal dark:border-neutral-700">
@@ -192,11 +182,7 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
         description={en ? "Explore a professional view of companies, SPVs, shareholders and relationships to prepare better-informed conversations." : "Explora una vista profesional de empresas, SPV, accionistas y relaciones para preparar conversaciones con más contexto."}
         features={en ? ["Linked company map", "Consolidated RUT and identity", "Shareholders and investors", "Source and confidence traceability"] : ["Mapa de empresas vinculadas", "RUT e identidad consolidada", "Accionistas e inversionistas", "Trazabilidad de fuente y confianza"]}
       ><>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Panel className="p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><Building2 size={15} /> {en ? "Central entity" : "Entidad central"}</div><p className="mt-2 truncate text-lg font-semibold text-neutral-900 dark:text-neutral-50">{company.name}</p></Panel>
-          <Panel className="p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><Fingerprint size={15} /> {en ? "Legal identifier" : "Identificador legal"}</div><p className="mt-2 text-lg font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{formatRutForDisplay(company.rut) ?? (en ? "RUT pending" : "RUT pendiente")}</p><p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{en ? "corporate consolidation key" : "clave de consolidación societaria"}</p></Panel>
-          <Panel className="p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><UserRoundCog size={15} /> {en ? "Ownership interests" : "Participaciones"}</div><p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{shareholders.length}</p><p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{en ? "identified shareholders or investors" : "accionistas o inversionistas identificados"}</p></Panel>
-        </div>
+        <OwnershipChainDiagram companyName={company.name} />
 
         {portfolio && <OwnerPortfolioPanels portfolio={portfolio} companyName={company.name} similares={similares} />}
 

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Layers, MapPin, Zap, Boxes } from "lucide-react";
 import type { OwnerPortfolio } from "@/lib/data-access/ownerPortfolio";
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
+import { lightDark, PRINCIPAL_COLOR, techColor } from "@/lib/shared/chartColors";
+import type { MarketTechCategory } from "@/lib/shared/marketTechCategories";
 import { Panel } from "../components/Panel";
 
 /**
@@ -13,14 +15,45 @@ import { Panel } from "../components/Panel";
  * se muestra. Cuando se integre la API de sociedades, la red va arriba de esto,
  * no en lugar de esto.
  */
+/**
+ * Los KPI van en turquesa de marca, no en la paleta categórica: el manual
+ * reserva el turquesa para "información principal" y los colores por tecnología
+ * para tecnología. Pintar un KPI de amarillo lo haría leerse como "Solar" al
+ * lado de la tabla de abajo, que sí usa ese amarillo con ese significado.
+ */
 function Metrica({ icono, valor, etiqueta }: { icono: React.ReactNode; valor: string; etiqueta: string }) {
   return (
-    <Panel className="p-4">
-      <div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">
-        {icono} {etiqueta}
+    <Panel className="relative overflow-hidden p-4">
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ background: lightDark(PRINCIPAL_COLOR) }}
+      />
+      <span
+        aria-hidden
+        className="absolute -top-6 -right-6 h-20 w-20 rounded-full"
+        style={{ background: `color-mix(in srgb, ${lightDark(PRINCIPAL_COLOR)} 10%, transparent)` }}
+      />
+      <div className="relative flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+        <span style={{ color: lightDark(PRINCIPAL_COLOR) }}>{icono}</span> {etiqueta}
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{valor}</p>
+      <p className="relative mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{valor}</p>
     </Panel>
+  );
+}
+
+/** Chip de tecnología con el color canónico de la categoría. */
+function ChipTecnologia({ nombre, categoria }: { nombre: string | null; categoria: MarketTechCategory | null }) {
+  if (!nombre) return <span className="text-neutral-400">—</span>;
+  const color = lightDark(techColor(categoria));
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+      style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} aria-hidden />
+      {nombre}
+    </span>
   );
 }
 
@@ -97,7 +130,9 @@ export function OwnerPortfolioPanels({
                           {p.name}
                         </Link>
                       </td>
-                      <td className="py-2.5 pr-3 text-neutral-600 dark:text-neutral-400">{p.technology ?? "—"}</td>
+                      <td className="py-2.5 pr-3">
+                        <ChipTecnologia nombre={p.technology} categoria={p.categoria} />
+                      </td>
                       <td className="py-2.5 pr-3 text-right tabular-nums text-neutral-600 dark:text-neutral-400">
                         {p.capacityMw === null ? "—" : p.capacityMw.toLocaleString("es-CL")}
                         {p.capacityMwh !== null ? ` / ${p.capacityMwh.toLocaleString("es-CL")}` : ""}
@@ -122,13 +157,16 @@ export function OwnerPortfolioPanels({
 
         <Panel className="flex flex-col gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Sociedades vehículo</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Sociedades asociadas</h2>
             <p className="mt-1 text-sm text-neutral-500">
-              SPV que declaran a esta empresa como matriz. Es la única relación societaria que la fuente confirma hoy.
+              Otras razones sociales que la fuente vincula a esta empresa. Muchas son variantes del mismo nombre o
+              cambios de marca, no filiales: no se presentan como propiedad.
             </p>
           </div>
           {spvs.length === 0 ? (
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Ninguna SPV declara a esta empresa como matriz.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              La fuente no vincula otras razones sociales a esta empresa.
+            </p>
           ) : (
             <ul className="flex flex-col gap-1.5 text-sm text-neutral-700 dark:text-neutral-300">
               {spvs.slice(0, 20).map((s) => (

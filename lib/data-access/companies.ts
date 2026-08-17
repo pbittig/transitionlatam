@@ -6,30 +6,24 @@ export interface CompanyOption {
   projectCount: number;
 }
 
-/** Empresas desarrolladoras con más proyectos en el pipeline — para el selector del Mapa Stakeholder. */
+/**
+ * Empresas desarrolladoras con más proyectos publicados — para el selector de
+ * Propietarios.
+ *
+ * El conteo lo hace Postgres. Traerlo a la app y contar en memoria parecía más
+ * simple pero contaba mal: PostgREST corta en 1.000 filas, así que el selector
+ * decía "49 proyectos" para una empresa cuya cartera, en la misma pantalla,
+ * listaba 106.
+ */
 export async function getTopCompaniesByProjectCount(client: SupabaseClient, limit = 40): Promise<CompanyOption[]> {
-  const { data, error } = await client.from("project").select("developer_company_id").not("developer_company_id", "is", null);
+  const { data, error } = await client.rpc("top_developer_companies", { p_limit: limit });
   if (error) throw new Error(`Error leyendo empresas desarrolladoras: ${error.message}`);
 
-  const counts = new Map<string, number>();
-  for (const row of data ?? []) {
-    const id = row.developer_company_id as string;
-    counts.set(id, (counts.get(id) ?? 0) + 1);
-  }
-
-  const topIds = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
-  if (topIds.length === 0) return [];
-
-  const { data: companies, error: companyError } = await client
-    .from("company")
-    .select("id, name")
-    .in("id", topIds.map(([id]) => id));
-  if (companyError) throw new Error(`Error leyendo empresas: ${companyError.message}`);
-
-  const nameById = new Map((companies ?? []).map((c) => [c.id as string, c.name as string]));
-  return topIds
-    .filter(([id]) => nameById.has(id))
-    .map(([id, count]) => ({ id, name: nameById.get(id)!, projectCount: count }));
+  return ((data ?? []) as Array<{ id: string; name: string; project_count: number }>).map((row) => ({
+    id: row.id,
+    name: row.name,
+    projectCount: row.project_count,
+  }));
 }
 
 export async function getCompanyById(client: SupabaseClient, id: string): Promise<{ id: string; name: string; rut: string | null } | null> {

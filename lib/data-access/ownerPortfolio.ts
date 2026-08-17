@@ -1,48 +1,36 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStatusMaturity } from "@/lib/shared/projectStatusMaturity";
+import { pipelineTechCodeToCategory, type MarketTechCategory } from "@/lib/shared/marketTechCategories";
 
 /**
  * La cartera de una empresa: sus proyectos, su potencia y sus sociedades.
  *
  * Lo que hay hoy y lo que no, medido el 2026-08-17:
  *
- * - SÍ: 631 empresas con proyectos, 2.096 proyectos con desarrollador, 1.162
- *   personas vinculadas y 1.616 SPV que declaran una matriz.
- * - NO: `company_shareholding` está VACÍA — no hay una sola participación
- *   accionaria registrada. Por eso acá no se arma una red societaria: lo único
- *   que la fuente sostiene es un nivel, matriz → sus SPV. Afirmar más sería
- *   inventar la estructura de propiedad de una empresa real.
+ * - SÍ: 373 empresas con proyectos publicados y 2.022 proyectos con
+ *   desarrollador. La cartera es dato firme.
+ * - NO: propiedad. `company_shareholding` está VACÍA —cero participaciones
+ *   accionarias— y `spv.parent_company_id` NO es una relación matriz→filial
+ *   aunque lo parezca: de sus 1.616 filas, 1.509 llevan exactamente el mismo
+ *   nombre que su "matriz", 81 son variantes con erratas, y casi todo el resto
+ *   son cambios de marca de la misma empresa (Solarpack→Zelestra, AES
+ *   Gener→AES Andes) o relaciones invertidas. Es una tabla de variantes de
+ *   razón social, no un organigrama, y por eso acá no se deriva estructura de
+ *   propiedad de ella.
  *
  * Cuando se integre la API de sociedades, este módulo es el que crece.
  */
 
-export interface OwnerOverviewStats {
-  empresasConProyectos: number;
-  proyectos: number;
-  contactos: number;
-  spvConMatriz: number;
-}
-
-export async function getOwnerOverviewStats(client: SupabaseClient): Promise<OwnerOverviewStats> {
-  // Todos los conteos se acotan a lo publicado, igual que la RPC: un total que
-  // no cuadra con la lista que lo acompaña se lee como error aunque cada número
-  // sea correcto por separado.
-  const [empresas, proyectos, contactos, spvs] = await Promise.all([
-    client.rpc("count_companies_with_projects"),
-    client
-      .from("project")
-      .select("id", { count: "exact", head: true })
-      .not("developer_company_id", "is", null)
-      .eq("editorial_status", "published"),
-    client.from("person").select("id", { count: "exact", head: true }),
-    client.from("spv").select("id", { count: "exact", head: true }).not("parent_company_id", "is", null),
-  ]);
-  return {
-    empresasConProyectos: Number(empresas.data ?? 0),
-    proyectos: proyectos.count ?? 0,
-    contactos: contactos.count ?? 0,
-    spvConMatriz: spvs.count ?? 0,
-  };
+/** Comparación laxa de razones sociales: sin tildes, sin puntuación, sin mayúsculas. */
+function mismaRazonSocial(a: string, b: string): boolean {
+  const limpiar = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "") // marcas diacríticas combinantes
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  return limpiar(a) === limpiar(b);
 }
 
 /**
@@ -87,6 +75,8 @@ export interface OwnerProject {
   id: string;
   name: string;
   technology: string | null;
+  /** Categoría canónica, para pintar con la paleta de marca en vez de por nombre libre. */
+  categoria: MarketTechCategory | null;
   capacityMw: number | null;
   capacityMwh: number | null;
   region: string | null;
@@ -111,7 +101,7 @@ interface FilaProyecto {
   capacity_mwh: number | null;
   status: string | null;
   estimated_connection_date: string | null;
-  technology: { name: string } | null;
+  technology: { name: string; code: string | null } | null;
   location: { region: { name: string } | null } | null;
 }
 
@@ -122,12 +112,16 @@ interface FilaProyecto {
  * desde la tabla, y contar en el resumen unos que no puede ver haría que los
  * números no cuadren con la lista de abajo.
  */
-export async function getOwnerPortfolio(client: SupabaseClient, companyId: string): Promise<OwnerPortfolio> {
+export async function getOwnerPortfolio(
+  client: SupabaseClient,
+  companyId: string,
+  companyName: string,
+): Promise<OwnerPortfolio> {
   const [proyectosRes, spvsRes] = await Promise.all([
     client
       .from("project")
       .select(
-        "id, name, capacity_mw, capacity_mwh, status, estimated_connection_date, technology:technology_id(name), location:location_id(region:region_id(name))",
+        "id, name, capacity_mw, capacity_mwh, status, estimated_connection_date, technology:technology_id(name, code), location:location_id(region:region_id(name))",
       )
       .eq("developer_company_id", companyId)
       .eq("editorial_status", "published")
@@ -144,6 +138,7 @@ export async function getOwnerPortfolio(client: SupabaseClient, companyId: strin
       id: f.id,
       name: f.name,
       technology: f.technology?.name ?? null,
+      categoria: pipelineTechCodeToCategory(f.technology?.code ?? null),
       capacityMw: f.capacity_mw,
       capacityMwh: f.capacity_mwh,
       region: f.location?.region?.name ?? null,
@@ -158,6 +153,16 @@ export async function getOwnerPortfolio(client: SupabaseClient, companyId: strin
     totalMw: proyectos.reduce((suma, p) => suma + (p.capacityMw ?? 0), 0),
     tecnologias: [...new Set(proyectos.map((p) => p.technology).filter((t): t is string => !!t))].sort(),
     regiones: [...new Set(proyectos.map((p) => p.region).filter((r): r is string => !!r))].sort(),
-    spvs: ((spvsRes.data ?? []) as Array<{ name: string }>).map((s) => s.name),
+    // Se descartan las que repiten la razón social de la propia empresa y se
+    // deduplican las repetidas: sin esto, Sphera muestra 30 "sociedades
+    // vehículo" todas llamadas "SPHERA DEVELOPMENT SPA", que se lee como un
+    // error de la pantalla y no como información.
+    spvs: [
+      ...new Set(
+        ((spvsRes.data ?? []) as Array<{ name: string }>)
+          .map((s) => s.name)
+          .filter((nombre) => !mismaRazonSocial(nombre, companyName)),
+      ),
+    ].sort((a, b) => a.localeCompare(b, "es")),
   };
 }
