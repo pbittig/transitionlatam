@@ -5,6 +5,8 @@ import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client
 import { getCompanyById, getCompanyShareholders, getTopCompaniesByProjectCount } from "@/lib/data-access/companies";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
 import { Panel } from "../components/Panel";
+import { getOwnerOverviewStats, getOwnerPortfolio, getSimilarCompanyNames } from "@/lib/data-access/ownerPortfolio";
+import { OwnerPortfolioPanels } from "./OwnerPortfolioPanels";
 import { StakeholderMap } from "../components/StakeholderMap";
 import { PlanGate } from "../components/PlanGate";
 import { isAdmin } from "@/lib/auth/session";
@@ -35,6 +37,10 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
   const company = selectedId ? await getCompanyById(client, selectedId) : null;
   const [related, shareholders] = company
     ? await Promise.all([getRelatedCompaniesByName(client, company.name), getCompanyShareholders(client, company.id)])
+    : [null, []];
+  const overview = await getOwnerOverviewStats(client);
+  const [portfolio, similares] = company
+    ? await Promise.all([getOwnerPortfolio(client, company.id), getSimilarCompanyNames(client, company.id, company.name)])
     : [null, []];
 
   return (
@@ -151,6 +157,24 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
         </div>
       </section>
 
+      {/* Indicadores reales, no estimaciones: todos se cuentan sobre proyectos
+          publicados, la misma base que la cartera de más abajo. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { valor: overview.empresasConProyectos, etiqueta: en ? "Companies with projects" : "Empresas con proyectos" },
+          { valor: overview.proyectos, etiqueta: en ? "Projects with a developer" : "Proyectos con desarrollador" },
+          { valor: overview.contactos, etiqueta: en ? "Registered contacts" : "Contactos registrados" },
+          { valor: overview.spvConMatriz, etiqueta: en ? "SPVs declaring a parent" : "SPV con matriz declarada" },
+        ].map((item) => (
+          <Panel key={item.etiqueta} className="p-4">
+            <p className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">
+              {item.valor.toLocaleString("es-CL")}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{item.etiqueta}</p>
+          </Panel>
+        ))}
+      </div>
+
       <form className="flex flex-wrap items-end gap-3" action="/propietarios">
         <label className="flex min-w-[280px] flex-1 flex-col gap-1.5 text-sm font-medium text-neutral-700 dark:text-neutral-300">{en ? "Company / developer" : "Empresa / desarrollador"}
           <select name="empresa" defaultValue={selectedId ?? ""} className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm font-normal dark:border-neutral-700">
@@ -173,6 +197,8 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
           <Panel className="p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><Fingerprint size={15} /> {en ? "Legal identifier" : "Identificador legal"}</div><p className="mt-2 text-lg font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{formatRutForDisplay(company.rut) ?? (en ? "RUT pending" : "RUT pendiente")}</p><p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{en ? "corporate consolidation key" : "clave de consolidación societaria"}</p></Panel>
           <Panel className="p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400"><UserRoundCog size={15} /> {en ? "Ownership interests" : "Participaciones"}</div><p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{shareholders.length}</p><p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{en ? "identified shareholders or investors" : "accionistas o inversionistas identificados"}</p></Panel>
         </div>
+
+        {portfolio && <OwnerPortfolioPanels portfolio={portfolio} companyName={company.name} similares={similares} />}
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr]">
           <Panel className="flex flex-col gap-4">
