@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { getProjectById } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
@@ -12,7 +12,10 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   if (!(await isAdmin())) return { title: "Verificar proyecto" };
   const { id } = await params;
-  const client = await createSupabaseServerClient();
+  // Mismo motivo que en el cuerpo de la página: la sesión de admin no es de
+  // Supabase, así que el cliente de sesión consulta como `anon` y el título
+  // saldría genérico.
+  const client = createSupabaseServiceClient();
   const project = await getProjectById(client, id);
   return { title: project ? `Verificar — ${project.name}` : "Verificar proyecto" };
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, ShieldCheck, TrendingUp } from "lucide-react";
+import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, ShieldCheck } from "lucide-react";
 import { logout } from "@/app/ingresar/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import type { AppLocale } from "@/lib/i18n";
@@ -18,7 +18,6 @@ import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
 // no se ofrece. Por eso se filtra el ítem en vez de marcarlo `minPlan:
 // "premium"` — el usuario no debería enterarse de que la sección está ahí.
 // El nav no decide acceso: la página también corta por su cuenta (notFound).
-const ADMIN_ONLY_HREFS = new Set(["/expansion-futura"]);
 function getNavItems(locale: AppLocale) {
   return locale === "en"
     ? [
@@ -28,7 +27,6 @@ function getNavItems(locale: AppLocale) {
         { href: localizedRoute("tracking", locale), label: "Tracking", icon: Eye, minPlan: "premium" },
         // Va después de las fuentes de proyectos reales a propósito: PELP es
         // modelamiento de expansión, no un pipeline de proyectos.
-        { href: "/expansion-futura", label: "Future Expansion", icon: TrendingUp, minPlan: "free" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: localizedRoute("services", locale), label: "Additional services", icon: ClipboardList, minPlan: "free" },
       ]
@@ -37,7 +35,6 @@ function getNavItems(locale: AppLocale) {
         { href: "/operacion", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/propietarios", label: "Propietarios", icon: Network, minPlan: "premium" },
         { href: "/seguimiento", label: "Seguimiento", icon: Eye, minPlan: "premium" },
-        { href: "/expansion-futura", label: "Expansión Futura", icon: TrendingUp, minPlan: "free" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: localizedRoute("services", locale), label: "Servicios adicionales", icon: ClipboardList, minPlan: "free" },
       ];
@@ -57,7 +54,7 @@ export function Sidebar({
   const pathname = usePathname();
   const planCode = userProfile?.planCode ?? "free";
   const isFree = !isAdmin && planCode !== "premium";
-  const baseNavItems = getNavItems(locale).filter((item) => isAdmin || !ADMIN_ONLY_HREFS.has(item.href));
+  const baseNavItems = getNavItems(locale);
   const navItems = isAdmin ? [...baseNavItems, { href: "/admin", label: "Admin", icon: ShieldCheck, minPlan: "free" }] : baseNavItems;
 
   return (

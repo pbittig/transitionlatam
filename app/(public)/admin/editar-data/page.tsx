@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { listProjects } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { SearchBar } from "../../components/SearchBar";
@@ -29,7 +29,10 @@ export default async function EditarDataPage({
   const page = Number(params.page ?? "1") || 1;
   const sortBy = isSortColumn(params.sort) ? params.sort : undefined;
   const sortDir = params.dir === "desc" ? "desc" : "asc";
-  const client = await createSupabaseServerClient();
+  // service_role tras validar isAdmin(): la sesión de admin es una cookie
+  // propia, no de Supabase, así que con el cliente de sesión esta página
+  // consulta como `anon` y desde que anon quedó cerrado devolvía 0 proyectos.
+  const client = createSupabaseServiceClient();
   const result = await listProjects(client, { search: params.q, sortBy, sortDir }, page, PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
 
