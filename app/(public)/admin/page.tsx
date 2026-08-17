@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert, FileSearch, BarChart3, Gauge, Archive, Wrench } from "lucide-react";
+import { ShieldCheck, PencilLine, Inbox, Users, ClipboardList, TriangleAlert, Activity, ShieldAlert, FileSearch, BarChart3, Gauge, Archive, Wrench, Unlink } from "lucide-react";
 import { countUnverifiedProjects, countNeedsReverification, countFallenProjects } from "@/lib/data-access/projects";
 import { isAdmin } from "@/lib/auth/session";
 import { Panel } from "../components/Panel";
@@ -114,6 +114,16 @@ export default async function AdminPage() {
                 {fallenCount === null
                   ? "Contador temporalmente no disponible."
                   : `${fallenCount.toLocaleString("es-CL")} rechazados o desistidos, ocultos para los clientes.`}
+              </p>
+            </Panel>
+          </Link>
+          <Link href="/admin/huerfanos">
+            <Panel className="flex flex-col gap-2 hover:border-neutral-300 dark:hover:border-neutral-700">
+              <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                <Unlink size={18} /> Vínculos huérfanos
+              </div>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                Relaciones que apuntan a un proyecto o empresa que ya no existe.
               </p>
             </Panel>
           </Link>
