@@ -7,6 +7,7 @@ import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-
 import { TECHNOLOGY_COMBOS, type TechnologyCombo } from "./technologyCombos";
 import { reprocessFormularioContacts } from "@/lib/ingestion/sources/energia-abierta/detalle-formulario/reprocess";
 import { normalizeRutDigits } from "@/lib/ingestion/sources/sea-pertinencia/matching";
+import { esMarcaDeDatoFaltante } from "@/lib/shared/reverification";
 
 export type EditableProjectField =
   | "name"
@@ -214,6 +215,30 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
   try {
     const client = createSupabaseServiceClient();
     const now = new Date().toISOString();
+
+    /**
+     * Si la ficha estaba marcada porque le faltaba un dato y el dato ya está,
+     * verificarla ES resolver la marca: se cierra sola.
+     *
+     * Las marcas de "el estado retrocedió" NO se tocan — verificar no confirma
+     * un retroceso, eso lo decide un humano en /admin/revision-dudosos. Antes no
+     * se distinguía y nada se cerraba nunca: el 2026-08-17 el usuario encontró
+     * en la cola los mismos proyectos que acababa de validar.
+     *
+     * Se exige que el hueco esté lleno (`spv_id`), no solo que se haya
+     * verificado: verificar una ficha a la que le sigue faltando la sociedad
+     * vehículo no resuelve nada, y cerrar la marca ahí escondería el pendiente.
+     */
+    const { data: actual } = await client
+      .from("project")
+      .select("needs_reverification, reverification_reason, spv_id")
+      .eq("id", projectId)
+      .maybeSingle();
+    const cierraMarca =
+      actual?.needs_reverification === true &&
+      esMarcaDeDatoFaltante(actual.reverification_reason as string | null) &&
+      actual.spv_id !== null;
+
     const { error } = await client
       .from("project")
       .update({
@@ -221,6 +246,7 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
         editorial_status: "published",
         editorial_reviewed_at: now,
         published_at: now,
+        ...(cierraMarca ? { needs_reverification: false, reverification_reason: null } : {}),
       })
       .eq("id", projectId);
     if (error) throw new Error(error.message);
