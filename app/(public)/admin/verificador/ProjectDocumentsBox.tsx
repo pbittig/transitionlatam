@@ -25,6 +25,8 @@ export function ProjectDocumentsBox({ projectId }: { projectId: string }) {
   const [abierto, setAbierto] = useState(false);
   const [documentos, setDocumentos] = useState<ProjectDocumentItem[] | null>(null);
   const [solicitudId, setSolicitudId] = useState<string | null>(null);
+  const [tipoSolicitud, setTipoSolicitud] = useState<string | null>(null);
+  const [estadoSolicitud, setEstadoSolicitud] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [abriendo, setAbriendo] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
@@ -42,6 +44,8 @@ export function ProjectDocumentsBox({ projectId }: { projectId: string }) {
       if (result.success) {
         setDocumentos(result.documentos ?? []);
         setSolicitudId(result.solicitudId ?? null);
+        setTipoSolicitud(result.tipoSolicitud ?? null);
+        setEstadoSolicitud(result.estadoSolicitud ?? null);
       } else {
         setError(result.error ?? "No se pudieron obtener los documentos.");
       }
@@ -114,8 +118,14 @@ export function ProjectDocumentsBox({ projectId }: { projectId: string }) {
           {!pending && documentos && documentos.length > 0 && (
             <>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                {documentos.length} {documentos.length === 1 ? "documento" : "documentos"} en la solicitud {solicitudId}.
+                {documentos.length} {documentos.length === 1 ? "documento" : "documentos"} en la solicitud {solicitudId}
+                {tipoSolicitud ? `, tramitada como ${tipoSolicitud}` : ""}.
               </p>
+              {estadoSolicitud && (
+                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
+                  Estado en la fuente: <span className="font-medium">{estadoSolicitud}</span>
+                </p>
+              )}
               <div className="mt-3 flex flex-col gap-3">
                 {[...porTipo].map(([tipo, docs]) => (
                   <div key={tipo}>
@@ -142,6 +152,19 @@ export function ProjectDocumentsBox({ projectId }: { projectId: string }) {
                 ))}
               </div>
             </>
+          )}
+
+          {!pending && documentos && documentos.length > 0 && (
+            // Los tres trámites del Coordinador, al pie. Son con lo que uno
+            // busca en el portal, y saber cuál aplica cambia qué documentos
+            // esperar: un Fehaciente no tiene Informe CTD, un SUCTD sí.
+            <p className="mt-3 border-t border-neutral-200 pt-2 text-[11px] leading-relaxed text-neutral-400 dark:border-neutral-800">
+              <span className="font-medium">SAC</span>: Solicitud de Autorización de Conexión, para instalaciones
+              nacionales o zonales. · <span className="font-medium">SUCTD</span>: Solicitud de Uso de Capacidad
+              Técnica Disponible, para instalaciones dedicadas de terceros. ·{" "}
+              <span className="font-medium">Proyecto Fehaciente</span>: exención de SUCTD para el dueño de la
+              instalación dedicada; reduce la capacidad que queda disponible para terceros.
+            </p>
           )}
 
           {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}

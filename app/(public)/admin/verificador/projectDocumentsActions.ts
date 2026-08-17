@@ -17,8 +17,29 @@ export interface ProjectDocumentItem {
 export interface ProjectDocumentsResult {
   success: boolean;
   solicitudId?: string;
+  /** SAC, SUCTD o Fehaciente — el trámite bajo el que está esta solicitud. */
+  tipoSolicitud?: string | null;
+  /** El estado que la fuente le da hoy a la solicitud. */
+  estadoSolicitud?: string | null;
   documentos?: ProjectDocumentItem[];
   error?: string;
+}
+
+/**
+ * Normaliza el tipo de solicitud a como lo nombra el Coordinador.
+ *
+ * La fuente emite variantes para el mismo trámite —"SUCT" por SUCTD, "SASC" por
+ * SAC, "FEHACIENTES" en plural— y el glosario del sector las trata como el
+ * mismo proceso, no como procesos distintos. Se muestran con el nombre con el
+ * que uno los busca en el portal.
+ */
+function nombreTramite(requestType: string | null): string | null {
+  if (!requestType) return null;
+  const t = requestType.trim().toUpperCase();
+  if (t.startsWith("SUCT")) return "SUCTD";
+  if (t.startsWith("SASC") || t.startsWith("SAC")) return "SAC";
+  if (t.startsWith("FEHACIENTE")) return "Proyecto Fehaciente";
+  return requestType;
 }
 
 /**
@@ -45,7 +66,7 @@ export async function listProjectDocuments(projectId: string): Promise<ProjectDo
     const client = createSupabaseServiceClient();
     const { data: project, error } = await client
       .from("project")
-      .select("external_reference")
+      .select("external_reference, status, connections:project_connection(request_type)")
       .eq("id", projectId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -53,11 +74,14 @@ export async function listProjectDocuments(projectId: string): Promise<ProjectDo
     if (!solicitudId) {
       return { success: false, error: "Este proyecto no tiene una solicitud de Acceso Abierto asociada." };
     }
+    const conexiones = (project?.connections ?? []) as Array<{ request_type: string | null }>;
 
     const docs = await listDocumentsForSolicitud(solicitudId);
     return {
       success: true,
       solicitudId,
+      tipoSolicitud: nombreTramite(conexiones[0]?.request_type ?? null),
+      estadoSolicitud: (project?.status as string | null) ?? null,
       documentos: docs.map((d) => ({
         id: d.id,
         nombre: d.nombre,

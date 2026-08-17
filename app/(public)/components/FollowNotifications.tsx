@@ -51,6 +51,46 @@ const EVENT_DESCRIPTION_EN: Record<string, string> = {
 
 const LAST_SEEN_KEY = "transition-follow-last-seen";
 
+/**
+ * Avisos que el usuario cerró con la "x".
+ *
+ * Antes, cerrar un aviso solo lo sacaba del estado de React: al recargar la
+ * página se recalculaba la lista desde cero y el mismo aviso volvía a aparecer.
+ * `transition-follow-last-seen` no alcanzaba porque solo se escribe al ABRIR el
+ * panel — cerrar un toast no es lo mismo que haber leído todo.
+ */
+const DISMISSED_KEY = "transition-follow-dismissed";
+
+/**
+ * Tope de ids recordados. Sin él, la lista crece sin fin en el navegador de
+ * alguien que use la plataforma a diario durante años. Se guardan los últimos
+ * porque los eventos viejos dejan de llegar igual (la consulta trae los 12 más
+ * recientes), así que olvidar los antiguos no los resucita.
+ */
+const DISMISSED_LIMIT = 200;
+
+function readDismissed(): string[] {
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    // localStorage bloqueado o contenido corrupto: se sigue mostrando avisos en
+    // vez de romper el panel. Perder la memoria de descartes es más leve que
+    // dejar al usuario sin el centro de monitoreo.
+    return [];
+  }
+}
+
+function rememberDismissed(eventId: string): void {
+  try {
+    const next = [...readDismissed().filter((id) => id !== eventId), eventId].slice(-DISMISSED_LIMIT);
+    window.localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
+  } catch {
+    // no-op: ver readDismissed
+  }
+}
+
 function recentOnFirstVisit(event: WatchlistEvent): boolean {
   return Date.now() - new Date(event.occurredAt).getTime() < 48 * 60 * 60 * 1000;
 }
@@ -64,11 +104,16 @@ export function FollowNotifications({ events, locale = "es" }: { events: Watchli
   useEffect(() => {
     const lastSeen = window.localStorage.getItem(LAST_SEEN_KEY);
     const unseen = lastSeen ? events.filter((event) => event.occurredAt > lastSeen) : events.filter(recentOnFirstVisit);
+    // Los cerrados a mano no vuelven a asomarse, pero SÍ siguen contando como no
+    // leídos: cerrar el aviso flotante es "no me interrumpas", no "ya lo vi". El
+    // evento sigue estando en el panel, que es donde se revisa con calma.
+    const dismissed = new Set(readDismissed());
+    const porMostrar = unseen.filter((event) => !dismissed.has(event.id));
     const hydrationTimer = window.setTimeout(() => {
       setUnread(unseen.length);
-      setToasts(unseen.slice(0, 3));
+      setToasts(porMostrar.slice(0, 3));
     }, 0);
-    timers.current = unseen.slice(0, 3).map((event, index) => window.setTimeout(() => {
+    timers.current = porMostrar.slice(0, 3).map((event, index) => window.setTimeout(() => {
       setToasts((current) => current.filter((item) => item.id !== event.id));
     }, 6500 + index * 900));
     return () => {
@@ -143,7 +188,10 @@ export function FollowNotifications({ events, locale = "es" }: { events: Watchli
                 <Link href={`/proyectos/${event.projectId}`} className="mt-1 block truncate text-sm font-semibold text-neutral-950 hover:underline dark:text-white">{event.projectName}</Link>
                 {event.description && <p className="mt-1 line-clamp-2 text-xs leading-5 text-neutral-500 dark:text-neutral-400">{eventDescription(event)}</p>}
               </div>
-              <button type="button" aria-label={locale === "en" ? "Close notification" : "Cerrar aviso"} onClick={() => setToasts((current) => current.filter((item) => item.id !== event.id))} className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"><X size={15} /></button>
+              <button type="button" aria-label={locale === "en" ? "Close notification" : "Cerrar aviso"} onClick={() => {
+                  rememberDismissed(event.id);
+                  setToasts((current) => current.filter((item) => item.id !== event.id));
+                }} className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"><X size={15} /></button>
             </div>
           </div>
         ))}
