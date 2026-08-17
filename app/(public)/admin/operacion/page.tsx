@@ -29,6 +29,7 @@ const JOB_LABELS: Record<string, string> = {
   "sync-pelp": "Expansión PELP",
   "check-project-visibility": "Qué ve un cliente (control)",
   "check-anon-access": "Qué puede leer un desconocido (control)",
+  "check-installed-capacity": "Capacidad publicada vs CNE (control)",
 };
 
 function timeAgo(iso: string): string {

@@ -77,7 +77,18 @@ export interface CneCapacitySyncSummary {
   totalCapacityMw: number;
 }
 
-export async function runCneCapacitySync(client: SupabaseClient): Promise<CneCapacitySyncSummary> {
+export async function runCneCapacitySync(
+  client: SupabaseClient,
+  /**
+   * Recarga aunque la fuente no haya cambiado de fecha.
+   *
+   * Hace falta cuando lo que cambió es NUESTRO lado — un arreglo en cómo se
+   * guardan las filas— y la fuente sigue igual. Sin esto la única salida sería
+   * borrar a mano la última fila de `cne_capacidad_sync_log`, que es falsear el
+   * historial de cargas para conseguir un efecto.
+   */
+  options: { force?: boolean } = {},
+): Promise<CneCapacitySyncSummary> {
   const rows = parseCsv(await downloadCsv());
   if (rows.length < 100) throw new Error(`La descarga de CNE contiene muy pocas filas (${rows.length}).`);
   const sourceDate = parseDate(rows[0]?.fecha_act ?? "");
@@ -90,7 +101,7 @@ export async function runCneCapacitySync(client: SupabaseClient): Promise<CneCap
     .limit(1)
     .maybeSingle();
   if (logError) throw new Error(`No se pudo consultar la última carga CNE: ${logError.message}`);
-  if (lastSync?.fecha_act === sourceDate) {
+  if (lastSync?.fecha_act === sourceDate && !options.force) {
     return {
       changed: false,
       sourceDate,
@@ -105,7 +116,23 @@ export async function runCneCapacitySync(client: SupabaseClient): Promise<CneCap
     grouped.set(key, [...(grouped.get(key) ?? []), row]);
   }
 
-  let nextId = 1;
+  /**
+   * Los ids de esta fuente arrancan bien arriba para no chocar con los del
+   * Coordinador.
+   *
+   * `id_central` es la clave primaria y no admite nulos, así que la CNE —que no
+   * trae un id propio— tiene que inventarlo. Antes numeraba desde 1, y como
+   * `sync-sipub-centrales` hace upsert por esa misma columna con los ids REALES
+   * del Coordinador, cada central del Coordinador con id ≤1245 sobreescribía
+   * una fila de la CNE: le cambiaba nombre, propietario y potencia, dejándole
+   * la `external_key` de otra central. Así quedaron 580 filas cruzadas — la
+   * clave decía "SEN|HE RAPEL" y la fila llevaba los datos de "PMGD HP DONGO".
+   *
+   * El Coordinador numera en el orden de los miles; un millón deja margen de
+   * sobra y hace evidente, al mirar un id, de qué fuente viene la fila.
+   */
+  const CNE_ID_OFFSET = 1_000_000;
+  let nextId = CNE_ID_OFFSET;
   let totalCapacityMw = 0;
   const plants = [...grouped].map(([externalKey, group]) => {
     const first = group[0];
@@ -128,7 +155,10 @@ export async function runCneCapacitySync(client: SupabaseClient): Promise<CneCap
     };
   });
 
-  const { error: deleteError } = await client.from("power_plant").delete().neq("id_central", -1);
+  // Solo se reemplazan las filas de ESTA fuente. Antes borraba la tabla entera
+  // (`neq("id_central", -1)`), así que se llevaba puestas las centrales del
+  // Coordinador hasta que su sync semanal las repusiera.
+  const { error: deleteError } = await client.from("power_plant").delete().not("external_key", "is", null);
   if (deleteError) throw new Error(`No se pudo reemplazar la capacidad CNE: ${deleteError.message}`);
   for (let index = 0; index < plants.length; index += 500) {
     const { error } = await client.from("power_plant").insert(plants.slice(index, index + 500));

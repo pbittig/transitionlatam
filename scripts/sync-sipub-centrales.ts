@@ -32,6 +32,7 @@ async function main() {
     console.log("\n--- Resumen ---");
     console.log("Total filas:      ", summary.totalRows);
     console.log("Cargadas/actualizadas:", summary.upserted);
+    console.log("Omitidas por estar ya en la CNE:", summary.omitidasPorDuplicado);
 
     const withCoords = normalized.filter((c) => c.latitude !== null).length;
     const hidden = normalized.filter((c) => c.isHidden).length;

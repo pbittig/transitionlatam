@@ -28,7 +28,7 @@ async function main() {
   const run = await startCronRun(client, JOB_NAME);
   console.log("Descargando capacidad instalada desde la CNE...");
   try {
-    const summary = await runCneCapacitySync(client);
+    const summary = await runCneCapacitySync(client, { force: process.argv.includes("--force") });
 
     console.log("\n--- Resumen ---");
     console.log("Fecha de la fuente:  ", summary.sourceDate);

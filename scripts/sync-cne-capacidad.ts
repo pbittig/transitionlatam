@@ -121,7 +121,11 @@ async function main() {
 
   let inserted = 0;
   let totalCapacity = 0;
-  let nextId = 1;
+  // Mismo desfase que lib/ingestion/sources/cne/capacidad/runSync.ts: sin esto
+  // los ids de la CNE chocan con los reales del Coordinador y cada fuente
+  // sobreescribe filas de la otra.
+  const CNE_ID_OFFSET = 1_000_000;
+  let nextId = CNE_ID_OFFSET;
   const plantRows = [];
 
   for (const [externalKey, group] of byPlant) {
@@ -161,7 +165,8 @@ async function main() {
   // Reemplazo completo — CNE no tiene IDs estables reutilizables entre cargas,
   // así que se trunca y repuebla en cada sincronización real (no en cada corrida:
   // solo cuando fecha_act cambió, chequeado arriba).
-  const { error: deleteError } = await client.from("power_plant").delete().neq("id_central", -1);
+  // Solo las filas de esta fuente, no la tabla entera.
+  const { error: deleteError } = await client.from("power_plant").delete().not("external_key", "is", null);
   if (deleteError) throw new Error(`Error limpiando power_plant: ${deleteError.message}`);
 
   const BATCH = 500;

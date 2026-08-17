@@ -108,6 +108,10 @@ $daily = @(
   # Una policy recreada sin 'to authenticated' reabre una tabla sin que el otro
   # chequeo lo note (paso el 2026-08-15 con project).
   @{ name = 'check-anon-access';          args = @() },
+  # Tercer control: compara la capacidad que publica el sitio contra el total
+  # del archivo de la CNE. Existe porque el sitio publico 54.354 MW frente a
+  # ~38.600 reales durante semanas y lo noto el usuario, no la maquina.
+  @{ name = 'check-installed-capacity';   args = @() },
   @{ name = 'send-daily-project-report'; args = @() }
 )
 $weekly = @(
