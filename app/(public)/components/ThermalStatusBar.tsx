@@ -44,8 +44,12 @@ export function ThermalStatusBar({
           />
         </div>
         {showPercentage && (
+          // Etapa sobre total en vez del porcentaje: "3/12" se lee sin
+          // interpretar, y un porcentaje aparenta una precisión que esta escala
+          // no tiene — es nuestra lectura del orden del trámite, no un dato del
+          // Coordinador. La barra sigue usando la posición continua.
           <div className="mt-1 text-right text-[11px] font-medium tabular-nums text-neutral-500">
-            {maturity.order}%
+            {maturity.stage}/{maturity.totalStages}
           </div>
         )}
       </div>
@@ -63,7 +67,9 @@ export function ThermalStatusBar({
       </div>
       <div className="mt-1.5 flex items-center justify-between text-xs">
         <span className="text-neutral-500 dark:text-neutral-400">{STATUS_BAND_LABEL[maturity.band]}</span>
-        <span className="text-neutral-400 dark:text-neutral-500">{maturity.order}%</span>
+        <span className="text-neutral-400 dark:text-neutral-500">
+          {maturity.stage}/{maturity.totalStages}
+        </span>
       </div>
     </div>
   );

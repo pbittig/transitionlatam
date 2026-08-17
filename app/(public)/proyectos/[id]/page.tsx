@@ -228,17 +228,6 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   const projectDescription = pgpProgress?.description?.trim() || descriptionVariants[descriptionIndex];
   const descriptionFromSource = !!pgpProgress?.description?.trim();
 
-  // Dos fechas del mismo titular a la misma autoridad que no coinciden: la
-  // conexión que declaró en Acceso Abierto y la operación que estima en PGP.
-  // Sólo se muestra cuando la brecha es material (>90 días) — un desfase menor
-  // es ruido de planificación, no una señal.
-  const codVsPgpDays =
-    project.estimatedConnectionDate && pgpProgress?.operativeEstimateDate
-      ? Math.round(
-          (new Date(pgpProgress.operativeEstimateDate).getTime() - new Date(project.estimatedConnectionDate).getTime()) / 86_400_000,
-        )
-      : null;
-  const scheduleConflict = codVsPgpDays !== null && Math.abs(codVsPgpDays) > 90 ? codVsPgpDays : null;
 
   const environmentalDetailExtra = (seiaRecord || confirmedPertinencia || admin) && (
     <div className="mt-3 flex flex-col gap-4">
@@ -335,30 +324,11 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           <Field label={locale === "en" ? "Connection point" : "Punto de conexión"} value={project.connectionPoint} />
           <Field label={locale === "en" ? "Voltage level" : "Nivel de tensión"} value={project.voltageLevel ? `${project.voltageLevel} kV` : null} />
           <Field label={locale === "en" ? "Substation bay" : "Paño"} value={project.substationBay} />
-          <Field label={locale === "en" ? "Transmission segment" : "Segmento de transmisión"} value={project.transmissionSegment} />
           <Field
             label={locale === "en" ? "Project connection date (declared)" : "Fecha de conexión del proyecto (declarada)"}
             value={formatDateOnly(project.estimatedConnectionDate, locale === "en" ? "en" : "es")}
           />
         </dl>
-        {scheduleConflict !== null && (
-          <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-            <span className="font-semibold">
-              {scheduleConflict > 0
-                ? locale === "en"
-                  ? `Sources disagree by ${scheduleConflict} days`
-                  : `Las fuentes difieren en ${scheduleConflict} días`
-                : locale === "en"
-                  ? `Sources disagree by ${Math.abs(scheduleConflict)} days`
-                  : `Las fuentes difieren en ${Math.abs(scheduleConflict)} días`}
-            </span>
-            <span>
-              {locale === "en"
-                ? `The owner reports this connection date to the Coordinator, but estimates commercial operation on ${new Date(pgpProgress!.operativeEstimateDate!).toLocaleDateString("en-GB")} in the PGP.`
-                : `El titular declara esta fecha de conexión al Coordinador, pero en el PGP estima entrar en operación el ${new Date(pgpProgress!.operativeEstimateDate!).toLocaleDateString("es-CL")}.`}
-            </span>
-          </p>
-        )}
       </div>
 
       <section className="border-b border-neutral-100 pb-8 dark:border-neutral-900" aria-labelledby="project-description-title">

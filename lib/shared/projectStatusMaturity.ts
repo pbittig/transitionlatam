@@ -17,6 +17,21 @@ export type StatusBand = "inicial" | "evaluacion" | "avanzado" | "construccion" 
 export interface StatusMaturity {
   order: number; // 0-100
   band: StatusBand;
+  /**
+   * Etapa actual y total de etapas del trámite, para mostrarlo como "3/12".
+   *
+   * Es la misma escala que `order`, contada en etapas en vez de en porcentaje:
+   * un número de etapa se lee sin interpretar y no aparenta una precisión que
+   * no tenemos. `order` sigue existiendo porque la barra necesita una posición
+   * continua.
+   *
+   * Las etapas se cuentan sobre posiciones distintas de la escala, no sobre las
+   * filas de STAGE_ORDER: hay estados alternativos que ocupan la misma posición
+   * (el mismo `order`), y contarlos por separado inflaría el total con etapas
+   * que nadie recorre.
+   */
+  stage: number;
+  totalStages: number;
 }
 
 function normalize(status: string): string {
@@ -67,6 +82,10 @@ const STAGE_ORDER: Array<{ statuses: string[]; order: number; band: StatusBand }
   { statuses: ["proyecto finalizado"], order: 100, band: "finalizado" },
 ];
 
+/** Posiciones distintas de la escala, ordenadas: es lo que se cuenta como "etapas". */
+const ORDENES = [...new Set(STAGE_ORDER.map((s) => s.order))].sort((a, b) => a - b);
+const TOTAL_ETAPAS = ORDENES.length;
+
 const LOOKUP = new Map<string, { order: number; band: StatusBand }>();
 for (const stage of STAGE_ORDER) {
   for (const s of stage.statuses) LOOKUP.set(s, { order: stage.order, band: stage.band });
@@ -78,7 +97,13 @@ export function getStatusMaturity(status: string | null): StatusMaturity | null 
   const key = normalize(status);
   if (REJECTED.has(key)) return null;
   const hit = LOOKUP.get(key);
-  return hit ? { order: hit.order, band: hit.band } : null;
+  if (!hit) return null;
+  return {
+    order: hit.order,
+    band: hit.band,
+    stage: ORDENES.indexOf(hit.order) + 1,
+    totalStages: TOTAL_ETAPAS,
+  };
 }
 
 export function isRejectedStatus(status: string | null): boolean {
