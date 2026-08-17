@@ -61,9 +61,25 @@ function fieldValues(project: ProjectDetail): Record<EditableProjectField, strin
   };
 }
 
-function StatusHint({ status, errorMessage }: { status?: FieldStatus; errorMessage?: string }) {
+function StatusHint({
+  status,
+  errorMessage,
+  notice,
+}: {
+  status?: FieldStatus;
+  errorMessage?: string;
+  /** Se guardó bien, pero de una forma que conviene contar (ej. el RUT ya existía). */
+  notice?: string;
+}) {
   if (status === "saving") return <span className="text-xs text-neutral-400">Guardando…</span>;
-  if (status === "saved") return <span className="text-xs text-emerald-600 dark:text-emerald-400">Guardado ✓</span>;
+  if (status === "saved")
+    return notice ? (
+      // Ámbar y no rojo: no falló nada. Rojo haría pensar que el dato no quedó
+      // guardado, que es justo la confusión que este aviso viene a evitar.
+      <span className="text-xs text-amber-700 dark:text-amber-400">{notice}</span>
+    ) : (
+      <span className="text-xs text-emerald-600 dark:text-emerald-400">Guardado ✓</span>
+    );
   if (status === "error")
     return <span className="text-xs text-red-600 dark:text-red-400">{errorMessage || "Error — reintenta"}</span>;
   return null;
@@ -79,6 +95,7 @@ export function ProjectEditForm({
   const [values, setValues] = useState(fieldValues(project));
   const [status, setStatus] = useState<Partial<Record<EditableProjectField, FieldStatus>>>({});
   const [errorMessages, setErrorMessages] = useState<Partial<Record<EditableProjectField, string>>>({});
+  const [notices, setNotices] = useState<Partial<Record<EditableProjectField, string>>>({});
 
   const [combo, setCombo] = useState<TechnologyCombo | "">(
     comboFromProject(project.technologyCode, project.includesStorage) ?? "",
@@ -98,9 +115,11 @@ export function ProjectEditForm({
       const result = await updateProjectField(project.id, field, value);
       setStatus((prev) => ({ ...prev, [field]: result.success ? "saved" : "error" }));
       setErrorMessages((prev) => ({ ...prev, [field]: result.success ? undefined : result.error }));
+      setNotices((prev) => ({ ...prev, [field]: result.notice }));
     } catch (err) {
       setStatus((prev) => ({ ...prev, [field]: "error" }));
       setErrorMessages((prev) => ({ ...prev, [field]: (err as Error).message }));
+      setNotices((prev) => ({ ...prev, [field]: undefined }));
     }
   }
 
@@ -129,7 +148,7 @@ export function ProjectEditForm({
             onBlur={(e) => save(key, toNullableText(e.target.value))}
             className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
           />
-          <StatusHint status={status[key]} errorMessage={errorMessages[key]} />
+          <StatusHint status={status[key]} errorMessage={errorMessages[key]} notice={notices[key]} />
         </label>
       ))}
 

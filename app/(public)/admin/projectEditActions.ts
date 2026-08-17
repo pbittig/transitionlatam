@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { TECHNOLOGY_COMBOS, type TechnologyCombo } from "./technologyCombos";
 import { reprocessFormularioContacts } from "@/lib/ingestion/sources/energia-abierta/detalle-formulario/reprocess";
+import { normalizeRutDigits } from "@/lib/ingestion/sources/sea-pertinencia/matching";
 
 export type EditableProjectField =
   | "name"
@@ -62,7 +63,8 @@ export async function updateProjectField(
   projectId: string,
   field: EditableProjectField,
   value: string | number | null,
-): Promise<{ success: boolean; error?: string }> {
+  /** `notice` no es un error: el guardado sí ocurrió, pero de una forma que el admin debe saber. */
+): Promise<{ success: boolean; error?: string; notice?: string }> {
   if (!(await isAdmin())) {
     return { success: false, error: "Debes iniciar sesión como administrador." };
   }
@@ -106,10 +108,60 @@ export async function updateProjectField(
       if (!projectRow?.developer_company_id) {
         return { success: false, error: "Este proyecto no tiene empresa desarrolladora asociada todavía." };
       }
+      const companyId = projectRow.developer_company_id as string;
+
+      // Escribir un RUT que ya tiene otra empresa reventaba contra
+      // `company_rut_unique_idx` y le devolvía al admin el error crudo de
+      // Postgres. Ese índice existe por una razón: en Chile el RUT identifica a
+      // UNA persona jurídica, y salió de fusionar ~53 empresas duplicadas.
+      //
+      // Pero el error tampoco correspondía. Que el RUT ya exista significa que
+      // la empresa desarrolladora de este proyecto ES esa, y que la fila actual
+      // —creada por nombre desde la fuente, sin RUT— es un duplicado. Así que
+      // en vez de rechazar, el proyecto se reapunta a la empresa que ya tiene
+      // ese RUT y se avisa cuál es. Varios proyectos compartiendo empresa es lo
+      // normal y ya está soportado; dos empresas con el mismo RUT no.
+      if (field === "developerCompanyRut" && typeof value === "string" && value.trim() !== "") {
+        const objetivo = normalizeRutDigits(value);
+        const { data: candidatas, error: buscarError } = await client.from("company").select("id, name, rut").not("rut", "is", null);
+        if (buscarError) throw new Error(buscarError.message);
+        const duenas = (candidatas ?? []).filter(
+          (c) => c.id !== companyId && normalizeRutDigits(c.rut as string) === objetivo,
+        );
+
+        // Más de una empresa con ese RUT: no se elige por el admin. Pasa porque
+        // el índice único compara el texto crudo y el mismo RUT convive escrito
+        // de tres formas ("77.177.065-7", "77177065-7", "771770657") — medido
+        // el 2026-08-16: 51 grupos así. Reapuntar a la primera que aparezca
+        // sería atar el proyecto a una empresa al azar entre duplicados.
+        if (duenas.length > 1) {
+          return {
+            success: false,
+            error: `Ese RUT ya está en ${duenas.length} empresas (${duenas.map((d) => d.name).join(", ")}). Hay que fusionarlas antes de asignarlo.`,
+          };
+        }
+
+        const duena = duenas[0];
+        if (duena) {
+          const { error: repuntarError } = await client
+            .from("project")
+            .update({ developer_company_id: duena.id })
+            .eq("id", projectId);
+          if (repuntarError) throw new Error(repuntarError.message);
+          revalidatePath(`/admin/verificador/${projectId}`);
+          revalidatePath(`/admin/editar-data/${projectId}`);
+          revalidatePath(`/proyectos/${projectId}`);
+          return {
+            success: true,
+            notice: `Ese RUT ya estaba registrado en "${duena.name}". El proyecto quedó asociado a esa empresa.`,
+          };
+        }
+      }
+
       const { error } = await client
         .from("company")
         .update({ [COMPANY_COLUMNS[field]!]: value })
-        .eq("id", projectRow.developer_company_id as string);
+        .eq("id", companyId);
       if (error) throw new Error(error.message);
     } else if (SPV_COLUMNS[field]) {
       const { data: projectRow, error: projectError } = await client
