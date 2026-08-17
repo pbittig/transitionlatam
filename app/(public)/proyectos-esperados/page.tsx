@@ -130,6 +130,8 @@ export default async function ProyectosEsperadosPage({
     // revisadas a mano — el resto del pipeline se sigue mostrando en las estadísticas
     // agregadas (GW, embudo, mapa), solo la tabla navegable se acota.
     verifiedOnly: true,
+    // Los que ya tienen obra en curso arriba (ver listProjects).
+    constructionFirst: tab === "esperados",
   };
 
   const scheduleInputs = await getUpcomingScheduleInputs(client);

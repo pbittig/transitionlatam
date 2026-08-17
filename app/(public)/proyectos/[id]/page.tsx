@@ -1,7 +1,7 @@
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
+import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getProjectById, getRelatedPortfolioProjects, getProjectStakeholders, getProjectTimeline } from "@/lib/data-access/projects";
 import { computeProjectPulse, formatMonthSpan, formatTimeAgo } from "@/lib/shared/projectPulse";
 import { maskName, maskEmail } from "@/lib/shared/maskContact";
@@ -73,7 +73,10 @@ function SectionLabel({ children, info, locale }: { children: React.ReactNode; i
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const client = await createSupabaseServerClient();
+  // Cliente de página: con sesión de admin salta RLS. Sin esto, un admin abre
+  // la ficha de un proyecto y recibe 404, porque su sesión no es de Supabase y
+  // la policy no le contesta (ver supabase-page-client.ts).
+  const client = await createSupabasePageClient();
   const project = await getProjectById(client, id);
   return { title: project?.name ?? "Proyecto" };
 }
@@ -81,7 +84,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ProyectoPage({ params }: { params: Promise<{ id: string }> }) {
   const locale = await getAppLocale();
   const { id } = await params;
-  const client = await createSupabaseServerClient();
+  // Cliente de página: con sesión de admin salta RLS. Sin esto, un admin abre
+  // la ficha de un proyecto y recibe 404, porque su sesión no es de Supabase y
+  // la policy no le contesta (ver supabase-page-client.ts).
+  const client = await createSupabasePageClient();
   const project = await getProjectById(client, id);
   if (!project) notFound();
   void logProjectView(client, project.id);

@@ -50,6 +50,8 @@ export interface ProjectFilters {
   sortDir?: SortDirection;
   /** Solo proyectos con verified_at — usado en /proyectos-esperados para no exponer fichas sin revisar mientras se sigue verificando la cartera. */
   verifiedOnly?: boolean;
+  /** Pone arriba los proyectos con obra en curso registrada en PGP. */
+  constructionFirst?: boolean;
 }
 
 export const REJECTED_STATUSES = ["Rechazada", "Desistida"];
@@ -326,6 +328,26 @@ export async function listProjects(
 
   const { data, error, count } = await query;
   if (error) throw new Error(`Error listando proyectos: ${error.message}`);
+
+  /**
+   * Sube al principio los proyectos con obra en curso registrada en PGP.
+   *
+   * Se hace acá y no en la consulta porque el avance vive en
+   * `latest_pgp_project_progress`, otra relación, y PostgREST no ordena por
+   * ella: intentarlo devuelve "failed to parse order". Tampoco se puede ordenar
+   * por pertenencia a una lista de ids — no admite expresiones en el `order`.
+   *
+   * LA LIMITACIÓN, EXPLÍCITA: esto reordena la página que ya vino, no el
+   * conjunto entero. Sirve porque son 17 proyectos con obra sobre 238 y el
+   * orden base es por fecha de conexión, así que caen casi todos en las
+   * primeras páginas; pero uno con fecha lejana puede quedar en una página
+   * posterior y no subir a la primera. Ordenarlo de verdad exigiría traer todos
+   * los ids del conjunto filtrado para ordenarlos en memoria antes de paginar.
+   */
+  if (filters.constructionFirst && data?.length) {
+    const conObra = new Set((await resolveConstructionSets(client)).underConstructionIds);
+    (data as Array<{ id: string }>).sort((a, b) => Number(conObra.has(b.id)) - Number(conObra.has(a.id)));
+  }
 
   const items: ProjectListItem[] = (data ?? []).map((row) => {
     const r = row as unknown as {
