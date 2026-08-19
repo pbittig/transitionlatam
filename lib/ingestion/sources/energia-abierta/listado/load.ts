@@ -195,20 +195,60 @@ export async function loadNormalizedProjects(
     });
   }
 
+  /**
+   * Índice de empresas por nombre normalizado, cargado de una vez.
+   *
+   * Antes la búsqueda era `ilike("name", name)` —texto exacto, tolerante solo a
+   * mayúsculas— mientras que la clave normalizada se usaba únicamente para el
+   * caché en memoria. Con eso, cualquier diferencia de formato creaba una
+   * empresa nueva: la fuente escribe "Colbún S.A." y en la base estaba
+   * "Colbún S.A", así que cada corrida agregaba una fila más.
+   *
+   * El efecto no era solo acumular duplicados: DESHACÍA cualquier consolidación
+   * previa. Medido el 2026-08-19, una sola corrida recreó 87 empresas y movió
+   * 425 proyectos a filas nuevas sin RUT, entre ellas las de Colbún, Engie y
+   * Enel que se habían unificado el día anterior. La cobertura de identidad
+   * societaria cayó de 86% a 68% en una noche.
+   *
+   * Se consultan también los alias: cuando una fusión absorbe una razón social,
+   * guarda ese nombre en `entity_alias`. Es exactamente el nombre que la fuente
+   * va a seguir enviando, así que sin esto la fusión dura hasta el próximo sync.
+   */
+  const companyByNormalizedName = new Map<string, string>();
+  for (let offset = 0; ; offset += 1000) {
+    const { data: page, error } = await client.from("company").select("id, name").range(offset, offset + 999);
+    if (error) throw new Error(`Error cargando empresas: ${error.message}`);
+    for (const row of page ?? []) {
+      const key = normalizeForMatch(row.name as string);
+      // La primera gana: si dos filas normalizan igual, quedan pendientes de
+      // fusión y da lo mismo cuál se use, pero conviene ser determinista.
+      if (key && !companyByNormalizedName.has(key)) companyByNormalizedName.set(key, row.id as string);
+    }
+    if (!page || page.length < 1000) break;
+  }
+  for (let offset = 0; ; offset += 1000) {
+    const { data: page, error } = await client
+      .from("entity_alias")
+      .select("alias, entity_id")
+      .eq("entity_type", "company")
+      .range(offset, offset + 999);
+    if (error) throw new Error(`Error cargando alias de empresas: ${error.message}`);
+    for (const row of page ?? []) {
+      const key = normalizeForMatch(row.alias as string);
+      if (key && !companyByNormalizedName.has(key)) companyByNormalizedName.set(key, row.entity_id as string);
+    }
+    if (!page || page.length < 1000) break;
+  }
+
   async function getOrCreateCompany(name: string): Promise<string> {
     const key = normalizeForMatch(name);
     const cached = companyCache.get(key);
     if (cached) return cached;
 
-    const { data: existing } = await client
-      .from("company")
-      .select("id, name")
-      .ilike("name", name)
-      .limit(1)
-      .maybeSingle();
+    const existing = companyByNormalizedName.get(key);
     if (existing) {
-      companyCache.set(key, existing.id as string);
-      return existing.id as string;
+      companyCache.set(key, existing);
+      return existing;
     }
 
     const { data: created, error } = await client
@@ -218,6 +258,7 @@ export async function loadNormalizedProjects(
       .single();
     if (error || !created) throw new Error(`Error creando empresa '${name}': ${error?.message}`);
     companyCache.set(key, created.id as string);
+    companyByNormalizedName.set(key, created.id as string);
     summary.companiesCreated += 1;
     return created.id as string;
   }
