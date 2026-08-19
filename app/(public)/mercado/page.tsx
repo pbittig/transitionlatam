@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, BatteryCharging, Building2 } from "lucide-react";
+import { Activity, BatteryCharging, Building2, Filter, MapPinned, Sparkles } from "lucide-react";
 import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getLatestCapacitySourceDate, getPowerPlantRegionBubbles, getPowerPlantsForMap, getPowerPlantStats, listPowerPlants } from "@/lib/data-access/powerPlants";
 import { getConstructionStats, getConstructionProjects } from "@/lib/data-access/construction";
@@ -25,6 +25,15 @@ export const dynamic = "force-dynamic";
 const STATUS_OPTIONS = ["Operativa", "En Construcción", "Fuera de Servicio"];
 const PAGE_SIZE = 10;
 const CONSTRUCTION_PAGE_SIZE = 10;
+
+function compactMw(value: number): string {
+  if (value >= 1_000) return `${(value / 1_000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`;
+  return `${Math.round(value).toLocaleString("es-CL")} MW`;
+}
+
+function IntelligenceMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="min-w-[145px] border-l border-white/12 px-4 first:border-l-0 first:pl-0"><p className="text-[11px] font-medium text-white/55">{label}</p><p className="mt-1 text-xl font-semibold tracking-tight text-white">{value}</p><p className="mt-1 text-[11px] text-[#65e2d3]">{detail}</p></div>;
+}
 
 function buildHref(params: Record<string, string | undefined>, overrides: Record<string, string | undefined>): string {
   const merged = { ...params, ...overrides };
@@ -85,8 +94,8 @@ export default async function MercadoPage({
     search ? `“${search}”` : undefined,
   ].filter(Boolean);
   return (
-    <div className="flex flex-col gap-10">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-8 text-white shadow-xl shadow-black/10 md:px-8 md:py-10">
+    <div className="flex flex-col gap-6 pb-4">
+      <section className="relative -mx-4 overflow-hidden bg-[#041415] px-5 py-7 text-white shadow-lg sm:-mx-7 sm:px-7 md:rounded-b-3xl lg:-mx-8 lg:px-8">
         <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
         <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
         <div className="relative">
@@ -94,13 +103,24 @@ export default async function MercadoPage({
         </div>
       </section>
 
-      <ModuleGuide
+      <div className="relative -mt-3 flex flex-wrap items-center justify-between gap-4 rounded-b-2xl bg-[#082425] px-5 py-4 text-white shadow-lg">
+        <div className="flex items-center gap-2 text-xs font-medium text-[#65e2d3]"><Sparkles size={14} /> Inteligencia operativa</div>
+        <div className="flex flex-wrap gap-2"><Link href="#lista-operacion" className="inline-flex items-center gap-2 rounded-lg border border-white/18 bg-white/5 px-3.5 py-2 text-sm font-medium text-white hover:bg-white/10"><Filter size={15} /> Filtrar activos</Link><Link href="#mapa-operacion" className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-3.5 py-2 text-sm font-semibold text-[#052020] hover:bg-[#63e3d4]"><MapPinned size={15} /> Ver mapa</Link></div>
+        <div className="flex w-full gap-0 overflow-x-auto border-t border-white/10 pt-4">
+          <IntelligenceMetric label="Capacidad operativa" value={compactMw(stats.operatingCapacityMw)} detail={`${stats.totalPlants.toLocaleString("es-CL")} centrales registradas`} />
+          <IntelligenceMetric label="En construccion" value={compactMw(constructionStats.totalPotenciaMw)} detail={`${constructionStats.count.toLocaleString("es-CL")} proyectos declarados`} />
+          <IntelligenceMetric label="BESS en construccion" value={compactMw(bessTotalMw)} detail={`${bessProjects.length.toLocaleString("es-CL")} proyectos con baterias`} />
+          <IntelligenceMetric label="Principal operador" value={topOwner?.owner ?? "Sin dato"} detail={topOwner ? `${topOwnerShare.toFixed(1)}% de la capacidad` : "sin concentracion calculable"} />
+        </div>
+      </div>
+
+      {false && <ModuleGuide
         purpose="Entender cómo está compuesta hoy la matriz eléctrica chilena y cómo cambia al incorporar centrales en construcción y proyectos futuros."
         deliverables={["Capacidad y centrales por tecnología y región", "Principales propietarios y concentración", "Comparación entre operación, construcción y pipeline"]}
         howToUse={["Filtre por tecnología o estado", "Compare la capacidad instalada y futura", "Identifique brechas, concentración y crecimiento"]}
         plan="Free"
         upgradeMessage="Free entrega el panorama de mercado; Prime agrega profundidad por proyecto, análisis y seguimiento."
-      />
+      />}
 
       <section aria-labelledby="system-summary-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -172,7 +192,7 @@ export default async function MercadoPage({
       </section>
 
       {operatingPlantsMap.length > 0 && (
-        <section className="flex flex-col gap-4" aria-labelledby="operating-map-title">
+        <section id="mapa-operacion" className="flex flex-col gap-4" aria-labelledby="operating-map-title">
           <div>
             <h2 id="operating-map-title" className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Mapa de proyectos</h2>
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
@@ -190,7 +210,7 @@ export default async function MercadoPage({
         </section>
       )}
 
-      <section className="order-last flex flex-col gap-5">
+      <section id="lista-operacion" className="order-last flex flex-col gap-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Proyectos en Operación</h2>
           <span className="text-sm text-neutral-500 dark:text-neutral-400">{plantList.totalCount.toLocaleString("es-CL")} activos en la vista</span>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Filter, MapPinned, Sparkles } from "lucide-react";
 import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getProjectsForMap, listProjects } from "@/lib/data-access/projects";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
@@ -71,6 +72,29 @@ const TABS: Array<{ key: "esperados" | "historico"; label: string }> = [
   { key: "esperados", label: "Esperados" },
   { key: "historico", label: "Histórico" },
 ];
+
+function compactMw(value: number): string {
+  if (value >= 1_000) return `${(value / 1_000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`;
+  return `${Math.round(value).toLocaleString("es-CL")} MW`;
+}
+
+function IntelligenceMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="min-w-[132px] border-l border-white/12 px-4 first:border-l-0 first:pl-0 sm:min-w-[150px]">
+      <p className="text-[11px] font-medium text-white/55">{label}</p>
+      <p className="mt-1 text-xl font-semibold tracking-tight text-white">{value}</p>
+      <p className="mt-1 text-[11px] text-[#65e2d3]">{detail}</p>
+    </div>
+  );
+}
 
 function buildHref(params: Record<string, string | undefined>, overrides: Record<string, string | undefined>): string {
   const merged = { ...params, ...overrides };
@@ -230,26 +254,46 @@ export default async function ProyectosEsperadosPage({
     etapaGroup ? PHASE_GROUP_LABELS[etapaGroup] : undefined,
     hasDateRangeFilter ? "rango de fecha de conexión" : undefined,
   ].filter(Boolean);
+  const storageProjects = filteredScheduleInputs.filter((project) => project.includesStorage || project.technologyCode === "bess");
+  const storageCapacityMw = storageProjects.reduce((sum, project) => sum + (project.capacityMw ?? 0), 0);
+  const constructionProjects = filteredScheduleInputs.filter((project) => {
+    const phase = computeEstimatedPhase(project.estimatedConnectionDate, project.technologyCode, project.includesStorage, project.capacityMw);
+    return phase?.currentPhase != null && PHASE_TO_GROUP[phase.currentPhase] === "construccion";
+  });
   return (
-    <div className="flex flex-col gap-10">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-8 text-white shadow-xl shadow-black/10 md:px-8 md:py-10">
-        <span className="absolute -top-20 right-10 h-52 w-52 rounded-full border border-white/10" aria-hidden />
-        <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/15 blur-2xl" aria-hidden />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Future projects" : "Proyectos Futuros"}</h1>
+    <div className="flex flex-col gap-6 pb-4">
+      <section className="relative -mx-4 overflow-hidden bg-[#041415] px-5 py-7 text-white shadow-lg sm:-mx-7 sm:px-7 md:rounded-b-3xl lg:-mx-8 lg:px-8">
+        <div className="pointer-events-none absolute inset-0 opacity-80 [background:radial-gradient(circle_at_82%_15%,rgba(56,215,197,0.18),transparent_25%),radial-gradient(circle_at_45%_110%,rgba(15,92,89,0.32),transparent_38%)]" />
+        <div className="relative">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-medium text-[#65e2d3]"><Sparkles size={14} /> Inteligencia de mercado</div>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Future projects" : "Proyectos Futuros"}</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/65">{locale === "en" ? "Identify upcoming energy projects, assess their progress, and focus your commercial effort where it matters." : "Encuentra proyectos, identifica oportunidades y entiende las seÃ±ales que anticipan el prÃ³ximo movimiento del mercado."}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="#lista-proyectos" className="inline-flex items-center gap-2 rounded-lg border border-white/18 bg-white/5 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-white/10"><Filter size={15} /> {locale === "en" ? "Filter projects" : "Filtrar proyectos"}</Link>
+              <Link href="/mapa" className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-3.5 py-2 text-sm font-semibold text-[#052020] transition hover:bg-[#63e3d4]"><MapPinned size={15} /> {locale === "en" ? "View map" : "Ver mapa"}</Link>
+            </div>
+          </div>
+          <div className="mt-7 flex gap-0 overflow-x-auto pb-1">
+            <IntelligenceMetric label={locale === "en" ? "Identified projects" : "Proyectos identificados"} value={pipelineTotals.count.toLocaleString("es-CL")} detail={search || hasTechFilter ? "segÃºn los filtros activos" : "pipeline vigente"} />
+            <IntelligenceMetric label={locale === "en" ? "Capacity in development" : "Capacidad en desarrollo"} value={compactMw(pipelineTotals.totalCapacityMw)} detail="renovable y almacenamiento" />
+            <IntelligenceMetric label="BESS / hÃ­bridos" value={compactMw(storageCapacityMw)} detail={`${storageProjects.length.toLocaleString("es-CL")} proyectos con almacenamiento`} />
+            <IntelligenceMetric label={locale === "en" ? "Near construction" : "PrÃ³ximos a construcciÃ³n"} value={constructionProjects.length.toLocaleString("es-CL")} detail={constructionProjects.length ? "etapa estimada de construcciÃ³n" : "sin proyectos en esta etapa"} />
+            <IntelligenceMetric label={locale === "en" ? "High COD confidence" : "Alta confianza de COD"} value={`${pipelineHealth.altaPct}%`} detail={`${pipelineHealth.alta.toLocaleString("es-CL")} proyectos evaluables`} />
           </div>
         </div>
       </section>
 
-      <ModuleGuide
+      {false && <ModuleGuide
         purpose={locale === "en" ? "Identify relevant future projects before they enter operation and organize them by technology, stage, date and scale." : "Detectar proyectos futuros relevantes antes de que entren en operación y ordenarlos por tecnología, etapa, fecha y escala."}
         deliverables={locale === "en" ? ["Current list of identified projects", "Estimated dates, capacity, technology and developer", "Individual project profiles and progress signals"] : ["Listado vigente de proyectos identificados", "Fechas estimadas, capacidad, tecnología y desarrollador", "Acceso a fichas individuales y señales de avance"]}
         howToUse={locale === "en" ? ["Filter projects for your target market", "Open the best-fit project profiles", "Follow priority projects and review changes"] : ["Filtre los proyectos según su mercado objetivo", "Abra las fichas con mejor encaje", "Siga los proyectos prioritarios y revise sus cambios"]}
         plan="Free"
         upgradeMessage={locale === "en" ? "Free lets you explore identified projects; Prime unlocks full profiles, dynamic analysis and continuous tracking." : "Free permite explorar los proyectos identificados; Prime desbloquea fichas completas, análisis dinámico y seguimiento continuo."}
         locale={locale}
-      />
+      />}
 
       <div className="flex gap-1 rounded-xl border border-neutral-200 bg-white px-2 pt-1 dark:border-neutral-800 dark:bg-neutral-950">
         {TABS.map((t) => {
@@ -287,6 +331,13 @@ export default async function ProyectosEsperadosPage({
       )}
 
       <section id="lista-proyectos" className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-primary">Explorador</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Project opportunities" : "Oportunidades de proyectos"}</h2>
+          </div>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} {locale === "en" ? "results available" : "resultados disponibles"}</p>
+        </div>
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Filter projects" : "Filtre los proyectos"}</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Combine technologies and search to find relevant projects or opportunities." : "Combine tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante."}</p></div>{(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">{locale === "en" ? "Reset filters" : "Restablecer filtros"}</Link>}</div>
         <SearchBar

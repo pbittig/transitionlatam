@@ -4,6 +4,8 @@ import type { OwnerPortfolio } from "@/lib/data-access/ownerPortfolio";
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import { lightDark, PRINCIPAL_COLOR, techColor } from "@/lib/shared/chartColors";
 import type { MarketTechCategory } from "@/lib/shared/marketTechCategories";
+import type { AppLocale } from "@/lib/i18n";
+import { localizedRoute } from "@/lib/localizedRoutes";
 import { Panel } from "../components/Panel";
 
 /**
@@ -61,11 +63,13 @@ export function OwnerPortfolioPanels({
   portfolio,
   companyName,
   similares,
+  locale,
 }: {
   portfolio: OwnerPortfolio;
   companyName: string;
   /** Empresas cuyo nombre se parece: probables duplicados sin RUT que impiden consolidar. */
   similares: string[];
+  locale: AppLocale;
 }) {
   const { proyectos, totalMw, tecnologias, regiones, spvs } = portfolio;
 
@@ -124,7 +128,7 @@ export function OwnerPortfolioPanels({
                     <tr key={p.id} className="border-b border-neutral-100 last:border-0 dark:border-neutral-900">
                       <td className="py-2.5 pr-3">
                         <Link
-                          href={`/proyectos/${p.id}`}
+                          href={`${localizedRoute("projects", locale)}/${p.id}`}
                           className="font-medium text-neutral-900 hover:text-brand-deep dark:text-neutral-50"
                         >
                           {p.name}
