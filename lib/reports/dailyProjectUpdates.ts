@@ -1,5 +1,6 @@
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { escapeHtml, sendInternalNotification } from "@/lib/notifications/resend";
+import { projectEventLabel } from "@/lib/shared/projectEventLabels";
 
 const REPORT_RECIPIENT = process.env.DAILY_PROJECT_REPORT_EMAIL ?? "patrick.bittig@onixcg.com";
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://transitionlatam.com").replace(/\/$/, "");
@@ -20,6 +21,32 @@ function projectLink(project: ProjectRef) {
   return `<a href="${APP_URL}/proyectos/${encodeURIComponent(project.id)}" style="color:#176b63;font-weight:600">${escapeHtml(project.name)}</a>`;
 }
 
+/**
+ * La celda "Proyecto" de la tabla SEIA.
+ *
+ * Un tercio de los expedientes (66 de 250, medido el 2026-08-18) todavía no
+ * está cruzado con un proyecto de la plataforma. Antes esas filas decían
+ * "Proyecto sin vínculo" y nada más: el lector no podía saber de qué proyecto
+ * se trataba ni ir a mirarlo. El expediente SÍ trae su propio nombre, su
+ * titular y el enlace a su ficha en el SEIA, así que se muestran esos: el
+ * vínculo que falta es con nuestra base, no con la realidad.
+ */
+function seiaProjectCell(row: {
+  project: ProjectRef;
+  nombre: string | null;
+  titular_name: string | null;
+  url_ficha: string | null;
+}) {
+  if (row.project) return projectLink(row.project);
+
+  const nombre = row.nombre?.trim() || "Expediente sin nombre en la fuente";
+  const titulo = row.url_ficha
+    ? `<a href="${escapeHtml(row.url_ficha)}" style="color:#176b63;font-weight:600">${escapeHtml(nombre)}</a>`
+    : `<span style="font-weight:600">${escapeHtml(nombre)}</span>`;
+  const pie = [row.titular_name?.trim(), "aún sin ficha en la plataforma"].filter(Boolean).join(" · ");
+  return `${titulo}<div style="color:#888;font-size:12px;margin-top:2px">${escapeHtml(pie)}</div>`;
+}
+
 function table(headers: string[], rows: string[][], emptyMessage: string) {
   if (!rows.length) return `<p style="color:#666">${escapeHtml(emptyMessage)}</p>`;
   return `<table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr>${headers.map((header) => `<th style="padding:8px;border-bottom:1px solid #ddd;text-align:left">${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:top">${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -36,7 +63,9 @@ export async function sendDailyProjectUpdatesReport(since = new Date(Date.now() 
       .order("recorded_at", { ascending: false }),
     client
       .from("seia_record")
-      .select("seia_id, status, submission_type, filed_at, created_at, updated_at, project:project_id(id, name)")
+      .select(
+        "seia_id, status, submission_type, filed_at, created_at, updated_at, nombre, titular_name, url_ficha, project:project_id(id, name)",
+      )
       .gte("updated_at", sinceIso)
       .order("updated_at", { ascending: false }),
   ]);
@@ -51,12 +80,17 @@ export async function sendDailyProjectUpdatesReport(since = new Date(Date.now() 
   const period = `${formatDate(sinceIso)} a ${formatDate(new Date().toISOString())}`;
   const accessRows = accessEvents.map((row) => [
     projectLink(row.project as unknown as ProjectRef),
-    escapeHtml(String(row.event_type).replaceAll("_", " ")),
+    escapeHtml(projectEventLabel(String(row.event_type))),
     escapeHtml(row.description ?? "Cambio detectado en la fuente"),
     escapeHtml(formatDate(row.recorded_at)),
   ]);
   const seiaRows = seiaUpdates.map((row) => [
-    projectLink(row.project as unknown as ProjectRef),
+    seiaProjectCell({
+      project: row.project as unknown as ProjectRef,
+      nombre: row.nombre as string | null,
+      titular_name: row.titular_name as string | null,
+      url_ficha: row.url_ficha as string | null,
+    }),
     escapeHtml(row.seia_id ?? "Sin ID"),
     escapeHtml([row.submission_type, row.status].filter(Boolean).join(" · ") || "Sin estado"),
     escapeHtml(formatDate(row.updated_at)),
