@@ -53,7 +53,11 @@ const PAREJAS: Array<{ rut: string; absorbe: string[]; nota: string; renombrarA?
   },
   {
     rut: "76.041.002-0",
-    absorbe: ["Zelestra Chile SpA", "Zelestra Chile SpA (Antes Solarpack Chile Ltda)"],
+    // "Solarpack Chile Limitada" es el nombre que la fuente sigue enviando: la
+    // sobreviviente se renombró a la marca vigente, así que ahora es ella la
+    // que hay que absorber. Queda como alias, y desde el arreglo de
+    // listado/load.ts el sync la resuelve sola en vez de recrearla.
+    absorbe: ["Zelestra Chile SpA", "Zelestra Chile SpA (Antes Solarpack Chile Ltda)", "Solarpack Chile Limitada"],
     nota: "cambio de marca Solarpack→Zelestra, declarado en el propio nombre de una de las filas",
     renombrarA: "Zelestra Chile SpA",
   },

@@ -87,7 +87,20 @@ Responde ÚNICAMENTE con un JSON con esta forma exacta (sin texto adicional):
 }`;
 
 export async function extractFormularioWithAi(rawText: string): Promise<FormularioData> {
-  const raw = await completeWithNemotron(SYSTEM_PROMPT, rawText, { jsonMode: true, maxTokens: 7000 });
+  // Esta ruta corre en ingesta por lotes, nunca bloqueando a un usuario, así que
+  // se le da más margen que el defecto de 25s y se reintenta ante fallos del
+  // servicio. Medido el 2026-08-18: 42 de 45 errores de una corrida de 287
+  // Formularios fueron timeouts o 504, no problemas del documento — y como el
+  // script no reprocesa lo ya registrado, cada uno perdía el PDF para siempre.
+  const raw = await completeWithNemotron(SYSTEM_PROMPT, rawText, {
+    jsonMode: true,
+    maxTokens: 7000,
+    // 60s cubre con holgura una respuesta normal (los aciertos rondan los 10-20s)
+    // sin que un documento colgado se lleve minutos de la corrida. Dos reintentos
+    // porque las caídas suelen venir en rachas de saturación del tier gratuito.
+    timeoutMs: 60_000,
+    retries: 2,
+  });
   const parsed = JSON.parse(raw) as Record<string, unknown>;
 
   // La IA a veces devuelve un valor con forma incorrecta para companyRut (hallazgo

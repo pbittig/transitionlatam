@@ -59,8 +59,29 @@ async function logOutcome(
 async function main() {
   const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  const { data: alreadyLogged } = await client.from("formulario_ingest_log").select("project_id");
-  const doneIds = new Set((alreadyLogged ?? []).map((r) => r.project_id as string));
+  /**
+   * PostgREST corta en 1.000 filas aunque se pida más, y sin avisar. Con ~2.100
+   * proyectos y ~1.400 registros de log, cualquier lectura de una sola pasada
+   * viene incompleta: proyectos que nunca entran a la cola, y peor, proyectos
+   * ya procesados que no aparecen en `doneIds` y se reprocesan. Todas las
+   * lecturas masivas de este script pasan por acá.
+   */
+  async function leerTodo<T>(tabla: string, columnas: string, filtrar?: (q: never) => unknown): Promise<T[]> {
+    const filas: T[] = [];
+    for (let desde = 0; ; desde += 1000) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q: any = client.from(tabla).select(columnas).range(desde, desde + 999);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (filtrar) q = (filtrar as any)(q);
+      const { data, error } = await q;
+      if (error) throw new Error(`Leyendo ${tabla}: ${error.message}`);
+      filas.push(...((data ?? []) as T[]));
+      if (!data || data.length < 1000) return filas;
+    }
+  }
+
+  const alreadyLogged = await leerTodo<{ project_id: string }>("formulario_ingest_log", "project_id");
+  const doneIds = new Set(alreadyLogged.map((r) => r.project_id));
 
   const REJECTED_STATUSES = ["Rechazada", "Desistida"];
   const startOfMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1))
@@ -70,50 +91,50 @@ async function main() {
   // Los contactos de proyectos vigentes ("Esperados" — ver /proyectos-esperados)
   // valen más para desarrollo de negocio hoy que los de proyectos ya
   // rechazados/desistidos o vencidos — se procesan primero.
-  const [{ data: esperados, error: e1 }, { data: resto, error: e2 }] = await Promise.all([
-    client
-      .from("project")
-      .select("id, name, external_reference, developer_company_id")
-      .not("external_reference", "is", null)
-      .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
-      .gte("estimated_connection_date", startOfMonth)
-      .order("estimated_connection_date", { ascending: true })
-      .limit(3000),
-    client
-      .from("project")
-      .select("id, name, external_reference, developer_company_id")
-      .not("external_reference", "is", null)
-      .or(`status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`)
-      .limit(3000),
+  type FilaProyecto = { id: string; name: string; external_reference: string; developer_company_id: string | null };
+  const columnas = "id, name, external_reference, developer_company_id";
+  const [esperados, resto] = await Promise.all([
+    leerTodo<FilaProyecto>(
+      "project",
+      columnas,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((q: any) =>
+        q
+          .not("external_reference", "is", null)
+          .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
+          .gte("estimated_connection_date", startOfMonth)
+          .order("estimated_connection_date", { ascending: true })) as never,
+    ),
+    leerTodo<FilaProyecto>(
+      "project",
+      columnas,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((q: any) =>
+        q
+          .not("external_reference", "is", null)
+          .or(
+            `status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`,
+          )) as never,
+    ),
   ]);
-  if (e1) throw new Error(e1.message);
-  if (e2) throw new Error(e2.message);
 
-  // Las empresas sin RUT se piden en páginas: PostgREST corta en 1.000 filas y
-  // un corte silencioso acá dejaría proyectos fuera del lote sin avisar.
   const sinRut = new Set<string>();
   if (SOLO_SIN_RUT) {
-    for (let desde = 0; ; desde += 1000) {
-      const { data, error } = await client
-        .from("company")
-        .select("id")
-        .is("rut", null)
-        .range(desde, desde + 999);
-      if (error) throw new Error(`No se pudieron leer las empresas sin RUT: ${error.message}`);
-      for (const row of data ?? []) sinRut.add(row.id as string);
-      if (!data || data.length < 1000) break;
-    }
+    const empresas = await leerTodo<{ id: string }>(
+      "company",
+      "id",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((q: any) => q.is("rut", null)) as never,
+    );
+    for (const row of empresas) sinRut.add(row.id);
     console.log(`Filtro --sin-rut: ${sinRut.size} empresas sin RUT registrado.`);
   }
 
   const seen = new Set<string>();
-  const ordered = [...(esperados ?? []), ...(resto ?? [])].filter((p) => {
-    if (seen.has(p.id as string)) return false;
-    seen.add(p.id as string);
-    if (SOLO_SIN_RUT) {
-      const empresa = p.developer_company_id as string | null;
-      if (!empresa || !sinRut.has(empresa)) return false;
-    }
+  const ordered = [...esperados, ...resto].filter((p) => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    if (SOLO_SIN_RUT && (!p.developer_company_id || !sinRut.has(p.developer_company_id))) return false;
     return true;
   });
 
