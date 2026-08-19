@@ -3,6 +3,7 @@ import { Layers, MapPin, Zap, Boxes } from "lucide-react";
 import type { OwnerPortfolio } from "@/lib/data-access/ownerPortfolio";
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import { lightDark, PRINCIPAL_COLOR, techColor } from "@/lib/shared/chartColors";
+import { technologyDisplayName } from "@/lib/shared/technologyLabel";
 import type { MarketTechCategory } from "@/lib/shared/marketTechCategories";
 import type { AppLocale } from "@/lib/i18n";
 import { localizedRoute } from "@/lib/localizedRoutes";
@@ -44,17 +45,17 @@ function Metrica({ icono, valor, etiqueta }: { icono: React.ReactNode; valor: st
   );
 }
 
-/** Chip de tecnología con el color canónico de la categoría. */
+/** Chip de tecnología con el color canónico de la categoría y el nombre corto. */
 function ChipTecnologia({ nombre, categoria }: { nombre: string | null; categoria: MarketTechCategory | null }) {
   if (!nombre) return <span className="text-neutral-400">—</span>;
   const color = lightDark(techColor(categoria));
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap"
       style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} aria-hidden />
-      {nombre}
+      {technologyDisplayName(nombre)}
     </span>
   );
 }
