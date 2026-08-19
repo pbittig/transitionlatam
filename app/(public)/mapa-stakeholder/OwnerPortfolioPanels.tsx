@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, MapPin, Zap, Boxes } from "lucide-react";
+import { BadgeCheck, Layers, MapPin, Zap, Boxes } from "lucide-react";
 import type { OwnerPortfolio } from "@/lib/data-access/ownerPortfolio";
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import { lightDark, PRINCIPAL_COLOR, techColor } from "@/lib/shared/chartColors";
@@ -24,7 +24,17 @@ import { Panel } from "../components/Panel";
  * para tecnología. Pintar un KPI de amarillo lo haría leerse como "Solar" al
  * lado de la tabla de abajo, que sí usa ese amarillo con ese significado.
  */
-function Metrica({ icono, valor, etiqueta }: { icono: React.ReactNode; valor: string; etiqueta: string }) {
+function Metrica({
+  icono,
+  valor,
+  etiqueta,
+  detalle,
+}: {
+  icono: React.ReactNode;
+  valor: string;
+  etiqueta: string;
+  detalle?: string;
+}) {
   return (
     <Panel className="relative overflow-hidden p-4">
       <span
@@ -41,6 +51,7 @@ function Metrica({ icono, valor, etiqueta }: { icono: React.ReactNode; valor: st
         <span style={{ color: lightDark(PRINCIPAL_COLOR) }}>{icono}</span> {etiqueta}
       </div>
       <p className="relative mt-2 text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-50">{valor}</p>
+      {detalle && <p className="relative mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">{detalle}</p>}
     </Panel>
   );
 }
@@ -72,12 +83,17 @@ export function OwnerPortfolioPanels({
   similares: string[];
   locale: AppLocale;
 }) {
-  const { proyectos, totalMw, tecnologias, regiones, spvs } = portfolio;
+  const { proyectos, totalMw, verificados, tecnologias, regiones, spvs } = portfolio;
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metrica icono={<Boxes size={15} />} valor={proyectos.length.toLocaleString("es-CL")} etiqueta="Proyectos en cartera" />
+        <Metrica
+          icono={<Boxes size={15} />}
+          valor={proyectos.length.toLocaleString("es-CL")}
+          etiqueta="Proyectos en cartera"
+          detalle={`${verificados.toLocaleString("es-CL")} verificados`}
+        />
         <Metrica icono={<Zap size={15} />} valor={`${Math.round(totalMw).toLocaleString("es-CL")} MW`} etiqueta="Potencia identificada" />
         <Metrica icono={<Layers size={15} />} valor={String(tecnologias.length)} etiqueta="Tecnologías" />
         <Metrica icono={<MapPin size={15} />} valor={String(regiones.length)} etiqueta="Regiones" />
@@ -113,7 +129,7 @@ export function OwnerPortfolioPanels({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="border-b border-neutral-200 text-left text-xs text-neutral-500 dark:border-neutral-800">
                   <tr>
                     <th className="py-2 pr-3 font-medium">Proyecto</th>
@@ -121,7 +137,8 @@ export function OwnerPortfolioPanels({
                     <th className="py-2 pr-3 text-right font-medium">MW</th>
                     <th className="py-2 pr-3 font-medium">Región</th>
                     <th className="py-2 pr-3 font-medium">Etapa</th>
-                    <th className="py-2 font-medium">Conexión</th>
+                    <th className="py-2 pr-3 font-medium">Conexión</th>
+                    <th className="py-2 font-medium">Verificado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -144,8 +161,20 @@ export function OwnerPortfolioPanels({
                       </td>
                       <td className="py-2.5 pr-3 text-neutral-600 dark:text-neutral-400">{p.region ?? "—"}</td>
                       <td className="py-2.5 pr-3 tabular-nums text-neutral-600 dark:text-neutral-400">{p.etapa ?? "—"}</td>
-                      <td className="py-2.5 text-neutral-600 dark:text-neutral-400">
+                      <td className="py-2.5 pr-3 text-neutral-600 dark:text-neutral-400">
                         {formatDateOnly(p.estimatedConnectionDate) ?? "—"}
+                      </td>
+                      <td className="py-2.5">
+                        {p.verificado ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-xs font-medium"
+                            style={{ color: lightDark(PRINCIPAL_COLOR) }}
+                          >
+                            <BadgeCheck size={14} /> Verificado
+                          </span>
+                        ) : (
+                          <span className="text-xs text-neutral-400">Sin revisar</span>
+                        )}
                       </td>
                     </tr>
                   ))}

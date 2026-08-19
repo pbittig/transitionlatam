@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Building2, ContactRound, Network, Share2, ShieldCheck } from "lucide-react";
+import { Building2, ContactRound, Network, Share2, ShieldCheck, TriangleAlert } from "lucide-react";
 import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getCompanyById, getCompanyShareholders, getTopCompaniesByProjectCount } from "@/lib/data-access/companies";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
@@ -88,7 +88,20 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
         <PlanGate locked={premiumLocked} label={en ? "Available on Prime" : "Disponible en plan Prime"} variant="showcase">
           <div className="flex flex-col gap-6">
             <section className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
-              <div className="flex min-w-0 items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-surface text-brand-deep"><Building2 size={21} /></span><div className="min-w-0"><p className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{en ? "Selected company" : "Empresa seleccionada"}</p><h2 className="mt-1 break-words text-xl font-semibold text-neutral-950 dark:text-white">{company.name}</h2><p className="mt-1 text-sm text-neutral-500">{company.rut ? `RUT ${formatRutForDisplay(company.rut)}` : en ? "No RUT registered" : "Sin RUT registrado"}</p></div></div>
+              <div className="flex min-w-0 items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-surface text-brand-deep"><Building2 size={21} /></span><div className="min-w-0"><p className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{en ? "Selected company" : "Empresa seleccionada"}</p><h2 className="mt-1 break-words text-xl font-semibold text-neutral-950 dark:text-white">{company.name}</h2><p className="mt-1 text-sm text-neutral-500">{company.rut ? `RUT ${formatRutForDisplay(company.rut)}` : en ? "No RUT registered" : "Sin RUT registrado"}</p>
+                {!company.rut && (
+                  // El RUT es lo que identifica a la persona jurídica: sin él la
+                  // cartera no se puede consolidar ni cruzar con otras fuentes,
+                  // y la empresa queda expuesta a duplicarse. Pesa más cuando ya
+                  // hay proyectos verificados colgando, que son los que el
+                  // cliente ve.
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs leading-5 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                    <TriangleAlert size={14} className="shrink-0" />
+                    {portfolio?.verificados
+                      ? `Sin identidad legal registrada, con ${portfolio.verificados} ${portfolio.verificados === 1 ? "proyecto verificado" : "proyectos verificados"} en cartera.`
+                      : "Sin identidad legal registrada: su cartera no se puede consolidar ni cruzar con otras fuentes."}
+                  </p>
+                )}</div></div>
               <Link href="/crm" className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:border-brand-primary hover:text-brand-deep dark:border-neutral-700 dark:text-neutral-200"><ContactRound size={16} />{en ? "Add to CRM" : "Llevar al CRM"}</Link>
             </section>
 

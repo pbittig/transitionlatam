@@ -84,11 +84,15 @@ export interface OwnerProject {
   /** Etapa del trámite sobre el total, la misma que muestra la tabla de proyectos. */
   etapa: string | null;
   estimatedConnectionDate: string | null;
+  /** Revisado a mano por el equipo editorial. Es el único subconjunto que la tabla de Proyectos Futuros lista. */
+  verificado: boolean;
 }
 
 export interface OwnerPortfolio {
   proyectos: OwnerProject[];
   totalMw: number;
+  /** Cuántos de esos proyectos ya pasaron por revisión editorial. */
+  verificados: number;
   tecnologias: string[];
   regiones: string[];
   spvs: string[];
@@ -101,6 +105,7 @@ interface FilaProyecto {
   capacity_mwh: number | null;
   status: string | null;
   estimated_connection_date: string | null;
+  verified_at: string | null;
   technology: { name: string; code: string | null } | null;
   location: { region: { name: string } | null } | null;
 }
@@ -121,7 +126,7 @@ export async function getOwnerPortfolio(
     client
       .from("project")
       .select(
-        "id, name, capacity_mw, capacity_mwh, status, estimated_connection_date, technology:technology_id(name, code), location:location_id(region:region_id(name))",
+        "id, name, capacity_mw, capacity_mwh, status, estimated_connection_date, verified_at, technology:technology_id(name, code), location:location_id(region:region_id(name))",
       )
       .eq("developer_company_id", companyId)
       .eq("editorial_status", "published")
@@ -145,12 +150,14 @@ export async function getOwnerPortfolio(
       status: f.status,
       etapa: madurez ? `${madurez.stage}/${madurez.totalStages}` : null,
       estimatedConnectionDate: f.estimated_connection_date,
+      verificado: f.verified_at !== null,
     };
   });
 
   return {
     proyectos,
     totalMw: proyectos.reduce((suma, p) => suma + (p.capacityMw ?? 0), 0),
+    verificados: proyectos.filter((p) => p.verificado).length,
     tecnologias: [...new Set(proyectos.map((p) => p.technology).filter((t): t is string => !!t))].sort(),
     regiones: [...new Set(proyectos.map((p) => p.region).filter((r): r is string => !!r))].sort(),
     // Se descartan las que repiten la razón social de la propia empresa y se
