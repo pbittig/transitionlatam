@@ -323,7 +323,6 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
           />
           <Field label={locale === "en" ? "Connection point" : "Punto de conexión"} value={project.connectionPoint} />
           <Field label={locale === "en" ? "Voltage level" : "Nivel de tensión"} value={project.voltageLevel ? `${project.voltageLevel} kV` : null} />
-          <Field label={locale === "en" ? "Substation bay" : "Paño"} value={project.substationBay} />
           <Field
             label={locale === "en" ? "Project connection date (declared)" : "Fecha de conexión del proyecto (declarada)"}
             value={formatDateOnly(project.estimatedConnectionDate, locale === "en" ? "en" : "es")}
