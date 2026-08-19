@@ -4,6 +4,7 @@ const LOCALIZED_ROUTES = {
   projects: { es: "/proyectos", en: "/projects" },
   operations: { es: "/operacion", en: "/operations" },
   owners: { es: "/propietarios", en: "/owners" },
+  obsx: { es: "/obsx", en: "/obsx" },
   tracking: { es: "/seguimiento", en: "/tracking" },
   analysis: { es: "/analisis-dinamico", en: "/dynamic-analysis" },
   services: { es: "/servicios", en: "/services" },
