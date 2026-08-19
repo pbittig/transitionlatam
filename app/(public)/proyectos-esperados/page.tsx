@@ -238,9 +238,18 @@ export default async function ProyectosEsperadosPage({
     etapaGroup ? PHASE_GROUP_LABELS[etapaGroup] : undefined,
     hasDateRangeFilter ? "rango de fecha de conexión" : undefined,
   ].filter(Boolean);
-  const storageProjects = filteredScheduleInputs.filter((project) => project.includesStorage || project.technologyCode === "bess");
+  // La banda de la cabecera cuenta solo cartera VERIFICADA: es la misma que
+  // lista la tabla de abajo (filters.verifiedOnly). Mezclarlas hacía que el
+  // titular dijera 752 proyectos y 66,7 GW sobre una tabla que navega 247 y
+  // 33,3 GW — el lector no tenía cómo saber que eran dos universos distintos.
+  // Los gráficos de análisis siguen sobre el pipeline completo a propósito: ahí
+  // la pregunta es cómo se mueve el mercado, no qué puede abrir el usuario.
+  const verifiedInputs = filteredScheduleInputs.filter((project) => project.verifiedAt !== null);
+  const verifiedTotals = computePipelineTotals(verifiedInputs);
+  const verifiedHealth = computePipelineHealth(verifiedInputs, seiaStatusByProjectId);
+  const storageProjects = verifiedInputs.filter((project) => project.includesStorage || project.technologyCode === "bess");
   const storageCapacityMw = storageProjects.reduce((sum, project) => sum + (project.capacityMw ?? 0), 0);
-  const constructionProjects = filteredScheduleInputs.filter((project) => {
+  const constructionProjects = verifiedInputs.filter((project) => {
     const phase = computeEstimatedPhase(project.estimatedConnectionDate, project.technologyCode, project.includesStorage, project.capacityMw);
     return phase?.currentPhase != null && PHASE_TO_GROUP[phase.currentPhase] === "construccion";
   });
@@ -261,11 +270,11 @@ export default async function ProyectosEsperadosPage({
           </>
         }
         metrics={[
-          { label: locale === "en" ? "Identified projects" : "Proyectos identificados", value: pipelineTotals.count.toLocaleString("es-CL"), detail: search || hasTechFilter ? "según los filtros activos" : "pipeline vigente" },
-          { label: locale === "en" ? "Capacity in development" : "Capacidad en desarrollo", value: compactMw(pipelineTotals.totalCapacityMw), detail: "renovable y almacenamiento" },
+          { label: locale === "en" ? "Verified projects" : "Proyectos verificados", value: verifiedTotals.count.toLocaleString("es-CL"), detail: search || hasTechFilter ? "según los filtros activos" : "revisados uno a uno" },
+          { label: locale === "en" ? "Verified capacity" : "Capacidad verificada", value: compactMw(verifiedTotals.totalCapacityMw), detail: "renovable y almacenamiento" },
           { label: "BESS / híbridos", value: compactMw(storageCapacityMw), detail: `${storageProjects.length.toLocaleString("es-CL")} proyectos con almacenamiento` },
           { label: locale === "en" ? "Near construction" : "Próximos a construcción", value: constructionProjects.length.toLocaleString("es-CL"), detail: constructionProjects.length ? "etapa estimada de construcción" : "sin proyectos en esta etapa" },
-          { label: locale === "en" ? "High COD confidence" : "Alta confianza de COD", value: `${pipelineHealth.altaPct}%`, detail: `${pipelineHealth.alta.toLocaleString("es-CL")} proyectos evaluables` },
+          { label: locale === "en" ? "High COD confidence" : "Alta confianza de COD", value: `${verifiedHealth.altaPct}%`, detail: `${verifiedHealth.alta.toLocaleString("es-CL")} proyectos evaluables` },
         ]}
       />
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, BatteryCharging, Building2, Filter, MapPinned } from "lucide-react";
+import { Filter, MapPinned } from "lucide-react";
 import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getLatestCapacitySourceDate, getPowerPlantRegionBubbles, getPowerPlantsForMap, getPowerPlantStats, listPowerPlants } from "@/lib/data-access/powerPlants";
 import { getConstructionStats, getConstructionProjects } from "@/lib/data-access/construction";
@@ -118,34 +118,16 @@ export default async function MercadoPage({
         upgradeMessage="Free entrega el panorama de mercado; Prime agrega profundidad por proyecto, análisis y seguimiento."
       />}
 
-      <section aria-labelledby="system-summary-title">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="system-summary-title" className="mt-1 text-xl font-semibold text-neutral-950 dark:text-white">Datos del sistema eléctrico nacional</h2>
-          </div>
-          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
-            {capacitySourceDate
-              ? `Capacidad instalada actualizada al ${new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${capacitySourceDate}T00:00:00Z`))}. Fuente: CNE.`
-              : "Fuente: Comisión Nacional de Energía (CNE)."}
-          </p>
-        </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[
-            { icon: Activity, label: "En operación · capacidad neta", value: `${Math.round(stats.operatingCapacityMw).toLocaleString("es-CL")} MW`, detail: `${stats.totalPlants.toLocaleString("es-CL")} centrales registradas`, iconClass: "bg-brand-surface text-brand-deep" },
-            { icon: Building2, label: "En construcción · capacidad neta", value: `${Math.round(constructionStats.totalPotenciaMw).toLocaleString("es-CL")} MW`, detail: `${constructionStats.count.toLocaleString("es-CL")} proyectos declarados`, iconClass: "bg-brand-surface text-brand-deep" },
-            { icon: BatteryCharging, label: "BESS en construcción · capacidad neta", value: `${Math.round(bessTotalMw).toLocaleString("es-CL")} MW`, detail: `${bessProjects.length.toLocaleString("es-CL")} proyectos con baterías`, iconClass: "bg-brand-surface text-brand-deep" },
-          ].map(({ icon: Icon, label, value, detail, iconClass }) => (
-            <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">{label}</p>
-                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClass}`}><Icon size={15} /></span>
-              </div>
-              <p className="mt-4 text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">{value}</p>
-              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{detail}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      {/* Las tres tarjetas de "Datos del sistema eléctrico nacional" repetían
+          exactamente los tres primeros indicadores de la cabecera (capacidad
+          operativa, en construcción y BESS en construcción). Se eliminaron; lo
+          único que no estaba duplicado era la fecha de corte de la fuente, que
+          se conserva acá. */}
+      <p className="text-sm text-neutral-500 dark:text-neutral-400">
+        {capacitySourceDate
+          ? `Capacidad instalada actualizada al ${new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${capacitySourceDate}T00:00:00Z`))}. Fuente: Comisión Nacional de Energía (CNE).`
+          : "Fuente: Comisión Nacional de Energía (CNE)."}
+      </p>
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Propietarios y concentración</h2>
