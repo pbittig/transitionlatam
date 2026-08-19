@@ -15,7 +15,20 @@ import { loadFormularioResult } from "../lib/ingestion/sources/energia-abierta/d
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, "..", ".env.local") });
 
-const BATCH_SIZE = Number(process.argv[2] ?? "20");
+/**
+ * `--sin-rut` acota la corrida a los proyectos cuya empresa desarrolladora no
+ * tiene RUT registrado.
+ *
+ * Por qué existe: el Formulario del Coordinador trae el RUT del titular y
+ * `loadFormularioResult` lo escribe en la empresa cuando le falta. Medido el
+ * 2026-08-18, 193 de las 245 empresas sin RUT no tienen el Formulario
+ * procesado, así que procesar solo esos proyectos resuelve la identidad legal
+ * de la mayoría sin bajar cientos de PDF que no aportan RUT nuevo.
+ */
+const SOLO_SIN_RUT = process.argv.includes("--sin-rut");
+// El tamaño de lote es el primer argumento numérico: así puede ir antes o
+// después de las banderas sin que `--sin-rut` se lea como el número.
+const BATCH_SIZE = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) ?? "20");
 const DELAY_MS = 500; // no golpear el portal público sin pausas
 
 function sleep(ms: number) {
@@ -60,7 +73,7 @@ async function main() {
   const [{ data: esperados, error: e1 }, { data: resto, error: e2 }] = await Promise.all([
     client
       .from("project")
-      .select("id, name, external_reference")
+      .select("id, name, external_reference, developer_company_id")
       .not("external_reference", "is", null)
       .not("status", "in", `(${REJECTED_STATUSES.join(",")})`)
       .gte("estimated_connection_date", startOfMonth)
@@ -68,7 +81,7 @@ async function main() {
       .limit(3000),
     client
       .from("project")
-      .select("id, name, external_reference")
+      .select("id, name, external_reference, developer_company_id")
       .not("external_reference", "is", null)
       .or(`status.in.(${REJECTED_STATUSES.join(",")}),estimated_connection_date.lt.${startOfMonth},estimated_connection_date.is.null`)
       .limit(3000),
@@ -76,15 +89,40 @@ async function main() {
   if (e1) throw new Error(e1.message);
   if (e2) throw new Error(e2.message);
 
+  // Las empresas sin RUT se piden en páginas: PostgREST corta en 1.000 filas y
+  // un corte silencioso acá dejaría proyectos fuera del lote sin avisar.
+  const sinRut = new Set<string>();
+  if (SOLO_SIN_RUT) {
+    for (let desde = 0; ; desde += 1000) {
+      const { data, error } = await client
+        .from("company")
+        .select("id")
+        .is("rut", null)
+        .range(desde, desde + 999);
+      if (error) throw new Error(`No se pudieron leer las empresas sin RUT: ${error.message}`);
+      for (const row of data ?? []) sinRut.add(row.id as string);
+      if (!data || data.length < 1000) break;
+    }
+    console.log(`Filtro --sin-rut: ${sinRut.size} empresas sin RUT registrado.`);
+  }
+
   const seen = new Set<string>();
   const ordered = [...(esperados ?? []), ...(resto ?? [])].filter((p) => {
     if (seen.has(p.id as string)) return false;
     seen.add(p.id as string);
+    if (SOLO_SIN_RUT) {
+      const empresa = p.developer_company_id as string | null;
+      if (!empresa || !sinRut.has(empresa)) return false;
+    }
     return true;
   });
 
-  const pending = ordered.filter((p) => !doneIds.has(p.id as string)).slice(0, BATCH_SIZE);
-  console.log(`Proyectos sin procesar: ${ordered.length - doneIds.size} — procesando ${pending.length} en esta corrida (esperados primero).`);
+  // El total pendiente se cuenta sobre la lista ya filtrada, no restando el
+  // log completo: con --sin-rut el log incluye proyectos fuera del alcance y la
+  // resta daba un número que no correspondía a lo que falta por procesar.
+  const porProcesar = ordered.filter((p) => !doneIds.has(p.id as string));
+  const pending = porProcesar.slice(0, BATCH_SIZE);
+  console.log(`Proyectos sin procesar: ${porProcesar.length} — procesando ${pending.length} en esta corrida (esperados primero).`);
 
   const tempDir = await mkdtemp(join(tmpdir(), "formulario-"));
   let success = 0;
