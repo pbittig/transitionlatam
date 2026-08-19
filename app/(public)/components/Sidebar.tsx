@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, ShieldCheck } from "lucide-react";
+import { Activity, Eye, CalendarDays, ChartNoAxesCombined, ClipboardList, ContactRound, LockKeyhole, LogIn, LogOut, Network, Share2, ShieldCheck } from "lucide-react";
 import { logout } from "@/app/ingresar/actions";
 import type { CurrentUserProfile } from "@/lib/data-access/userProfile";
 import type { AppLocale } from "@/lib/i18n";
@@ -24,6 +24,7 @@ function getNavItems(locale: AppLocale) {
         { href: localizedRoute("projects", locale), label: "Future projects", icon: Activity, minPlan: "premium" },
         { href: localizedRoute("operations", locale), label: "Projects in operation", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: localizedRoute("owners", locale), label: "Owners", icon: Network, minPlan: "premium" },
+        { href: localizedRoute("obsx", locale), label: "ObsX", icon: Share2, minPlan: "premium" },
         { href: localizedRoute("tracking", locale), label: "Tracking", icon: Eye, minPlan: "premium" },
         // Va después de las fuentes de proyectos reales a propósito: PELP es
         // modelamiento de expansión, no un pipeline de proyectos.
@@ -34,6 +35,7 @@ function getNavItems(locale: AppLocale) {
         { href: "/proyectos", label: "Proyectos Futuros", icon: Activity, minPlan: "premium" },
         { href: "/operacion", label: "Proyectos en Operación", icon: ChartNoAxesCombined, minPlan: "free" },
         { href: "/propietarios", label: "Propietarios", icon: Network, minPlan: "premium" },
+        { href: "/obsx", label: "ObsX", icon: Share2, minPlan: "premium" },
         { href: "/seguimiento", label: "Seguimiento", icon: Eye, minPlan: "premium" },
         { href: "/crm", label: "CRM", icon: ContactRound, minPlan: "premium" },
         { href: localizedRoute("services", locale), label: "Servicios adicionales", icon: ClipboardList, minPlan: "free" },
@@ -58,19 +60,23 @@ export function Sidebar({
   const navItems = isAdmin ? [...baseNavItems, { href: "/admin", label: "Admin", icon: ShieldCheck, minPlan: "free" }] : baseNavItems;
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r border-neutral-200 bg-white/95 backdrop-blur-xl md:flex print:hidden">
+    // Nav oscuro: el mismo #041415 de las cabeceras de sección, para que el
+    // borde izquierdo y el header se lean como un solo marco.
+    <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r border-white/10 bg-[#041415]/95 backdrop-blur-xl md:flex print:hidden">
       <Link href="/" className="flex flex-col items-center px-3 pt-6 pb-5 md:items-start md:px-5">
+        {/* El logo va en su versión turquesa: el de uso normal lleva el texto en
+            gris oscuro y desaparecería sobre el fondo negro. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/tl-logo.png" alt="Transition LATAM" className="hidden h-9 w-auto md:block" />
-        <span className="bg-brand-primary flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold text-white md:hidden">
+        <img src="/tl-logo-oscuro.png" alt="Transition LATAM" className="hidden h-9 w-auto md:block" />
+        <span className="bg-brand-primary flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold text-[#052020] md:hidden">
           T
         </span>
         <span className="mt-3 hidden items-center gap-2 md:flex" aria-label={locale === "en" ? "TOS active" : "TOS activo"}>
-          <span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-neutral-200" aria-hidden>
+          <span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-white/12" aria-hidden>
             <span className="system-activity-scan-a absolute inset-y-0 -left-full w-full" />
             <span className="system-activity-scan-b absolute inset-y-0 -left-full w-full" />
           </span>
-          <span className="text-[10px] font-semibold text-neutral-600 dark:text-neutral-300">{locale === "en" ? "TOS active" : "TOS activo"}</span>
+          <span className="text-[10px] font-semibold text-white/70">{locale === "en" ? "TOS active" : "TOS activo"}</span>
         </span>
       </Link>
 
@@ -82,12 +88,14 @@ export function Sidebar({
           id="country-selector"
           defaultValue="cl"
           aria-label={locale === "en" ? "Select country" : "Seleccionar país"}
-          className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800 outline-none transition focus:border-[#333333]"
+          className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.06] px-3 text-sm font-medium text-white outline-none transition focus:border-brand-primary"
         >
-          <option value="cl">🇨🇱 Chile</option>
+          <option value="cl" className="text-neutral-900">
+            🇨🇱 Chile
+          </option>
         </select>
         <div className="mt-3 flex justify-end">
-          <LanguageSwitcher locale={locale} />
+          <LanguageSwitcher locale={locale} tone="dark" />
         </div>
       </div>
 
@@ -105,12 +113,12 @@ export function Sidebar({
               title={locked ? `${item.label} — ${locale === "en" ? "available on a higher plan" : "disponible en un plan superior"}` : undefined}
               className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                 isAdditionalService
-                  ? `mt-3 border border-neutral-200 bg-neutral-100 font-semibold text-brand-deep shadow-sm hover:bg-neutral-200 ${active ? "ring-2 ring-brand-primary/35" : ""}`
+                  ? `mt-3 border border-white/12 bg-white/[0.07] font-semibold text-[#65e2d3] hover:bg-white/12 ${active ? "ring-2 ring-brand-primary/35" : ""}`
                 : active
-                  ? "bg-neutral-100 font-semibold text-neutral-950"
+                  ? "bg-white/10 font-semibold text-white"
                   : locked
-                    ? "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
-                  : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                    ? "text-white/45 hover:bg-white/5 hover:text-white"
+                  : "text-white/60 hover:bg-white/5 hover:text-white"
               }`}
             >
               <Icon size={17} strokeWidth={1.75} className="shrink-0" />
@@ -131,12 +139,12 @@ export function Sidebar({
         <div className="hidden px-3 pb-3 md:block">
           <Link
             href={localizedRoute("plans", locale)}
-            className="block rounded-xl border border-neutral-300 bg-neutral-50 p-3 transition hover:border-neutral-500 hover:bg-white"
+            className="block rounded-xl border border-white/12 bg-white/[0.04] p-3 transition hover:border-brand-primary/50 hover:bg-white/[0.08]"
           >
             <div className="relative flex items-center justify-between gap-2">
-              <p className="text-xs font-medium text-[#333333]">Plan Free</p>
+              <p className="text-xs font-medium text-white/70">Plan Free</p>
               {remainingTrialDays !== null && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#333333] px-2 py-1 text-[9px] font-bold text-white">
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary px-2 py-1 text-[9px] font-bold text-[#052020]">
                   <CalendarDays size={10} />
                   {remainingTrialDays > 1
                       ? `${remainingTrialDays} ${locale === "en" ? "days" : "días"}`
@@ -146,51 +154,51 @@ export function Sidebar({
                 </span>
               )}
             </div>
-            <p className="relative mt-2 text-xs font-semibold text-[#333333]">
+            <p className="relative mt-2 text-xs font-semibold text-white">
               {remainingTrialDays === 0
                 ? locale === "en" ? "Your Free period ended" : "Su periodo Free terminó"
                 : locale === "en" ? "Unlock commercial intelligence" : "Desbloquee inteligencia comercial"}
             </p>
             {remainingTrialDays !== null && remainingTrialDays > 0 && (
-              <p className="relative mt-1 text-[10px] font-medium text-neutral-600">
+              <p className="relative mt-1 text-[10px] font-medium text-white/65">
                 {locale === "en" ? `${remainingTrialDays} days of access left` : `Quedan ${remainingTrialDays} ${remainingTrialDays === 1 ? "día" : "días"} de acceso`}
               </p>
             )}
-            <p className="mt-1 text-[10px] leading-4 text-neutral-500">{locale === "en" ? "Compare plans" : "Comparar planes"} →</p>
+            <p className="mt-1 text-[10px] leading-4 text-[#65e2d3]">{locale === "en" ? "Compare plans" : "Comparar planes"} →</p>
           </Link>
         </div>
       )}
 
       {userProfile && (
-        <div className="border-t border-neutral-100 px-2 py-2 md:px-3 dark:border-neutral-900">
+        <div className="border-t border-white/10 px-2 py-2 md:px-3">
           <Link
             href="/perfil"
-            className="flex items-center gap-3 rounded-md px-1 py-2 text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900"
+            className="flex items-center gap-3 rounded-md px-1 py-2 text-sm transition-colors hover:bg-white/5"
           >
             {userProfile.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={userProfile.avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
             ) : (
-              <span className="bg-brand-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white">
+              <span className="bg-brand-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-[#052020]">
                 {(userProfile.fullName ?? userProfile.email).charAt(0).toUpperCase()}
               </span>
             )}
             <span className="hidden min-w-0 flex-1 md:block">
-              <span className="block truncate font-medium text-neutral-900 dark:text-neutral-50">
+              <span className="block truncate font-medium text-white">
                 {userProfile.fullName ?? userProfile.email}
               </span>
-              <span className="block truncate text-xs text-neutral-500 dark:text-neutral-400">{locale === "en" ? "View profile" : "Ver perfil"}</span>
+              <span className="block truncate text-xs text-white/50">{locale === "en" ? "View profile" : "Ver perfil"}</span>
             </span>
           </Link>
         </div>
       )}
 
-      <div className="border-t border-neutral-100 px-2 py-2 md:px-3 dark:border-neutral-900">
+      <div className="border-t border-white/10 px-2 py-2 md:px-3">
         {isAdmin || userProfile ? (
           <form action={logout}>
             <button
               type="submit"
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-white/60 transition-colors hover:text-white"
             >
               <LogOut size={17} strokeWidth={1.75} className="shrink-0" />
               <span className="hidden md:inline">{locale === "en" ? "Sign out" : "Cerrar sesión"}</span>
@@ -199,7 +207,7 @@ export function Sidebar({
         ) : (
           <Link
             href="/ingresar"
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/60 transition-colors hover:text-white"
           >
             <LogIn size={17} strokeWidth={1.75} className="shrink-0" />
             <span className="hidden md:inline">{locale === "en" ? "Sign in" : "Ingresar"}</span>
