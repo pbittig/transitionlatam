@@ -1,11 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Activity, ArrowUpRight, BellRing, CalendarClock, FolderHeart, Leaf, PlugZap, Zap } from "lucide-react";
+import { ArrowUpRight, CalendarClock, Leaf, PlugZap, Zap } from "lucide-react";
 import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-client";
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { ModuleGuide } from "../components/ModuleGuide";
+import { SectionHero } from "../components/SectionHero";
+import { projectEventLabel } from "@/lib/shared/projectEventLabels";
 import { getIsFreeTier } from "@/lib/entitlements/isFreeTier";
 import { getAppSetting, getFollowedProjects, getLatestEventsForProjects, getWatchlistEvents, NEW_PROJECT_ALERT_CATEGORIES } from "@/lib/data-access/watchlist";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
@@ -22,10 +24,9 @@ import { TrackingPreview } from "./TrackingPreview";
 export const metadata: Metadata = { title: "Seguimiento" };
 export const dynamic = "force-dynamic";
 
-const EVENT_LABEL: Record<"es" | "en", Record<string, string>> = {
-  es: { announced: "Solicitud ingresada", capacity_change: "Cambio de capacidad", ownership_change: "Cambio de propiedad", developer_change: "Cambio de desarrollador", connection_date_change: "Cambio de fecha de conexión", connection_point_change: "Cambio de punto de conexión", construction_date_change: "Cambio de fecha de construcción", status_change: "Cambio de estado", seia_milestone: "Hito ambiental", delay: "Retraso", other: "Actualización" },
-  en: { announced: "Request added", capacity_change: "Capacity change", ownership_change: "Ownership change", developer_change: "Developer change", connection_date_change: "Connection date change", connection_point_change: "Connection point change", construction_date_change: "Construction date change", status_change: "Status change", seia_milestone: "Environmental milestone", delay: "Delay", other: "Update" },
-};
+// Las etiquetas viven en lib/shared/projectEventLabels.ts: el reporte diario
+// por correo muestra los mismos tipos de evento y antes tenía su propia copia
+// (en realidad, ninguna: mostraba la clave en inglés).
 
 export default async function AlertasPage() {
   const locale = await getAppLocale();
@@ -69,17 +70,25 @@ export default async function AlertasPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-9 text-white shadow-xl shadow-black/10 md:px-8 md:py-11">
-        <span className="absolute -top-24 right-0 h-64 w-64 rounded-full border border-white/10" aria-hidden />
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
-          <div className="max-w-3xl">
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{locale === "en" ? "Tracking" : "Seguimiento"}</h1>
-          </div>
-          <Link href="/proyectos" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink shadow-sm">
+      <SectionHero
+        eyebrow={locale === "en" ? "Continuous monitoring" : "Monitoreo continuo"}
+        title={locale === "en" ? "Tracking" : "Seguimiento"}
+        description={
+          locale === "en"
+            ? "Keep the projects that matter under observation and catch the changes that open a commercial window."
+            : "Mantenga bajo observación los proyectos que le importan y detecte los cambios que abren una ventana comercial."
+        }
+        actions={
+          <Link href="/proyectos" className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-3.5 py-2 text-sm font-semibold text-[#052020] transition hover:bg-[#63e3d4]">
             {locale === "en" ? "Add projects to monitoring" : "Agregar proyectos al monitoreo"} <ArrowUpRight size={15} />
           </Link>
-        </div>
-      </section>
+        }
+        metrics={[
+          { label: locale === "en" ? "Followed projects" : "Proyectos seguidos", value: followed.length.toLocaleString("es-CL"), detail: locale === "en" ? "your active radar" : "radar activo" },
+          { label: locale === "en" ? "Recent changes" : "Movimientos recientes", value: recentEvents.toLocaleString("es-CL"), detail: locale === "en" ? "in recent history" : "en el historial reciente" },
+          { label: locale === "en" ? "Projects with updates" : "Proyectos con novedades", value: projectsWithMovement.toLocaleString("es-CL"), detail: locale === "en" ? "require another review" : "requieren nueva revisión" },
+        ]}
+      />
 
       <ModuleGuide
         purpose={locale === "en" ? "Continuously observe relevant projects and detect changes that may open a commercial window or change priorities." : "Mantener bajo observación continua los proyectos relevantes y detectar cambios que pueden abrir una ventana comercial o alterar una prioridad."}
@@ -89,12 +98,6 @@ export default async function AlertasPage() {
         upgradeMessage={locale === "en" ? "Prime enables tracking, history and conversion of each signal into a CRM opportunity." : "Prime activa seguimiento e historial y permite convertir cada señal en una oportunidad dentro del CRM."}
         locale={locale}
       />
-
-      <section className="grid gap-4 sm:grid-cols-3" aria-label={locale === "en" ? "Tracking summary" : "Resumen de monitoreo"}>
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><FolderHeart size={15} className="text-brand-primary" /> {locale === "en" ? "Followed projects" : "Proyectos seguidos"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{followed.length}</p><p className="text-sm text-neutral-500">{locale === "en" ? "your active radar" : "radar activo"}</p></Panel>
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Activity size={15} className="text-brand-primary" /> {locale === "en" ? "Recent changes" : "Movimientos recientes"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{recentEvents}</p><p className="text-sm text-neutral-500">{locale === "en" ? "available in recent history" : "disponibles en el historial reciente"}</p></Panel>
-        <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><BellRing size={15} className="text-brand-primary" /> {locale === "en" ? "Projects with updates" : "Proyectos con novedades"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-950 dark:text-white">{projectsWithMovement}</p><p className="text-sm text-neutral-500">{locale === "en" ? "require another review" : "requieren una nueva revisión"}</p></Panel>
-      </section>
 
       {isFree && (
         <FreeFeaturePreview
@@ -160,7 +163,7 @@ export default async function AlertasPage() {
                     <div className="mt-3 flex items-start gap-2 border-t border-neutral-100 pt-3 text-xs dark:border-neutral-800">
                       <CalendarClock size={14} className="mt-0.5 shrink-0 text-neutral-400" />
                       {latestEvent ? (
-                        <p className="text-neutral-600 dark:text-neutral-300"><span className="font-semibold">{locale === "en" ? "Latest change:" : "Último movimiento:"}</span> {EVENT_LABEL[locale][latestEvent.eventType] ?? latestEvent.eventType} · {new Date(latestEvent.occurredAt).toLocaleDateString(locale === "en" ? "en-US" : "es-CL")}</p>
+                        <p className="text-neutral-600 dark:text-neutral-300"><span className="font-semibold">{locale === "en" ? "Latest change:" : "Último movimiento:"}</span> {projectEventLabel(latestEvent.eventType, locale)} · {new Date(latestEvent.occurredAt).toLocaleDateString(locale === "en" ? "en-US" : "es-CL")}</p>
                       ) : (
                         <p className="text-neutral-500">{locale === "en" ? "No recent changes detected." : "Sin movimientos recientes detectados."}</p>
                       )}

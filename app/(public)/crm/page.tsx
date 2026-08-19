@@ -19,6 +19,7 @@ import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-cl
 import { getCurrentUserProfile } from "@/lib/data-access/userProfile";
 import { FreeFeaturePreview } from "../components/FreeFeaturePreview";
 import { ModuleGuide } from "../components/ModuleGuide";
+import { SectionHero } from "../components/SectionHero";
 import { getOpportunityBoard, getOpportunityProjectOptions } from "@/lib/data-access/opportunities";
 import { OpportunityBoard } from "./OpportunityBoard";
 import { Panel } from "../components/Panel";
@@ -70,18 +71,35 @@ export default async function CrmPage() {
 
   return (
     <div className="flex flex-col gap-7">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-black via-[#272727] to-[#333333] px-6 py-9 text-white shadow-xl shadow-black/10 md:px-8 md:py-11">
-        <span className="absolute -top-24 right-4 h-64 w-64 rounded-full border border-white/10" aria-hidden />
-        <span className="absolute -right-10 -bottom-24 h-64 w-64 rounded-full bg-brand-primary/20 blur-2xl" aria-hidden />
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
-          <div className="max-w-3xl">
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Customer Relationship Management (CRM)</h1>
-          </div>
-          <Link href="/proyectos" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink shadow-sm transition hover:-translate-y-0.5">
-            {locale === "en" ? "Find projects" : "Buscar proyectos"} <ArrowUpRight size={16} />
+      <SectionHero
+        eyebrow={locale === "en" ? "Commercial intelligence" : "Inteligencia comercial"}
+        title="CRM"
+        titleSuffix="Customer Relationship Management"
+        description={
+          locale === "en"
+            ? "Turn the projects you find into commercial opportunities, with an owner, a stage and a next step."
+            : "Convierta los proyectos que encuentra en oportunidades comerciales, con responsable, etapa y próximo paso."
+        }
+        actions={
+          <Link href="/proyectos" className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-3.5 py-2 text-sm font-semibold text-[#052020] transition hover:bg-[#63e3d4]">
+            {locale === "en" ? "Find projects" : "Buscar proyectos"} <ArrowUpRight size={15} />
           </Link>
-        </div>
-      </section>
+        }
+        // Un usuario sin acceso al tablero no tiene oportunidades cargadas: la
+        // banda quedaría en cero y se leería como "no tienes nada", que es
+        // distinto de "no lo estás viendo". En ese caso va sin indicadores.
+        metrics={
+          crmClient
+            ? [
+                { label: locale === "en" ? "Active opportunities" : "Oportunidades activas", value: active.toLocaleString("es-CL"), detail: locale === "en" ? "still open" : "todavía abiertas" },
+                { label: locale === "en" ? "In conversation" : "En conversación", value: inConversation.toLocaleString("es-CL"), detail: locale === "en" ? "with a meeting held" : "con reunión en curso" },
+                { label: locale === "en" ? "With a next step" : "Con próximo paso", value: withNextStep.toLocaleString("es-CL"), detail: locale === "en" ? "with a date set" : "con fecha comprometida" },
+                { label: locale === "en" ? "Overdue" : "Pasos vencidos", value: overdue.toLocaleString("es-CL"), detail: locale === "en" ? "need rescheduling" : "requieren reagendar" },
+                { label: locale === "en" ? "Won" : "Cerradas ganadas", value: won.toLocaleString("es-CL"), detail: locale === "en" ? "closed successfully" : "cierres exitosos" },
+              ]
+            : []
+        }
+      />
 
       <ModuleGuide
         purpose={locale === "en" ? "Turn identified projects into commercial opportunities with ownership, priority, next action and shared context." : "Convertir proyectos detectados en oportunidades comerciales con responsable, prioridad, próxima acción y contexto compartido."}
@@ -112,12 +130,18 @@ export default async function CrmPage() {
         </div>
       </section>
 
+      {/* Para quien ya tiene acceso, estos cuatro números están arriba en la
+          banda de la cabecera. Se mantienen acá solo en plan Free, donde la
+          cabecera va sin indicadores y esta fila es la que muestra —bajo
+          candado— qué se desbloquea con Prime. */}
+      {premiumLocked && (
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={locale === "en" ? "Opportunity summary" : "Resumen de oportunidades"}>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><BriefcaseBusiness size={15} className="text-brand-primary" /> {locale === "en" ? "Active pipeline" : "Pipeline activo"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{active}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? `${contactReady} to contact · ${inConversation} in meetings` : `${contactReady} por contactar · ${inConversation} en reunión`}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><CircleAlert size={15} className="text-brand-primary" /> {locale === "en" ? "Needs attention" : "Requieren atención"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{overdue}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "overdue actions to resolve" : "acciones vencidas que conviene resolver"}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Clock3 size={15} className="text-brand-primary" /> {locale === "en" ? "With next action" : "Con próxima acción"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{withNextStep}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities with scheduled follow-up" : "oportunidades con seguimiento programado"}</p></Panel>
         <Panel className="border-neutral-200 p-4"><div className="flex items-center gap-2 text-xs font-medium text-neutral-500"><Handshake size={15} className="text-brand-primary" /> {locale === "en" ? "Won" : "Ganadas"}</div><p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900"><PlanGate locked={premiumLocked} label="Prime">{won}</PlanGate></p><p className="text-sm text-neutral-500">{locale === "en" ? "opportunities converted into results" : "oportunidades convertidas en resultado"}</p></Panel>
       </section>
+      )}
 
       {premiumLocked && (
         <FreeFeaturePreview

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Building2, ContactRound, Network, ShieldCheck, Sparkles } from "lucide-react";
+import { Building2, ContactRound, Network, Share2, ShieldCheck } from "lucide-react";
 import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getCompanyById, getCompanyShareholders, getTopCompaniesByProjectCount } from "@/lib/data-access/companies";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
@@ -15,6 +15,7 @@ import { Panel } from "../components/Panel";
 import { PlanGate } from "../components/PlanGate";
 import { ModuleGuide } from "../components/ModuleGuide";
 import { StakeholderMap } from "../components/StakeholderMap";
+import { SectionHero } from "../components/SectionHero";
 import { OwnerPortfolioPanels } from "./OwnerPortfolioPanels";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -47,23 +48,29 @@ export default async function MapaStakeholderPage({ searchParams }: { searchPara
 
   return (
     <div className="flex flex-col gap-6 pb-4">
-      <section className="relative -mx-4 overflow-hidden bg-[#041415] px-5 py-7 text-white shadow-lg sm:-mx-7 sm:px-7 md:rounded-b-3xl lg:-mx-8 lg:px-8">
-        <span aria-hidden className="absolute -right-12 -bottom-20 h-64 w-64 rounded-full bg-brand-primary/20 blur-3xl" />
-        <div className="relative max-w-3xl">
-          <p className="text-xs font-semibold tracking-[0.18em] text-brand-primary uppercase">{en ? "Company intelligence" : "Inteligencia empresarial"}</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">{en ? "Owners and companies" : "Propietarios y empresas"}</h1>
-          <p className="mt-3 text-sm leading-6 text-white/75 md:text-base">{en ? "Review the published project portfolio, registered legal identity and relationships supported by available sources." : "Revise la cartera de proyectos publicada, la identidad legal registrada y las relaciones respaldadas por las fuentes disponibles."}</p>
-        </div>
-      </section>
+      <SectionHero
+        eyebrow={en ? "Company intelligence" : "Inteligencia empresarial"}
+        title={en ? "Owners and companies" : "Propietarios y empresas"}
+        description={en ? "Review the published project portfolio, registered legal identity and relationships supported by available sources." : "Revise la cartera de proyectos publicada, la identidad legal registrada y las relaciones respaldadas por las fuentes disponibles."}
+        actions={
+          <Link href={localizedRoute("obsx", locale)} className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-3.5 py-2 text-sm font-semibold text-[#052020] transition hover:bg-[#63e3d4]">
+            <Share2 size={15} /> {en ? "Open in ObsX" : "Ver en ObsX"}
+          </Link>
+        }
+        metrics={[
+          { label: en ? "Explorable companies" : "Empresas explorables", value: companies.length.toLocaleString("es-CL"), detail: en ? "developers with a portfolio" : "desarrolladores con cartera" },
+          { label: en ? "Selected company" : "Empresa seleccionada", value: company?.name ?? (en ? "No selection" : "Sin selección"), detail: en ? "verifiable identity and portfolio" : "identidad y cartera verificable" },
+          ...(portfolio
+            ? [{
+                label: en ? "Identified capacity" : "Capacidad identificada",
+                value: portfolio.totalMw >= 1000 ? `${(portfolio.totalMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW` : `${Math.round(portfolio.totalMw).toLocaleString("es-CL")} MW`,
+                detail: `${portfolio.proyectos.length} ${en ? "published projects" : "proyectos publicados"}`,
+              }]
+            : []),
+        ]}
+      />
 
       {false && <ModuleGuide purpose={en ? "Understand the company behind a project before starting a commercial conversation." : "Entender la empresa detrás de un proyecto antes de iniciar una conversación comercial."} deliverables={en ? ["Published project portfolio", "Registered company identity", "Available corporate relationships"] : ["Cartera de proyectos publicados", "Identidad de empresa registrada", "Relaciones societarias disponibles"]} howToUse={en ? ["Select a developer", "Review its portfolio and relationships", "Take the account to CRM"] : ["Seleccione un desarrollador", "Revise su cartera y relaciones", "Lleve la cuenta al CRM"]} plan="Prime" upgradeMessage={en ? "Prime connects company intelligence with your commercial workflow." : "Prime conecta la inteligencia empresarial con su flujo comercial."} locale={locale} />}
-
-      <div className="relative flex flex-wrap items-center gap-x-8 gap-y-4 rounded-2xl bg-[#082425] px-5 py-4 text-white shadow-lg">
-        <div className="flex items-center gap-2 text-xs font-medium text-[#65e2d3]"><Sparkles size={14} /> Inteligencia empresarial</div>
-        <div className="min-w-[135px] border-l border-white/12 pl-4"><p className="text-[11px] text-white/55">Empresas explorables</p><p className="mt-1 text-xl font-semibold">{companies.length}</p><p className="text-[11px] text-[#65e2d3]">desarrolladores con cartera</p></div>
-        <div className="min-w-[135px] border-l border-white/12 pl-4"><p className="text-[11px] text-white/55">Empresa seleccionada</p><p className="mt-1 max-w-56 truncate text-base font-semibold">{company?.name ?? "Sin seleccion"}</p><p className="text-[11px] text-[#65e2d3]">identidad y cartera verificable</p></div>
-        {portfolio && <div className="min-w-[135px] border-l border-white/12 pl-4"><p className="text-[11px] text-white/55">Capacidad identificada</p><p className="mt-1 text-xl font-semibold">{portfolio.totalMw >= 1000 ? `${(portfolio.totalMw / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW` : `${Math.round(portfolio.totalMw).toLocaleString("es-CL")} MW`}</p><p className="text-[11px] text-[#65e2d3]">{portfolio.proyectos.length} proyectos publicados</p></div>}
-      </div>
 
       <Panel className="p-4 md:p-5">
         <form className="flex flex-col gap-3 sm:flex-row sm:items-end" action={ownerPath}>
