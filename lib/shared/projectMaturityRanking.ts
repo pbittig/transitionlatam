@@ -12,12 +12,19 @@ import { getSeiaMaturity } from "@/lib/shared/seiaStatusMaturity";
  * fecha ponía arriba proyectos que quizá nunca se construyan y enterraba los que
  * ya tienen obra.
  *
- * LOS CUATRO NIVELES, de mayor a menor evidencia:
+ * LA JERARQUÍA, de mayor a menor evidencia:
  *
- *   4 · PGP identificado      hay avance físico de obra reportado oficialmente
- *   3 · Proceso ambiental     hay expediente SEIA, ordenado por su madurez
- *   2 · Avance de conexión    sin lo anterior, pero el trámite va avanzado
- *   1 · Solo fecha estimada   nada más que la fecha declarada
+ *   obra en PGP  >  proceso ambiental  >  avance de conexión
+ *
+ * La fecha NO es un nivel: es el último desempate dentro del nivel que
+ * corresponda. Un proyecto no sube de categoría por tener la fecha cerca, que es
+ * justamente el problema que este orden viene a resolver.
+ *
+ *   3 · PGP identificado      hay avance físico de obra reportado oficialmente
+ *   2 · Proceso ambiental     hay expediente SEIA, ordenado por su madurez
+ *   1 · Avance de conexión    sin lo anterior; incluye a los que ni siquiera
+ *                             tienen estado de conexión legible, que entran con
+ *                             avance 0 y quedan al fondo
  *
  * Dentro de cada nivel se desempata con las señales secundarias que el nivel
  * tenga, y recién al final con la proximidad de la fecha.
@@ -26,12 +33,18 @@ import { getSeiaMaturity } from "@/lib/shared/seiaStatusMaturity";
  * función del listado, y el score no se muestra al usuario.
  */
 
-/** Tramos de evidencia. El número es el peso: más alto sale antes. */
+/**
+ * Tramos de evidencia. El número es el peso: más alto sale antes.
+ *
+ * No hay tramo "solo fecha" a propósito: la fecha nunca define el nivel, solo
+ * desempata dentro de él. Lo que antes caía ahí —proyectos sin estado de
+ * conexión legible— entra en `avanceConexion` con avance 0, que los deja igual
+ * al fondo pero sin sugerir que la fecha sea una categoría de madurez.
+ */
 export const MATURITY_TIER = {
-  soloFecha: 1,
-  avanceConexion: 2,
-  procesoAmbiental: 3,
-  obraEnPgp: 4,
+  avanceConexion: 1,
+  procesoAmbiental: 2,
+  obraEnPgp: 3,
 } as const;
 
 export interface ProjectMaturitySignals {
@@ -126,27 +139,25 @@ export function calculateProjectMaturityBreakdown(
   const tieneAmbiental = !!ambiental || !!signals.hasSeiaRecord || !!signals.seiaStatus;
 
   if (tieneObra) {
-    // Nivel 4: manda el avance de obra; el avance de conexión desempata; la
-    // fecha del PGP solo si las dos anteriores empatan.
+    // Manda el avance de obra; el avance de conexión desempata; la fecha del
+    // PGP solo si las dos anteriores empatan.
     tier = MATURITY_TIER.obraEnPgp;
     principal = desdePorcentaje(signals.pgpProgressPercent);
     secundaria = avanceConexion;
     desempate = proximidad(signals.pgpOperativeEstimateDate ?? signals.estimatedConnectionDate, hoy);
   } else if (tieneAmbiental) {
-    // Nivel 3: la madurez del expediente ambiental. Un expediente identificado
-    // sin estado puntuable entra igual, con principal 0: existir ya es señal.
+    // La madurez del expediente ambiental. Un expediente identificado sin estado
+    // puntuable entra igual, con principal 0: existir ya es señal.
     tier = MATURITY_TIER.procesoAmbiental;
     principal = desdePorcentaje(ambiental?.order ?? null);
     secundaria = avanceConexion;
     desempate = proximidad(signals.estimatedConnectionDate, hoy);
-  } else if (conexion) {
+  } else {
+    // Sin obra ni expediente. `conexion` puede ser null —estado ausente o que la
+    // escala no reconoce— y entonces el avance es 0: quedan al fondo, ordenados
+    // entre sí por cercanía de la fecha.
     tier = MATURITY_TIER.avanceConexion;
     principal = avanceConexion;
-    secundaria = 0;
-    desempate = proximidad(signals.estimatedConnectionDate, hoy);
-  } else {
-    tier = MATURITY_TIER.soloFecha;
-    principal = 0;
     secundaria = 0;
     desempate = proximidad(signals.estimatedConnectionDate, hoy);
   }

@@ -333,9 +333,16 @@ export default async function ProyectosEsperadosPage({
           <div className="text-right">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} {locale === "en" ? "results available" : "resultados disponibles"}</p>
             {tab === "esperados" && (
-              <p className="mt-0.5 text-xs text-neutral-400">
-                {locale === "en" ? "Sorted by evidence of execution" : "Ordenados por evidencia de ejecución"}
-              </p>
+              <>
+                <p className="mt-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                  {locale === "en" ? "Sorted by project maturity level" : "Ordenados por nivel de madurez del proyecto"}
+                </p>
+                <p className="mt-0.5 max-w-xs text-xs leading-4 text-neutral-400">
+                  {locale === "en"
+                    ? "Prioritises evidence of execution, environmental status and connection progress."
+                    : "Prioriza evidencia de ejecución, estado ambiental y avance de conexión."}
+                </p>
+              </>
             )}
             {/* Si el conjunto supera el tope del ranking, el orden no lo
                 considera entero: se dice, no se calla. */}
