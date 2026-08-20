@@ -1,3 +1,4 @@
+import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import { getSeiaMaturity, isSeiaNegativeTerminal } from "@/lib/shared/seiaStatusMaturity";
 import { getStatusMaturity, isRejectedStatus } from "@/lib/shared/projectStatusMaturity";
 import { getPertinenciaMaturity, isPertinenciaNegativeTerminal } from "@/lib/shared/pertinenciaStatusMaturity";
@@ -152,8 +153,11 @@ export function ProjectProcessProgress({
     };
   }
 
-  const fmt = (value: string | null | undefined) =>
-    value ? new Date(value).toLocaleDateString(en ? "en-GB" : "es-CL") : null;
+  // Todas las fechas de este bloque —PGP y nómina de CNE— son columnas `date`,
+  // días del calendario y no instantes. Pasarlas por `new Date()` las corría un
+  // día hacia atrás en Chile (ver formatDateOnly.ts, mismo bug detectado en el
+  // verificador el 2026-08-15).
+  const fmt = (value: string | null | undefined) => formatDateOnly(value, en ? "en" : "es");
   // Hitos que el expediente PGP tiene registrados. Se listan aparte de las
   // estimaciones porque no son lo mismo: una fecha registrada es lo que el
   // expediente dice que pasó, una estimada es lo que el titular proyecta.
@@ -216,7 +220,7 @@ export function ProjectProcessProgress({
           {pgpProgress.operativeEstimateDate && (
             <p>
               {en ? "Commercial Operation (estimated)" : "Entrada en Operación (estimada)"}:{" "}
-              {new Date(pgpProgress.operativeEstimateDate).toLocaleDateString(en ? "en-GB" : "es-CL")}
+              {formatDateOnly(pgpProgress.operativeEstimateDate, en ? "en" : "es")}
             </p>
           )}
         </div>

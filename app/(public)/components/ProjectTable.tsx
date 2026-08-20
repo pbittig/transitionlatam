@@ -218,14 +218,21 @@ export function ProjectTable({
                 </td>
                 <td className="px-3 py-3 text-neutral-600">
                   {pgp && pgp.progressPercent > 0 && pgp.operativeEstimateDate ? (() => {
-                    const date = new Date(pgp.operativeEstimateDate!);
+                    // Se parte el texto en vez de construir un Date, por lo
+                    // mismo que explica formatDateOnly.ts: `operative_estimate_date`
+                    // es una columna `date`, y `new Date("2027-08-04")` es
+                    // medianoche UTC — en Chile (UTC-4) eso cae el día anterior,
+                    // así que la tabla venía mostrando toda esta columna un día
+                    // antes de lo guardado. Un día del calendario no cambia
+                    // porque quien mira esté en otro huso.
+                    const [year, month, day] = pgp.operativeEstimateDate!.slice(0, 10).split("-");
                     return (
                       <time dateTime={pgp.operativeEstimateDate!} className="inline-flex min-w-14 flex-col leading-none">
                         <span className="text-base font-semibold tracking-tight tabular-nums text-neutral-900">
-                          {date.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit" })}
+                          {day}-{month}
                         </span>
                         <span className="mt-1 text-[10px] font-medium tracking-[0.12em] tabular-nums text-neutral-400">
-                          {date.getFullYear()}
+                          {year}
                         </span>
                       </time>
                     );

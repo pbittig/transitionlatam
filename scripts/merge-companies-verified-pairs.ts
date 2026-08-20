@@ -96,9 +96,64 @@ const PAREJAS: Array<{ rut: string; absorbe: string[]; nota: string; renombrarA?
     // escrito: se le devuelve la ortografía correcta.
     renombrarA: "Bioenergías Forestales SpA",
   },
+  // Decididas por el usuario el 2026-08-20, con el RUT como identidad y el
+  // nombre anterior conservado como alias en vez de descartarlo.
+  {
+    rut: "76.594.778-2",
+    absorbe: ["Trivento SpA"],
+    nota: "cambio de marca Trinergy→Trivento, ya documentado en ownerPortfolio.ts; el RUT figura con Trivento en el Coordinador",
+    renombrarA: "Trivento SpA",
+  },
+  {
+    rut: "76.137.696-9",
+    absorbe: ["Parque Eólico Quillagua SpA"],
+    nota: "el Formulario del Coordinador de ese proyecto declara titular 'Parque Fotovoltaico Nuevo Quillagua SpA' con este RUT",
+    renombrarA: "Parque Fotovoltaico Nuevo Quillagua SpA",
+  },
+  {
+    rut: "76.989.169-2",
+    absorbe: ["Solek Desarrollo SpA"],
+    // Quedaba fuera a propósito: la diferencia singular/plural no basta para
+    // afirmar identidad juridica, y atar mal 13 proyectos contamina la cadena
+    // sociedad → proyecto → propietario. El usuario lo verificó aparte.
+    nota: "confirmado por el usuario el 2026-08-20: la razón social es 'Solek Desarrollos SpA'",
+    renombrarA: "Solek Desarrollos SpA",
+  },
+  {
+    rut: "76.411.169-9",
+    absorbe: ["Solek Chile Serrvices SpA"],
+    // La fila absorbida no tiene proyectos, así que ningún conteo se mueve: lo
+    // único que cambia es que deja de aparecer como sociedad independiente en
+    // el selector. El nombre mal escrito queda como alias para que el sync lo
+    // resuelva contra esta fila en vez de volver a crearlo.
+    // "SOLEK" a secas NO se absorbe: sin evidencia de a qué persona jurídica
+    // corresponde, atarla a esta sería inventar.
+    nota: "confirmado por el usuario: 'Serrvices' es una errata de 'Services'",
+  },
 ];
 
 const normalizarRut = (rut: string) => rut.toUpperCase().replace(/[^0-9K]/g, "");
+
+/**
+ * Guarda un nombre histórico sin repetirlo.
+ *
+ * `entity_alias` no tiene índice único, así que reejecutar una fusión —o
+ * fusionar la misma razón social dos veces, que pasa cuando el sync la recrea—
+ * dejaba el mismo alias varias veces. Medido el 2026-08-20: 110 duplicados
+ * sobre 304 filas. Un listado de nombres históricos con repetidos se lee como
+ * error de la pantalla, no como información.
+ */
+async function registrarAlias(client: SupabaseClient, companyId: string, alias: string): Promise<void> {
+  const { data } = await client
+    .from("entity_alias")
+    .select("id")
+    .eq("entity_type", "company")
+    .eq("entity_id", companyId)
+    .eq("alias", alias)
+    .maybeSingle();
+  if (data) return;
+  await client.from("entity_alias").insert({ entity_type: "company", entity_id: companyId, alias });
+}
 
 async function contarReferencias(client: SupabaseClient, companyId: string): Promise<number> {
   const conteos = await Promise.all([
@@ -202,10 +257,14 @@ async function main() {
   const movidosTotales: Record<string, number> = {};
   for (const g of plan) {
     const objetivo = g.sobrevive as { id: string };
+    const nombreFinal = (g.renombrarA as string | null) ?? (g.sobrevive as { name: string }).name;
     for (const a of g.absorbidas as Array<{ id: string; name: string }>) {
       const movidos = await repuntar(client, a.id, objetivo.id);
       for (const [k, v] of Object.entries(movidos)) movidosTotales[k] = (movidosTotales[k] ?? 0) + v;
-      await client.from("entity_alias").insert({ entity_type: "company", entity_id: objetivo.id, alias: a.name });
+      // Un alias igual al nombre que va a quedar no aporta y se lee como error.
+      // Pasa cuando la fila absorbida es justamente la que aporta el nombre
+      // vigente (Trinergy absorbe a Trivento y después se llama Trivento).
+      if (a.name !== nombreFinal) await registrarAlias(client, objetivo.id, a.name);
       const { error: borrarError } = await client.from("company").delete().eq("id", a.id);
       if (borrarError) throw new Error(`No se pudo borrar ${a.name}: ${borrarError.message}`);
     }
@@ -214,7 +273,7 @@ async function main() {
     const nuevoNombre = g.renombrarA as string | null;
     if (nuevoNombre) {
       const anterior = (g.sobrevive as { name: string }).name;
-      await client.from("entity_alias").insert({ entity_type: "company", entity_id: objetivo.id, alias: anterior });
+      await registrarAlias(client, objetivo.id, anterior);
       const { error: renombrarError } = await client.from("company").update({ name: nuevoNombre }).eq("id", objetivo.id);
       if (renombrarError) throw new Error(`No se pudo renombrar a ${nuevoNombre}: ${renombrarError.message}`);
     }
