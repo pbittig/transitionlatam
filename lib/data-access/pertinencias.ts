@@ -167,6 +167,37 @@ export async function getConfirmedPertinenciaForProject(client: SupabaseClient, 
   };
 }
 
+/**
+ * El sub-estado de la pertinencia confirmada de varios proyectos, en una sola
+ * consulta — la tabla de Proyectos Futuros lo necesita para toda la página y
+ * pedirlo proyecto por proyecto serían 20 viajes por render.
+ *
+ * Solo el sub-estado: es lo único que decide si la situación ambiental quedó
+ * resuelta favorablemente (ver `resolveEnvironmentalEvidence`). Traer la ficha
+ * completa acá sería cargar documentos que la tabla no muestra.
+ */
+export async function getConfirmedPertinenciaSubEstados(
+  client: SupabaseClient,
+  projectIds: string[],
+): Promise<Map<string, string | null>> {
+  if (projectIds.length === 0) return new Map();
+  const { data, error } = await client
+    .from("pertinencia_consulta")
+    .select("matched_project_id, sub_estado, fecha_respuesta")
+    .in("matched_project_id", projectIds)
+    .eq("match_status", "confirmed")
+    .order("fecha_respuesta", { ascending: false, nullsFirst: false });
+  if (error) throw new Error(`Error obteniendo pertinencias confirmadas: ${error.message}`);
+
+  const result = new Map<string, string | null>();
+  for (const row of (data ?? []) as Array<{ matched_project_id: string; sub_estado: string | null }>) {
+    // La primera gana: vienen de la más reciente a la más antigua, y si un
+    // proyecto tiene varias pertinencias la vigente es la última resuelta.
+    if (!result.has(row.matched_project_id)) result.set(row.matched_project_id, row.sub_estado);
+  }
+  return result;
+}
+
 export async function countPertinenciasPending(client: SupabaseClient): Promise<number> {
   const { count, error } = await client
     .from("pertinencia_consulta")

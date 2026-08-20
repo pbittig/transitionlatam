@@ -3,7 +3,7 @@ import type { ProjectListItem } from "@/lib/data-access/projects";
 import type { SeiaRecordForProject } from "@/lib/data-access/seia";
 import type { LatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import { ThermalStatusBar } from "./ThermalStatusBar";
-import { SeiaStatusBar } from "./SeiaStatusBar";
+import { EnvironmentalStatusBar } from "./EnvironmentalStatusBar";
 import { ConstructionProgressBar } from "./ConstructionProgressBar";
 import { BatteryCharging, Droplets, Leaf, LockKeyhole, Sun, Wind } from "lucide-react";
 import type { AppLocale } from "@/lib/i18n";
@@ -76,12 +76,15 @@ export function ProjectTable({
   items,
   seiaByProjectId,
   pgpProgressByProjectId,
+  pertinenciaByProjectId,
   isFree = false,
   locale = "es",
 }: {
   items: ProjectListItem[];
   seiaByProjectId?: Map<string, SeiaRecordForProject>;
   pgpProgressByProjectId?: Map<string, LatestPgpProgress>;
+  /** Sub-estado de la pertinencia confirmada — habilita el caso "favorable sin expediente SEIA". */
+  pertinenciaByProjectId?: Map<string, string | null>;
   isFree?: boolean;
   locale?: AppLocale;
 }) {
@@ -165,19 +168,26 @@ export function ProjectTable({
                 </td>
                 {seiaByProjectId && (
                   <td className="px-3 py-3">
-                    {isFree ? (
-                      <TablePlanGate label={locale === "en" ? "Environmental status available on Prime" : "Estado ambiental disponible en Prime"}>
-                        {seia ? (
-                          <SeiaStatusBar status={seia.status} submissionType={seia.submissionType} compact />
-                        ) : (
-                          <span className="text-sm text-neutral-400">—</span>
-                        )}
-                      </TablePlanGate>
-                    ) : seia ? (
-                      <SeiaStatusBar status={seia.status} submissionType={seia.submissionType} compact />
-                    ) : (
-                      <span className="text-sm text-neutral-400 dark:text-neutral-500">—</span>
-                    )}
+                    {(() => {
+                      const ambiental = (
+                        <EnvironmentalStatusBar
+                          signals={{
+                            seiaStatus: seia?.status ?? null,
+                            hasSeiaRecord: !!seia,
+                            pertinenciaSubEstado: pertinenciaByProjectId?.get(p.id) ?? null,
+                            pgpProgressPercent: pgp?.progressPercent ?? null,
+                          }}
+                          locale={locale === "en" ? "en" : "es"}
+                        />
+                      );
+                      return isFree ? (
+                        <TablePlanGate label={locale === "en" ? "Environmental status available on Prime" : "Estado ambiental disponible en Prime"}>
+                          {ambiental}
+                        </TablePlanGate>
+                      ) : (
+                        ambiental
+                      );
+                    })()}
                   </td>
                 )}
                 <td className="px-3 py-3">

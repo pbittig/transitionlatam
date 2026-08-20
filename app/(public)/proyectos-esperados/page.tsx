@@ -5,6 +5,7 @@ import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client
 import { getProjectsForMap, listProjects } from "@/lib/data-access/projects";
 import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
 import { getLatestPgpProgressForProjects } from "@/lib/data-access/pgpProgress";
+import { getConfirmedPertinenciaSubEstados } from "@/lib/data-access/pertinencias";
 import { isAdmin } from "@/lib/auth/session";
 import {
   getConnectionCalendar,
@@ -181,6 +182,13 @@ export default async function ProyectosEsperadosPage({
     result.items.map((p) => p.id),
   );
   const pgpProgressByProjectId = await getLatestPgpProgressForProjects(
+    client,
+    result.items.map((p) => p.id),
+  );
+  // Habilita el caso "situación ambiental favorable sin expediente SEIA": el SEA
+  // resolvió que el proyecto no debe ingresar, así que no hay expediente que
+  // encontrar (ver resolveEnvironmentalEvidence).
+  const pertinenciaByProjectId = await getConfirmedPertinenciaSubEstados(
     client,
     result.items.map((p) => p.id),
   );
@@ -381,7 +389,7 @@ export default async function ProyectosEsperadosPage({
       )}
 
       <Panel className="flex flex-col gap-4 overflow-hidden p-0">
-        <div><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} pgpProgressByProjectId={pgpProgressByProjectId} isFree={isFree} locale={locale} /></div>
+        <div><ProjectTable items={result.items} seiaByProjectId={seiaByProjectId} pgpProgressByProjectId={pgpProgressByProjectId} pertinenciaByProjectId={pertinenciaByProjectId} isFree={isFree} locale={locale} /></div>
         <div className="px-5 pb-5"><Pager page={page} totalPages={totalPages} buildHref={(p) => buildHref(params, { page: String(p) })} /></div>
       </Panel>
 
