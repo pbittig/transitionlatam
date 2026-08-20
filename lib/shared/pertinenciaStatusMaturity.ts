@@ -11,12 +11,27 @@
  * fuente de verdad para qué estados existen realmente.
  */
 
+/**
+ * El trámite terminó SIN resolver la situación ambiental: el titular se
+ * desistió, lo abandonó, o el SEA no lo admitió. No hay conclusión que mostrar.
+ */
 const NEGATIVE_TERMINAL_SUBESTADOS = [
-  "Resuelta - No ingreso al SEIA",
   "Resuelta - Desistida",
   "Resuelta - Abandono",
   "Resuelta - No admitida a tramitación",
 ];
+
+/**
+ * El trámite terminó Y resolvió la situación a favor del proyecto: el SEA
+ * determinó que no requiere evaluación ambiental.
+ *
+ * Estaba en la lista de terminales negativos, junto a "Desistida" y "Abandono",
+ * y por eso la ficha lo mostraba con la barra vacía como si el proyecto hubiera
+ * quedado a medias. Es lo contrario: no hay expediente que encontrar porque el
+ * SEA resolvió que no hace falta (ver la referencia de dominio: "Resuelta - No
+ * ingreso al SEIA" significa que no se requiere evaluación, no que fracasó).
+ */
+const FAVORABLE_TERMINAL_SUBESTADOS = ["Resuelta - No ingreso al SEIA"];
 
 function normalize(status: string): string {
   return status
@@ -30,6 +45,7 @@ export function getPertinenciaMaturity(estado: string | null, subEstado: string 
   if (subEstado) {
     const key = normalize(subEstado);
     if (key === normalize("Resuelta - Ingreso al SEIA")) return { order: 100 };
+    if (FAVORABLE_TERMINAL_SUBESTADOS.map(normalize).includes(key)) return { order: 100 };
     if (NEGATIVE_TERMINAL_SUBESTADOS.map(normalize).includes(key)) return null;
   }
   if (estado) {
@@ -42,4 +58,9 @@ export function getPertinenciaMaturity(estado: string | null, subEstado: string 
 
 export function isPertinenciaNegativeTerminal(subEstado: string | null): boolean {
   return !!subEstado && NEGATIVE_TERMINAL_SUBESTADOS.map(normalize).includes(normalize(subEstado));
+}
+
+/** El trámite cerró resolviendo que el proyecto no requiere evaluación ambiental. */
+export function isPertinenciaFavorableTerminal(subEstado: string | null): boolean {
+  return !!subEstado && FAVORABLE_TERMINAL_SUBESTADOS.map(normalize).includes(normalize(subEstado));
 }

@@ -1,7 +1,7 @@
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
 import { getSeiaMaturity, isSeiaNegativeTerminal } from "@/lib/shared/seiaStatusMaturity";
 import { getStatusMaturity, isRejectedStatus } from "@/lib/shared/projectStatusMaturity";
-import { getPertinenciaMaturity, isPertinenciaNegativeTerminal } from "@/lib/shared/pertinenciaStatusMaturity";
+import { getPertinenciaMaturity, isPertinenciaFavorableTerminal, isPertinenciaNegativeTerminal } from "@/lib/shared/pertinenciaStatusMaturity";
 import { clasificarConclusionPertinencia } from "@/lib/data-access/pertinencias";
 import type { LatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import type { ConstructionDeclaration } from "@/lib/data-access/construction";
@@ -86,7 +86,7 @@ export function ProjectProcessProgress({
     </>
   );
 
-  let secondBar: { title: string; status: string; percentage: number | null; badgeLabel: string; terminal: boolean; detail: React.ReactNode };
+  let secondBar: { title: string; status: string; percentage: number | null; badgeLabel: string; terminal: boolean; terminalFavorable?: boolean; nota?: string; detail: React.ReactNode };
   if (environmentalStatus) {
     const environmentalMaturity = getSeiaMaturity(environmentalStatus);
     const terminal = isSeiaNegativeTerminal(environmentalStatus);
@@ -110,13 +110,25 @@ export function ProjectProcessProgress({
     };
   } else if (pertinencia) {
     const pertinenciaMaturity = getPertinenciaMaturity(pertinencia.estado, pertinencia.subEstado);
-    const terminal = isPertinenciaNegativeTerminal(pertinencia.subEstado);
+    const favorableTerminal = isPertinenciaFavorableTerminal(pertinencia.subEstado);
+    // El badge sigue diciendo "Proceso terminado" —porque terminó—, pero la
+    // barra se rellena: el trámite completó su recorrido y resolvió a favor.
+    const terminal = isPertinenciaNegativeTerminal(pertinencia.subEstado) || favorableTerminal;
     secondBar = {
       title: en ? "Pertinence consultation (SEA)" : "Consulta de pertinencia (SEA)",
       status: clasificarConclusionPertinencia(pertinencia.estado, pertinencia.subEstado),
       percentage: pertinenciaMaturity?.order ?? null,
       badgeLabel: terminal ? (en ? "Process ended" : "Proceso terminado") : pertinenciaMaturity ? `${pertinenciaMaturity.order}%` : en ? "Progress unavailable" : "Sin avance calculable",
       terminal,
+      terminalFavorable: favorableTerminal,
+      // El SEA resolvió que no requiere evaluación, así que no hay expediente
+      // que encontrar. Se dice en chico para que nadie lea la barra llena como
+      // "tiene su RCA verificada".
+      nota: favorableTerminal
+        ? en
+          ? "No environmental filing identified in the SEIA: the SEA resolved it is not required."
+          : "Sin expediente ambiental identificado en el SEIA: el SEA resolvió que no lo requiere."
+        : undefined,
       detail: (
         <>
           <p>{en ? "Pertinence consultation with the Environmental Assessment Service (SEA), prior to a formal SEIA filing." : "Consulta de pertinencia ante el Servicio de Evaluación Ambiental (SEA), previa a un ingreso formal al SEIA."}</p>
@@ -269,6 +281,8 @@ export function ProjectProcessProgress({
         percentage={secondBar.percentage}
         badgeLabel={secondBar.badgeLabel}
         terminal={secondBar.terminal}
+        terminalFavorable={secondBar.terminalFavorable}
+        nota={secondBar.nota}
         detail={secondBar.detail}
         locale={locale}
       />

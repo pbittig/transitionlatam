@@ -10,6 +10,8 @@ export function ExpandableProgressBar({
   percentage,
   badgeLabel,
   terminal = false,
+  terminalFavorable = false,
+  nota,
   noData = false,
   expected,
   detail,
@@ -20,6 +22,10 @@ export function ExpandableProgressBar({
   percentage: number | null;
   badgeLabel: string;
   terminal?: boolean;
+  /** El tramite termino resolviendo a favor del proyecto: la barra se rellena igual. */
+  terminalFavorable?: boolean;
+  /** Aclaración breve bajo el estado, para acotar lo que la barra sugiere. */
+  nota?: ReactNode;
   noData?: boolean;
   /**
    * Marca de referencia sobre la misma barra (0-100) con su pie de nota — hoy
@@ -46,6 +52,9 @@ export function ExpandableProgressBar({
         <div>
           <h3 className="text-sm font-semibold text-brand-ink dark:text-white">{title}</h3>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">{status}</p>
+          {/* Matiz al pie del estado, en cuerpo chico: acota lo que la barra
+              llena podría dar a entender de más. */}
+          {nota && <p className="mt-0.5 max-w-md text-[11px] leading-4 text-neutral-400 dark:text-neutral-500">{nota}</p>}
         </div>
         <span
           className={
@@ -71,7 +80,11 @@ export function ExpandableProgressBar({
           aria-valuemax={100}
           aria-valuenow={percentage ?? undefined}
         >
-          {!terminal && !noData && percentage !== null && (
+          {/* Un trámite terminado normalmente va sin relleno: no hay avance que
+              mostrar. Pero cuando cerró resolviendo a favor del proyecto —el SEA
+              dice que no requiere evaluación— sí completó su recorrido, y
+              dejarlo vacío se lee como si hubiera quedado a medias. */}
+          {(!terminal || terminalFavorable) && !noData && percentage !== null && (
             <div
               className="h-full rounded-full bg-gradient-to-r from-[#333333] to-brand-primary shadow-[0_0_14px_rgba(56,215,197,0.28)] transition-[width]"
               style={{ width: `${width}%` }}
