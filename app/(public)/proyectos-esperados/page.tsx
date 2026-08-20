@@ -138,8 +138,10 @@ export default async function ProyectosEsperadosPage({
     // revisadas a mano — el resto del pipeline se sigue mostrando en las estadísticas
     // agregadas (GW, embudo, mapa), solo la tabla navegable se acota.
     verifiedOnly: true,
-    // Los que ya tienen obra en curso arriba (ver listProjects).
-    constructionFirst: tab === "esperados",
+    // Orden por defecto: evidencia de materialización, no fecha declarada (ver
+    // projectMaturityRanking.ts). Reemplaza a `constructionFirst`, que ponía
+    // arriba la obra en curso pero solo dentro de la página ya traída.
+    rankByMaturity: tab === "esperados",
   };
 
   const scheduleInputs = await getUpcomingScheduleInputs(client);
@@ -328,7 +330,21 @@ export default async function ProyectosEsperadosPage({
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-primary">Explorador</p>
             <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-950 dark:text-white">{locale === "en" ? "Project opportunities" : "Oportunidades de proyectos"}</h2>
           </div>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} {locale === "en" ? "results available" : "resultados disponibles"}</p>
+          <div className="text-right">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">{result.totalCount.toLocaleString("es-CL")} {locale === "en" ? "results available" : "resultados disponibles"}</p>
+            {tab === "esperados" && (
+              <p className="mt-0.5 text-xs text-neutral-400">
+                {locale === "en" ? "Sorted by evidence of execution" : "Ordenados por evidencia de ejecución"}
+              </p>
+            )}
+            {/* Si el conjunto supera el tope del ranking, el orden no lo
+                considera entero: se dice, no se calla. */}
+            {(result.rankingTruncado ?? 0) > 0 && (
+              <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                {result.rankingTruncado!.toLocaleString("es-CL")} {locale === "en" ? "projects outside the ranking" : "proyectos fuera del ordenamiento"}
+              </p>
+            )}
+          </div>
         </div>
         <Panel className="flex flex-col gap-5 border-brand-primary/20 bg-white p-5 shadow-sm dark:border-brand-primary/15 dark:bg-neutral-950">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{locale === "en" ? "Filter projects" : "Filtre los proyectos"}</h3><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{locale === "en" ? "Combine technologies and search to find relevant projects or opportunities." : "Combine tecnologías y búsqueda para encontrar el proyecto u oportunidad relevante."}</p></div>{(hasTechFilter || search || Boolean(etapaGroup) || hasDateRangeFilter) && <Link href={buildHref(params, { tech: undefined, q: undefined, etapa: undefined, mesDesde: undefined, mesHasta: undefined, page: undefined })} className="text-sm font-medium text-neutral-600 underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300">{locale === "en" ? "Reset filters" : "Restablecer filtros"}</Link>}</div>

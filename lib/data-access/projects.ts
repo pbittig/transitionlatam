@@ -5,6 +5,9 @@ import { PMGD_CAPACITY_THRESHOLD_MW } from "@/lib/shared/projectPhaseDurations";
 import type { VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 import { getReverificationPassStart } from "@/lib/data-access/reverificationPass";
+import { calculateProjectMaturityScore } from "@/lib/shared/projectMaturityRanking";
+import { getLatestPgpProgressForProjects } from "@/lib/data-access/pgpProgress";
+import { getSeiaRecordsForProjects } from "@/lib/data-access/seia";
 
 const MAX_PAGE_SIZE = 100;
 
@@ -52,7 +55,27 @@ export interface ProjectFilters {
   verifiedOnly?: boolean;
   /** Pone arriba los proyectos con obra en curso registrada en PGP. */
   constructionFirst?: boolean;
+  /**
+   * Ordena por evidencia de materialización en vez de por fecha declarada — ver
+   * `calculateProjectMaturityScore`. Obliga a traer el conjunto filtrado
+   * completo antes de paginar, así que solo tiene sentido sobre conjuntos
+   * acotados (hoy: la cartera verificada de /proyectos-esperados).
+   */
+  rankByMaturity?: boolean;
 }
+
+/**
+ * Tope del conjunto que el ranking ordena de una vez.
+ *
+ * Ordenar por madurez exige traer todo el conjunto filtrado antes de paginar:
+ * las señales que deciden el orden —avance de obra en PGP, expediente
+ * ambiental— viven en otras tablas y no se pueden ordenar desde la consulta.
+ * Con la cartera verificada (247 proyectos al 2026-08-20) sobra; el tope existe
+ * para que nadie lo encienda por accidente sobre las 2.000 filas del pipeline
+ * completo. Si se supera, se avisa en `rankingTruncado` en vez de recortar en
+ * silencio.
+ */
+const TOPE_RANKING = 800;
 
 export const REJECTED_STATUSES = ["Rechazada", "Desistida"];
 
@@ -220,6 +243,12 @@ export interface ProjectListResult {
   page: number;
   pageSize: number;
   totalCount: number;
+  /**
+   * Cuántos proyectos quedaron fuera del ranking por el tope de `TOPE_RANKING`.
+   * Cero salvo que el conjunto filtrado lo supere; si es mayor que cero, el
+   * orden mostrado no considera esos proyectos y hay que decirlo, no callarlo.
+   */
+  rankingTruncado?: number;
 }
 
 /**
@@ -269,7 +298,10 @@ export async function listProjects(
       `id, name, internal_code, developer_company_id, capacity_mw, capacity_mwh, net_injection_mw, net_withdrawal_mw, generation_capacity_mw, storage_capacity_mw, storage_hours, includes_storage, project_kind, status, estimated_connection_date, technology:technology_id(name, code), ${locationEmbed}, ${countryEmbed}, developer:developer_company_id(name), spv:spv_id(name)`,
       { count: "exact" },
     )
-    .range(from, to);
+    // Con ranking se pide el conjunto entero y la página se corta después, ya
+    // ordenada: paginar antes dejaría el orden dentro de cada página y no en el
+    // total (la misma limitación que ya tenía `constructionFirst`).
+    .range(filters.rankByMaturity ? 0 : from, filters.rankByMaturity ? TOPE_RANKING - 1 : to);
 
   if (filters.countryCode) query = query.eq("country.code", filters.countryCode);
   if (filters.regionId) query = query.eq("location.region_id", filters.regionId);
@@ -326,8 +358,11 @@ export async function listProjects(
   if (filters.connectionDateFrom) query = query.gte("estimated_connection_date", filters.connectionDateFrom);
   if (filters.connectionDateTo) query = query.lte("estimated_connection_date", filters.connectionDateTo);
 
-  const { data, error, count } = await query;
-  if (error) throw new Error(`Error listando proyectos: ${error.message}`);
+  const respuesta = await query;
+  if (respuesta.error) throw new Error(`Error listando proyectos: ${respuesta.error.message}`);
+  const count = respuesta.count;
+  // `data` se reasigna cuando el ranking corta la página después de ordenar.
+  let data = respuesta.data;
 
   /**
    * Sube al principio los proyectos con obra en curso registrada en PGP.
@@ -344,9 +379,51 @@ export async function listProjects(
    * posterior y no subir a la primera. Ordenarlo de verdad exigiría traer todos
    * los ids del conjunto filtrado para ordenarlos en memoria antes de paginar.
    */
-  if (filters.constructionFirst && data?.length) {
+  if (filters.constructionFirst && data?.length && !filters.rankByMaturity) {
     const conObra = new Set((await resolveConstructionSets(client)).underConstructionIds);
     (data as Array<{ id: string }>).sort((a, b) => Number(conObra.has(b.id)) - Number(conObra.has(a.id)));
+  }
+
+  /**
+   * Ranking por evidencia de materialización, sobre el conjunto completo.
+   *
+   * Reemplaza a `constructionFirst`, que hacía algo parecido pero binario (con
+   * obra / sin obra) y solo dentro de la página ya traída. Acá se pagina
+   * después de ordenar, así que un proyecto con obra y fecha lejana sube a la
+   * primera página en vez de quedar sepultado.
+   */
+  let rankingTruncado = 0;
+  if (filters.rankByMaturity && data?.length) {
+    const filas = data as Array<{ id: string; name: string; status: string | null; estimated_connection_date: string | null }>;
+    rankingTruncado = Math.max(0, (count ?? 0) - filas.length);
+    const ids = filas.map((f) => f.id);
+    const [pgp, seia] = await Promise.all([
+      getLatestPgpProgressForProjects(client, ids),
+      getSeiaRecordsForProjects(client, ids),
+    ]);
+    const hoy = new Date();
+    const puntaje = new Map(
+      filas.map((f) => {
+        const avance = pgp.get(f.id);
+        const expediente = seia.get(f.id);
+        return [
+          f.id,
+          calculateProjectMaturityScore(
+            {
+              pgpProgressPercent: avance?.progressPercent ?? null,
+              pgpOperativeEstimateDate: avance?.operativeEstimateDate ?? null,
+              connectionStatus: f.status,
+              seiaStatus: expediente?.status ?? null,
+              hasSeiaRecord: !!expediente,
+              estimatedConnectionDate: f.estimated_connection_date,
+            },
+            hoy,
+          ),
+        ];
+      }),
+    );
+    filas.sort((a, b) => (puntaje.get(b.id) ?? 0) - (puntaje.get(a.id) ?? 0) || a.name.localeCompare(b.name, "es"));
+    data = filas.slice(from, to + 1) as typeof data;
   }
 
   const items: ProjectListItem[] = (data ?? []).map((row) => {
@@ -396,7 +473,7 @@ export async function listProjects(
     };
   });
 
-  return { items, page, pageSize: size, totalCount: count ?? 0 };
+  return { items, page, pageSize: size, totalCount: count ?? 0, rankingTruncado };
 }
 
 export interface DashboardStats {
