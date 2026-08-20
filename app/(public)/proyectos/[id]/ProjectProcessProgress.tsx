@@ -3,6 +3,7 @@ import { getSeiaMaturity, isSeiaNegativeTerminal } from "@/lib/shared/seiaStatus
 import { getStatusMaturity, isRejectedStatus } from "@/lib/shared/projectStatusMaturity";
 import { getPertinenciaMaturity, isPertinenciaFavorableTerminal, isPertinenciaNegativeTerminal } from "@/lib/shared/pertinenciaStatusMaturity";
 import { clasificarConclusionPertinencia } from "@/lib/data-access/pertinencias";
+import { INFERENCIA_NOTA } from "@/lib/shared/environmentalEvidence";
 import type { LatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import type { ConstructionDeclaration } from "@/lib/data-access/construction";
 import type { PgpProgressReading } from "@/lib/shared/pgpProjectProgress";
@@ -86,6 +87,16 @@ export function ProjectProcessProgress({
     </>
   );
 
+  /**
+   * Hay obra reportada en el PGP del Coordinador. Es la señal que habilita
+   * inferir que la situación ambiental está resuelta cuando no pudimos asociar
+   * el expediente: un proyecto no llega a construirse sin resolverla.
+   */
+  const obraEnCurso = typeof pgpProgress?.progressPercent === "number" && pgpProgress.progressPercent > 0;
+  const notaInferencia = en
+    ? "The project has an active PGP/real connection. By implication its environmental process is favourable, but we have not yet been able to identify the corresponding filing in the SEIA."
+    : INFERENCIA_NOTA;
+
   let secondBar: { title: string; status: string; percentage: number | null; badgeLabel: string; terminal: boolean; terminalFavorable?: boolean; nota?: string; detail: React.ReactNode };
   if (environmentalStatus) {
     const environmentalMaturity = getSeiaMaturity(environmentalStatus);
@@ -137,6 +148,31 @@ export function ProjectProcessProgress({
               {en ? "View SEA document" : "Ver documento SEA"}
             </a>
           )}
+          {environmentalDetailExtra}
+        </>
+      ),
+    };
+  } else if (obraEnCurso) {
+    // No pudimos asociar el expediente ambiental, pero la obra está en curso y
+    // reportada en PGP. Un proyecto no llega a construirse sin haber resuelto su
+    // situación ambiental, así que la barra se llena: dejarla vacía sugiere un
+    // pendiente que no existe. El asterisco marca que es una inferencia nuestra
+    // por el avance, no un expediente que hayamos verificado.
+    secondBar = {
+      title: en ? "Environmental status" : "Estado ambiental",
+      status: en ? "Favourable, inferred from construction progress" : "Favorable, inferido por avance de obra",
+      percentage: 100,
+      badgeLabel: "100% *",
+      terminal: false,
+      nota: notaInferencia,
+      detail: (
+        <>
+          <p>{notaInferencia}</p>
+          <p className="mt-2">
+            {en
+              ? "This is not a filing we verified: it is an inference from the level of progress. It does not replace an approved RCA."
+              : "No es un expediente que hayamos verificado: es una inferencia a partir del nivel de avance. No reemplaza a una RCA aprobada."}
+          </p>
           {environmentalDetailExtra}
         </>
       ),
