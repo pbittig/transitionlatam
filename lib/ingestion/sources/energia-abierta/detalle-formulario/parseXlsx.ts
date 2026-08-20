@@ -74,12 +74,21 @@ function buildLabelMap(ws: ExcelJS.Worksheet): Map<string, ExcelJS.CellValue> {
  * en la columna de etiquetas — ese campo es el primero y es igual en todas
  * las variantes de plantilla vistas hasta ahora.
  */
+/**
+ * El sufijo "(1)" tampoco es constante: la plantilla SASC rotula el campo como
+ * "Razón Social" a secas, aunque sí numera los demás ("Nombre del Proyecto
+ * (3)"). Exigirlo dejaba fuera a SASC y SUCT enteros — 14 Formularios al
+ * 2026-08-20, todos con el RUT del titular adentro.
+ */
+const RAZON_SOCIAL = /^raz[oó]n\s+social(\s*\(\d+\))?$/i;
+
 function findFormularioWorksheet(workbook: ExcelJS.Workbook): ExcelJS.Worksheet | null {
   for (const ws of workbook.worksheets) {
     let hasRazonSocial = false;
     ws.eachRow({ includeEmpty: false }, (row) => {
       if (hasRazonSocial) return;
-      if (cellText(row.getCell(LABEL_COL).value) === "Razón Social (1)") hasRazonSocial = true;
+      const label = cellText(row.getCell(LABEL_COL).value);
+      if (label && RAZON_SOCIAL.test(label)) hasRazonSocial = true;
     });
     if (hasRazonSocial) return ws;
   }
@@ -206,18 +215,26 @@ export async function parseFormularioExcel(filePath: string): Promise<Formulario
   const ws = findFormularioWorksheet(workbook);
   if (!ws) {
     const sheetNames = workbook.worksheets.map((s) => s.name).join(", ");
-    throw new Error(`No se encontró una pestaña con "Razón Social (1)" en el archivo (pestañas presentes: ${sheetNames})`);
+    throw new Error(`No se encontró una pestaña con "Razón Social" en el archivo (pestañas presentes: ${sheetNames})`);
   }
 
   const map = buildLabelMap(ws);
   const get = (label: string) => cellText(map.get(label) ?? null);
   const getNum = (label: string) => cellNumber(map.get(label) ?? null);
+  /** Primera etiqueta que exista en el mapa: las plantillas no coinciden en el sufijo. */
+  const getAny = (...labels: string[]) => {
+    for (const label of labels) {
+      const valor = cellText(map.get(label) ?? null);
+      if (valor !== null) return valor;
+    }
+    return null;
+  };
 
   const versionCell = cellText(ws.getRow(1).getCell(1).value);
 
   return {
     templateVersion: versionCell,
-    companyName: get("Razón Social (1)"),
+    companyName: getAny("Razón Social (1)", "Razón Social"),
     companyRut: get("RUT"),
     companyLegalAddress: get("Domicilio Legal"),
     contacts: parseContactsBlock(ws),
