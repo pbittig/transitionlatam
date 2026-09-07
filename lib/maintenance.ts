@@ -17,6 +17,11 @@ import { getAppSetting } from "@/lib/data-access/watchlist";
 export const MAINTENANCE_SETTING_KEY = "maintenance_mode";
 
 export async function isMaintenanceMode(): Promise<boolean> {
+  // El flag vive en la base compartida, así que prenderlo para los clientes
+  // también alcanzaría al `next dev` de la máquina local — que es justamente
+  // donde uno revisa cambios MIENTRAS producción está en mantenimiento. El
+  // candado es para el sitio publicado; en desarrollo no aplica.
+  if (process.env.NODE_ENV === "development") return false;
   try {
     return await getAppSetting(createSupabaseServiceClient(), MAINTENANCE_SETTING_KEY, false);
   } catch {
