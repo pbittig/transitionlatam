@@ -54,7 +54,7 @@ function OwnershipBranch({ map, entityId, visited = new Set<string>() }: { map: 
             {owners.map((relation) => (
               <div key={`${relation.ownerEntityId}:${entityId}`} className="flex flex-col items-center">
                 <OwnershipBranch map={map} entityId={relation.ownerEntityId} visited={nextVisited} />
-                <Connector percent={relation.ownershipPercent} />
+                <Connector percent={relation.ownershipPercent ?? undefined} />
               </div>
             ))}
           </div>

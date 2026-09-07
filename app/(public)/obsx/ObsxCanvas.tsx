@@ -8,11 +8,12 @@ import {
   forceLink,
   forceManyBody,
   forceSimulation,
+  type Force,
   type Simulation,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from "d3-force";
-import { Expand, Maximize2, Minus, Plus, RotateCcw, Search, Sparkles, X } from "lucide-react";
+import { Building2, Expand, ListFilter, Maximize2, Minus, Plus, RotateCcw, Search, Sparkles, X } from "lucide-react";
 import { OTHER_COLOR, PRINCIPAL_COLOR, TECH_COLORS } from "@/lib/shared/chartColors";
 import type { MarketTechCategory } from "@/lib/shared/marketTechCategories";
 import type { ObsxGraph, ObsxLink, ObsxLinkKind, ObsxNode, ObsxNodeKind } from "@/lib/data-access/obsxGraph";
@@ -21,6 +22,9 @@ const WIDTH = 1120;
 const HEIGHT = 660;
 /** Bajo este zoom solo se rotulan el centro, lo seleccionado y lo grande: más texto se vuelve ruido. */
 const ZOOM_ETIQUETAS = 1.25;
+/** El grafo se arma dentro de este círculo para verse unido en vez de repartido por el lienzo. */
+const CENTRO = { x: WIDTH / 2, y: HEIGHT / 2 };
+const RADIO_CONTENEDOR = 300;
 
 /**
  * El lienzo es oscuro siempre, así que los colores se toman de la variante
@@ -107,12 +111,44 @@ const GRUPOS: Array<{ key: string; label: string; kinds: ObsxNodeKind[] }> = [
 type SimNode = SimulationNodeDatum & ObsxNode;
 type SimLink = SimulationLinkDatum<SimNode> & { kind: ObsxLinkKind; label: string | null };
 
+/**
+ * Mantiene todos los nodos dentro de un círculo: al que se sale más allá del
+ * radio lo empuja de vuelta hacia el centro, con fuerza proporcional a cuánto se
+ * pasó. Así el grafo queda contenido y se lee unido en vez de disperso.
+ */
+function forceContencion(radio: number, cx: number, cy: number): Force<SimNode, SimLink> {
+  let nodos: SimNode[] = [];
+  const force = (alpha: number) => {
+    for (const n of nodos) {
+      const dx = (n.x ?? cx) - cx;
+      const dy = (n.y ?? cy) - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist > radio && dist > 0) {
+        const empuje = ((dist - radio) / dist) * alpha * 1.1;
+        n.vx = (n.vx ?? 0) - dx * empuje;
+        n.vy = (n.vy ?? 0) - dy * empuje;
+      }
+    }
+  };
+  force.initialize = (n: SimNode[]) => {
+    nodos = n;
+  };
+  return force;
+}
+
 function compactMw(valor: number): string {
   if (valor >= 1000) return `${(valor / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} GW`;
   return `${Math.round(valor).toLocaleString("es-CL")} MW`;
 }
 
-export function ObsxCanvas({ graph }: { graph: ObsxGraph }) {
+export function ObsxCanvas({
+  graph,
+  empresasFiltrables = false,
+}: {
+  graph: ObsxGraph;
+  /** Habilita el panel lateral para enfocar el grafo en una o varias empresas (vista global). */
+  empresasFiltrables?: boolean;
+}) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const simulacionRef = useRef<Simulation<SimNode, SimLink> | null>(null);
@@ -121,19 +157,83 @@ export function ObsxCanvas({ graph }: { graph: ObsxGraph }) {
 
   const [posiciones, setPosiciones] = useState<SimNode[]>([]);
   const [vista, setVista] = useState({ x: 0, y: 0, k: 1 });
-  const [seleccion, setSeleccion] = useState<string>(graph.nodes[0]?.id ?? "");
   const [busqueda, setBusqueda] = useState("");
   const [apagados, setApagados] = useState<string[]>([]);
   const [preguntaAbierta, setPreguntaAbierta] = useState(false);
+  const [seleccion, setSeleccion] = useState<string>(graph.nodes[0]?.id ?? "");
+
+  // Filtro por empresa (solo en la vista global): enfoca el grafo en una o varias
+  // sociedades y su vecindario directo.
+  const [panelEmpresas, setPanelEmpresas] = useState(false);
+  const [empresasSel, setEmpresasSel] = useState<string[]>([]);
+  const [busquedaEmpresa, setBusquedaEmpresa] = useState("");
+  const selSet = useMemo(() => new Set(empresasSel), [empresasSel]);
 
   const kindsOcultos = useMemo(
     () => new Set(GRUPOS.filter((g) => apagados.includes(g.key)).flatMap((g) => g.kinds)),
     [apagados],
   );
 
+  const adyacencia = useMemo(() => {
+    const mapa = new Map<string, string[]>();
+    const agregar = (a: string, b: string) => {
+      const previos = mapa.get(a);
+      if (previos) previos.push(b);
+      else mapa.set(a, [b]);
+    };
+    for (const l of graph.links) {
+      agregar(l.source as string, l.target as string);
+      agregar(l.target as string, l.source as string);
+    }
+    return mapa;
+  }, [graph.links]);
+
+  // Ids que deja pasar el filtro de empresas: las seleccionadas y su vecindario a
+  // DOS saltos. Dos saltos porque la cadena es matriz → sociedad vehículo →
+  // proyecto: con uno solo, elegir la matriz mostraría sus sociedades pero no los
+  // proyectos que cuelgan de ellas. null = sin filtro.
+  const idsPermitidos = useMemo(() => {
+    if (selSet.size === 0) return null;
+    const permitidos = new Set(selSet);
+    let frontera = [...selSet];
+    for (let salto = 0; salto < 2 && frontera.length > 0; salto += 1) {
+      const siguiente: string[] = [];
+      for (const id of frontera) {
+        for (const vecino of adyacencia.get(id) ?? []) {
+          if (!permitidos.has(vecino)) {
+            permitidos.add(vecino);
+            siguiente.push(vecino);
+          }
+        }
+      }
+      frontera = siguiente;
+    }
+    return permitidos;
+  }, [selSet, adyacencia]);
+
+  // Empresas ofrecidas en el panel, de más a menos conectadas.
+  const empresasDelGrafo = useMemo(() => {
+    if (!empresasFiltrables) return [];
+    const grado = new Map<string, number>();
+    for (const l of graph.links) {
+      grado.set(l.source as string, (grado.get(l.source as string) ?? 0) + 1);
+      grado.set(l.target as string, (grado.get(l.target as string) ?? 0) + 1);
+    }
+    return graph.nodes
+      .filter((n) => n.kind === "sociedad" || n.kind === "persona" || n.kind === "empresa")
+      .map((n) => ({ id: n.id, label: n.label, grado: grado.get(n.id) ?? 0 }))
+      .sort((a, b) => b.grado - a.grado || a.label.localeCompare(b.label, "es"));
+  }, [empresasFiltrables, graph.nodes, graph.links]);
+
+  const empresasFiltradas = useMemo(() => {
+    const q = busquedaEmpresa.trim().toLowerCase();
+    const base = q ? empresasDelGrafo.filter((e) => e.label.toLowerCase().includes(q)) : empresasDelGrafo;
+    return base.slice(0, 300);
+  }, [empresasDelGrafo, busquedaEmpresa]);
+
   const nodosVisibles = useMemo(
-    () => graph.nodes.filter((n) => !kindsOcultos.has(n.kind)),
-    [graph.nodes, kindsOcultos],
+    () => graph.nodes.filter((n) => !kindsOcultos.has(n.kind) && (!idsPermitidos || idsPermitidos.has(n.id))),
+    [graph.nodes, kindsOcultos, idsPermitidos],
   );
   const idsVisibles = useMemo(() => new Set(nodosVisibles.map((n) => n.id)), [nodosVisibles]);
   const aristasVisibles = useMemo(
@@ -156,26 +256,36 @@ export function ObsxCanvas({ graph }: { graph: ObsxGraph }) {
     });
     const centro = nodos.find((n) => n.kind === "empresa");
     if (centro) {
-      centro.fx = WIDTH / 2;
-      centro.fy = HEIGHT / 2;
+      centro.fx = CENTRO.x;
+      centro.fy = CENTRO.y;
     }
     const aristas: SimLink[] = aristasVisibles.map((l: ObsxLink) => ({ ...l }));
+
+    // Con muchos nodos se comprime más: enlaces más cortos y menos repulsión para
+    // que la red densa no reviente el círculo. Con pocos, se deja respirar.
+    const denso = nodos.length > 120;
 
     const simulacion = forceSimulation<SimNode, SimLink>(nodos)
       .force(
         "link",
         forceLink<SimNode, SimLink>(aristas)
           .id((n) => n.id)
-          .distance((l) => (FAMILIA[l.kind] === "declarativo" ? 145 : 118))
-          .strength(0.55),
+          .distance((l) => (FAMILIA[l.kind] === "declarativo" ? (denso ? 60 : 120) : denso ? 42 : 96))
+          .strength(0.7),
       )
-      .force("charge", forceManyBody<SimNode>().strength((n) => (n.kind === "empresa" ? -900 : -230)))
-      .force("center", forceCenter(WIDTH / 2, HEIGHT / 2))
+      .force(
+        "charge",
+        forceManyBody<SimNode>().strength((n) => (n.kind === "empresa" ? -900 : denso ? -70 : -190)),
+      )
+      .force("center", forceCenter(CENTRO.x, CENTRO.y))
+      .force("contencion", forceContencion(RADIO_CONTENEDOR, CENTRO.x, CENTRO.y))
       .force(
         "collision",
-        forceCollide<SimNode>().radius((n) => radioNodo(n) + 13),
+        forceCollide<SimNode>().radius((n) => radioNodo(n) + (denso ? 3 : 11)),
       )
-      .alphaDecay(0.028)
+      // Con muchos nodos se asienta más rápido: cada tick re-renderiza todo el
+      // lienzo, así que menos ticks es la diferencia entre abrir al toque o con lag.
+      .alphaDecay(denso ? 0.045 : 0.028)
       .on("tick", () => setPosiciones(nodos.map((n) => ({ ...n }))));
 
     simulacionRef.current = simulacion;
@@ -348,6 +458,27 @@ export function ObsxCanvas({ graph }: { graph: ObsxGraph }) {
           )}
         </label>
 
+        {empresasFiltrables && (
+          <button
+            type="button"
+            aria-pressed={panelEmpresas}
+            onClick={() => setPanelEmpresas((abierto) => !abierto)}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${
+              panelEmpresas || empresasSel.length > 0
+                ? "border-brand-primary/45 bg-brand-primary/15 text-[#7fe6da]"
+                : "border-white/15 text-white/80 hover:bg-white/5"
+            }`}
+          >
+            <ListFilter size={14} />
+            Empresas
+            {empresasSel.length > 0 && (
+              <span className="rounded-full bg-brand-primary px-1.5 text-[10px] font-bold text-[#052020]">
+                {empresasSel.length}
+              </span>
+            )}
+          </button>
+        )}
+
         <div className="flex flex-wrap items-center gap-1.5">
           {GRUPOS.map((grupo) => {
             const activo = !apagados.includes(grupo.key);
@@ -374,12 +505,6 @@ export function ObsxCanvas({ graph }: { graph: ObsxGraph }) {
             );
           })}
         </div>
-
-        {graph.esEjemplo && (
-          <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-[10px] font-bold tracking-wide text-amber-300 uppercase">
-            Ejemplo ficticio
-          </span>
-        )}
 
         <button
           type="button"
@@ -424,6 +549,73 @@ export function ObsxCanvas({ graph }: { graph: ObsxGraph }) {
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_310px]">
         <div className="relative">
+          {empresasFiltrables && panelEmpresas && (
+            <div className="absolute inset-y-0 left-0 z-10 flex w-64 flex-col border-r border-white/10 bg-[#04191b]/95 backdrop-blur-sm">
+              <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                  <Building2 size={14} className="text-[#65e2d3]" /> Empresas
+                </span>
+                <button type="button" onClick={() => setPanelEmpresas(false)} aria-label="Cerrar panel de empresas">
+                  <X size={15} className="text-white/45 hover:text-white/80" />
+                </button>
+              </div>
+              <div className="border-b border-white/10 px-3 py-2">
+                <label className="flex h-8 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-2.5 text-xs text-white">
+                  <Search size={13} className="shrink-0 text-white/45" />
+                  <input
+                    value={busquedaEmpresa}
+                    onChange={(event) => setBusquedaEmpresa(event.target.value)}
+                    placeholder="Buscar empresa..."
+                    className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-white/35"
+                  />
+                </label>
+                {empresasSel.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setEmpresasSel([])}
+                    className="mt-2 w-full rounded-md border border-white/12 py-1 text-[11px] text-white/70 hover:text-white"
+                  >
+                    Ver todas ({empresasSel.length} seleccionada{empresasSel.length === 1 ? "" : "s"})
+                  </button>
+                )}
+              </div>
+              <ul className="flex-1 overflow-y-auto px-1.5 py-1.5">
+                {empresasFiltradas.map((empresa) => {
+                  const marcada = selSet.has(empresa.id);
+                  return (
+                    <li key={empresa.id}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEmpresasSel((actual) =>
+                            actual.includes(empresa.id)
+                              ? actual.filter((id) => id !== empresa.id)
+                              : [...actual, empresa.id],
+                          )
+                        }
+                        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] transition ${
+                          marcada ? "bg-brand-primary/15 text-[#7fe6da]" : "text-white/75 hover:bg-white/5"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border ${
+                            marcada ? "border-brand-primary bg-brand-primary text-[#052020]" : "border-white/25"
+                          }`}
+                        >
+                          {marcada && <span className="text-[9px] leading-none">✓</span>}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{empresa.label}</span>
+                        <span className="shrink-0 text-white/35">{empresa.grado}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+                {empresasFiltradas.length === 0 && (
+                  <li className="px-2 py-3 text-[11px] text-white/40">Sin empresas para “{busquedaEmpresa}”.</li>
+                )}
+              </ul>
+            </div>
+          )}
           <svg
             ref={svgRef}
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -446,6 +638,14 @@ export function ObsxCanvas({ graph }: { graph: ObsxGraph }) {
             </defs>
 
             <g transform={`translate(${vista.x} ${vista.y}) scale(${vista.k})`}>
+              <circle
+                cx={CENTRO.x}
+                cy={CENTRO.y}
+                r={RADIO_CONTENEDOR}
+                fill="rgba(91,209,198,0.025)"
+                stroke="rgba(91,209,198,0.16)"
+                strokeWidth={1.5}
+              />
               {aristasVisibles.map((arista, indice) => {
                 const desde = nodoPorId.get(arista.source as string);
                 const hasta = nodoPorId.get(arista.target as string);

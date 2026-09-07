@@ -9,6 +9,7 @@ import {
 } from "@/lib/shared/marketTechCategories";
 import { getProjectOwnershipMap } from "@/lib/data-access/projectOwnership";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
+import { buildVigenciaPredicate } from "@/lib/data-access/projects";
 
 /**
  * El grafo de ObsX: todo lo que hoy se puede afirmar alrededor de una empresa.
@@ -112,11 +113,6 @@ export interface ObsxGraph {
   nodes: ObsxNode[];
   links: ObsxLink[];
   resumen: ObsxSummary;
-  /**
-   * Marca el grafo como maqueta con nombres inventados. La UI lo rotula en cada
-   * superficie donde aparece; ninguna vista con datos reales lo enciende.
-   */
-  esEjemplo: boolean;
   /** Lo que quedó fuera del lienzo por el tope de nodos — nunca se recorta en silencio. */
   omitidos: {
     proyectos: number;
@@ -255,6 +251,178 @@ export async function getObsxCompanyOptions(
     desarrolladoras,
   };
 }
+
+/** Tope de proyectos que se dibujan en la vista global antes de que el lienzo deje de leerse. */
+const TOPE_GLOBAL_PROYECTOS = 600;
+
+interface FilaProfileProyecto {
+  id: string;
+  name: string;
+  status: string | null;
+  estimated_connection_date: string | null;
+  capacity_mw: number | null;
+  capacity_mwh: number | null;
+  technology: { code: string | null } | null;
+  location: { region: { name: string } | null } | null;
+}
+
+/**
+ * La vista consolidada: TODA la red societaria levantada de los proyectos
+ * vigentes y su interrelación, en un solo lienzo, sin centrarse en una empresa.
+ *
+ * A diferencia de `getObsxGraph`, que parte de una empresa y sale hacia afuera,
+ * acá se dibujan de una vez todas las entidades (`ownership_entity`), todas las
+ * participaciones entre ellas (`ownership_relation`, aristas `controla`) y los
+ * proyectos VIGENTES que cada sociedad vehículo sostiene. Como la carga de
+ * dequienes se hizo sólo sobre desarrolladoras con proyectos vigentes, este
+ * universo ya es el de la cartera vigente; sólo se filtran los proyectos que
+ * dejaron de estarlo.
+ *
+ * Todo vive en tablas cerradas por RLS al usuario final, así que sin
+ * `serviceClient` la vista no se puede armar y se devuelve null.
+ */
+export async function getObsxGlobalGraph(
+  client: SupabaseClient,
+  serviceClient: SupabaseClient | null,
+): Promise<ObsxGraph | null> {
+  if (!serviceClient) return null;
+
+  const leerTodo = async <T>(tabla: string, select: string): Promise<T[]> => {
+    const filas: T[] = [];
+    for (let desde = 0; ; desde += 1000) {
+      const { data, error } = await serviceClient.from(tabla).select(select).range(desde, desde + 999);
+      if (error) throw new Error(`Error armando la vista global de ObsX (${tabla}): ${error.message}`);
+      filas.push(...((data ?? []) as T[]));
+      if (!data || data.length < 1000) break;
+    }
+    return filas;
+  };
+
+  const [entidades, relaciones, perfiles, esVigente] = await Promise.all([
+    leerTodo<{ id: string; legal_name: string; rut: string | null; entity_type: OwnershipEntityTypeRow }>(
+      "ownership_entity",
+      "id,legal_name,rut,entity_type",
+    ),
+    leerTodo<{ owner_entity_id: string; owned_entity_id: string; ownership_percent: number | null }>(
+      "ownership_relation",
+      "owner_entity_id,owned_entity_id,ownership_percent",
+    ),
+    leerTodo<{ spv_entity_id: string; project: FilaProfileProyecto | null }>(
+      "project_ownership_profile",
+      "spv_entity_id,project:project_id(id,name,status,estimated_connection_date,capacity_mw,capacity_mwh,technology:technology_id(code),location:location_id(region:region_id(name)))",
+    ),
+    buildVigenciaPredicate(client),
+  ]);
+
+  const entidadPorId = new Map(entidades.map((e) => [e.id, e]));
+  const perfilesVigentes = perfiles.filter((p): p is { spv_entity_id: string; project: FilaProfileProyecto } =>
+    p.project !== null && esVigente(p.project),
+  );
+
+  const nodes: ObsxNode[] = [];
+  const links: ObsxLink[] = [];
+  const idsEntidadUsados = new Set<string>();
+
+  // 1 · La interrelación de sociedades: cada participación es una arista.
+  for (const rel of relaciones) {
+    if (!entidadPorId.has(rel.owner_entity_id) || !entidadPorId.has(rel.owned_entity_id)) continue;
+    links.push({
+      source: `societaria:${rel.owner_entity_id}`,
+      target: `societaria:${rel.owned_entity_id}`,
+      kind: "controla",
+      label: rel.ownership_percent === null ? null : `${rel.ownership_percent}%`,
+    });
+    idsEntidadUsados.add(rel.owner_entity_id);
+    idsEntidadUsados.add(rel.owned_entity_id);
+  }
+
+  // 2 · Los proyectos vigentes que cada sociedad vehículo sostiene. Se dibujan
+  // los de mayor potencia primero; si superan el tope, el resto se informa.
+  const proyectosOrdenados = [...perfilesVigentes].sort((a, b) => mw(b.project.capacity_mw) - mw(a.project.capacity_mw));
+  const proyectosVisibles = proyectosOrdenados.slice(0, TOPE_GLOBAL_PROYECTOS);
+  for (const perfil of proyectosVisibles) {
+    const p = perfil.project;
+    const madurez = getStatusMaturity(p.status);
+    nodes.push({
+      id: `proyecto:${p.id}`,
+      label: p.name,
+      kind: "proyecto",
+      categoria: pipelineTechCodeToCategory(p.technology?.code ?? null),
+      mw: p.capacity_mw,
+      mwh: p.capacity_mwh,
+      region: p.location?.region?.name ?? null,
+      detail: madurez ? `Etapa ${madurez.stage}/${madurez.totalStages}` : (p.status ?? null),
+      href: `/proyectos/${p.id}`,
+      fuente: "Solicitudes de conexión publicadas (Coordinador Eléctrico Nacional)",
+    });
+    if (entidadPorId.has(perfil.spv_entity_id)) {
+      links.push({ source: `societaria:${perfil.spv_entity_id}`, target: `proyecto:${p.id}`, kind: "vehiculo", label: null });
+      idsEntidadUsados.add(perfil.spv_entity_id);
+    }
+  }
+
+  // 3 · Los nodos de las entidades que quedaron conectadas a algo — sin
+  // sociedades sueltas flotando en el lienzo.
+  for (const id of idsEntidadUsados) {
+    const e = entidadPorId.get(id);
+    if (!e) continue;
+    nodes.push({
+      id: `societaria:${e.id}`,
+      label: e.legal_name,
+      kind: e.entity_type === "person" ? "persona" : "sociedad",
+      categoria: null,
+      mw: null,
+      mwh: null,
+      region: null,
+      detail: e.rut ? `RUT ${e.rut}` : e.entity_type === "foreign_company" ? "Sociedad extranjera" : "Sin RUT registrado",
+      href: null,
+      fuente: "Relaciones societarias de registros públicos (SII, CMF, Diario Oficial)",
+    });
+  }
+
+  const idsPresentes = new Set(nodes.map((n) => n.id));
+  const aristas = links.filter((l) => idsPresentes.has(l.source) && idsPresentes.has(l.target));
+
+  const proyectosVigentes = perfilesVigentes.map((p) => p.project);
+  const bess = proyectosVigentes.filter((p) => pipelineTechCodeToCategory(p.technology?.code ?? null) === "BESS");
+
+  return {
+    company: { id: "global", name: "Relación global de proyectos y sociedades", rut: null },
+    nodes,
+    links: aristas,
+    resumen: {
+      pipelineMw: proyectosVigentes.reduce((suma, p) => suma + mw(p.capacity_mw), 0),
+      pipelineCount: proyectosVigentes.length,
+      operacionMw: 0,
+      operacionCount: 0,
+      construccionMw: 0,
+      construccionCount: 0,
+      bessMw: bess.reduce((suma, p) => suma + mw(p.capacity_mw), 0),
+      bessMwh: bess.reduce((suma, p) => suma + mw(p.capacity_mwh), 0),
+      bessCount: bess.length,
+      proximosMw: 0,
+      proximosCount: 0,
+      sinTecnologia: 0,
+      regiones: [
+        ...new Set(proyectosVigentes.map((p) => p.location?.region?.name ?? null).filter((r): r is string => !!r)),
+      ].sort((a, b) => a.localeCompare(b, "es")),
+      tecnologias: [...new Set(nodes.map((n) => n.categoria).filter((c): c is MarketTechCategory => c !== null))],
+      relacionadas: 0,
+      razonesSociales: 0,
+      cadenasSocietarias: perfilesVigentes.length,
+    },
+    omitidos: {
+      proyectos: Math.max(0, perfilesVigentes.length - TOPE_GLOBAL_PROYECTOS),
+      activos: 0,
+      construccion: 0,
+      razonesSociales: 0,
+      relacionadas: 0,
+    },
+  };
+}
+
+/** El `entity_type` tal cual viene de la base, antes de mapearlo a `kind`. */
+type OwnershipEntityTypeRow = "company" | "person" | "foreign_company";
 
 /**
  * Todo el entorno de una empresa, listo para dibujar.
@@ -496,7 +664,7 @@ export async function getObsxGraph(
           source: `societaria:${relacion.ownerEntityId}`,
           target: `societaria:${relacion.ownedEntityId}`,
           kind: "controla",
-          label: `${relacion.ownershipPercent}%`,
+          label: relacion.ownershipPercent === null ? null : `${relacion.ownershipPercent}%`,
         });
       }
       // La sociedad vehículo es la que sostiene el proyecto: ese es el puente
@@ -529,7 +697,6 @@ export async function getObsxGraph(
     company,
     nodes,
     links: aristas,
-    esEjemplo: false,
     resumen: {
       pipelineMw: filasProyecto.reduce((suma, p) => suma + mw(p.capacity_mw), 0),
       pipelineCount: filasProyecto.length,

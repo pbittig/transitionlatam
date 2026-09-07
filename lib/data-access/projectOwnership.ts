@@ -14,7 +14,12 @@ export interface OwnershipEntity {
 export interface OwnershipRelation {
   ownerEntityId: string;
   ownedEntityId: string;
-  ownershipPercent: number;
+  /**
+   * Null cuando la fuente identifica la relación pero no publica el porcentaje
+   * — pasa con las inscripciones del Diario Oficial. Saber quién es dueño de
+   * qué vale por sí solo; el porcentaje es el detalle, no el vínculo.
+   */
+  ownershipPercent: number | null;
 }
 
 export interface ProjectOwnershipMap {
@@ -69,7 +74,7 @@ export async function getProjectOwnershipMap(
       const relation = {
         ownerEntityId: row.owner_entity_id as string,
         ownedEntityId: row.owned_entity_id as string,
-        ownershipPercent: Number(row.ownership_percent),
+        ownershipPercent: row.ownership_percent === null ? null : Number(row.ownership_percent),
       };
       relations.set(`${relation.ownerEntityId}:${relation.ownedEntityId}`, relation);
       frontier.push(relation.ownerEntityId);
