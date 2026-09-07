@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/data-access/supabase-server-cl
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { getAppLocale } from "@/lib/i18n";
 import { sendInternalNotification, escapeHtml, sanitizeEmailSubjectPart } from "@/lib/notifications/resend";
+import { TERMS_VERSION } from "@/lib/legal/termsVersion";
 
 export interface RegistroState {
   error?: string;
@@ -51,9 +52,17 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
   const userType = String(formData.get("userType") ?? "other");
   const country = String(formData.get("country") ?? "").trim() || null;
   const password = String(formData.get("password") ?? "");
+  // Validado también acá, no solo con `required` en el input: un POST directo
+  // al endpoint (o un navegador que ignore el atributo) no debe poder crear
+  // una cuenta sin aceptación — el checkbox es lo único que le da valor
+  // probatorio a los Términos/Política (ver docs/legal/brechas-y-recomendaciones.md).
+  const acceptedTerms = formData.get("acceptedTerms") === "on";
 
   if (!fullName || !email || !companyName || !jobTitle || !mobilePhone || !password) {
     return { error: "Completa todos los campos." };
+  }
+  if (!acceptedTerms) {
+    return { error: "Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear tu cuenta." };
   }
   const mobileDigits = mobilePhone.replace(/\D/g, "");
   if (mobileDigits.length < 8 || mobileDigits.length > 15 || !/^\+?[\d\s()-]+$/.test(mobilePhone)) {
@@ -95,6 +104,7 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
   const { data: freePlan } = await serviceClient.from("plan").select("id").eq("code", "free").maybeSingle();
 
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const termsAcceptedAt = new Date().toISOString();
 
   const profilePayload = {
     auth_user_id: signUpData.user.id,
@@ -108,6 +118,8 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
     plan_id: freePlan?.id ?? null,
     trial_ends_at: trialEndsAt,
     preferred_language: preferredLanguage,
+    terms_accepted_at: termsAcceptedAt,
+    terms_version: TERMS_VERSION,
   };
   let { error: profileError } = await serviceClient.from("user_profile").insert(profilePayload);
   // Carrera transitoria real (2026-08-03, caso Ricardo Bittig): el auth.users
@@ -120,9 +132,17 @@ export async function registrarse(_prevState: RegistroState | undefined, formDat
     profileError = retry.error;
   }
   if (profileError?.code === "42703" || profileError?.code === "PGRST204") {
-    const { preferred_language: _preferredLanguage, mobile_phone: _mobilePhone, ...legacyPayload } = profilePayload;
+    const {
+      preferred_language: _preferredLanguage,
+      mobile_phone: _mobilePhone,
+      terms_accepted_at: _termsAcceptedAt,
+      terms_version: _termsVersion,
+      ...legacyPayload
+    } = profilePayload;
     void _preferredLanguage;
     void _mobilePhone;
+    void _termsAcceptedAt;
+    void _termsVersion;
     const retry = await serviceClient.from("user_profile").insert(legacyPayload);
     profileError = retry.error;
   }

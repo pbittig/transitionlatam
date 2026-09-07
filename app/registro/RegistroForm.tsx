@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { registrarse, type RegistroState } from "./actions";
 import type { AppLocale } from "@/lib/i18n";
 
@@ -162,6 +163,41 @@ export function RegistroForm({ locale = "es" }: { locale?: AppLocale }) {
         />
         <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">{locale === "en" ? "At least 8 characters." : "Mínimo 8 caracteres."}</p>
       </div>
+      <label className="flex items-start gap-2.5 text-xs leading-5 text-neutral-600 dark:text-neutral-400">
+        <input
+          type="checkbox"
+          name="acceptedTerms"
+          required
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-neutral-300 text-brand-primary focus:ring-2 focus:ring-brand-primary/30 dark:border-neutral-700"
+        />
+        <span>
+          {locale === "en" ? (
+            <>
+              I have read and accept the{" "}
+              <Link href="/terminos-y-condiciones" target="_blank" className="font-medium underline hover:text-brand-deep dark:hover:text-brand-primary">
+                Terms and Conditions
+              </Link>{" "}
+              and the{" "}
+              <Link href="/politica-privacidad" target="_blank" className="font-medium underline hover:text-brand-deep dark:hover:text-brand-primary">
+                Privacy Policy
+              </Link>{" "}
+              (currently published in Spanish).
+            </>
+          ) : (
+            <>
+              He leído y acepto los{" "}
+              <Link href="/terminos-y-condiciones" target="_blank" className="font-medium underline hover:text-brand-deep dark:hover:text-brand-primary">
+                Términos y Condiciones
+              </Link>{" "}
+              y la{" "}
+              <Link href="/politica-privacidad" target="_blank" className="font-medium underline hover:text-brand-deep dark:hover:text-brand-primary">
+                Política de Privacidad
+              </Link>
+              .
+            </>
+          )}
+        </span>
+      </label>
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
       <button
         type="submit"

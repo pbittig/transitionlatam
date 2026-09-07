@@ -7,6 +7,7 @@ import { Sidebar } from "./components/Sidebar";
 import { FollowNotifications } from "./components/FollowNotifications";
 import { getAppLocale } from "@/lib/i18n";
 import { MobileNavigation } from "./components/MobileNavigation";
+import Link from "next/link";
 
 function getRemainingTrialDays(trialEndsAt: string | null | undefined): number | null {
   if (!trialEndsAt) return null;
@@ -41,10 +42,23 @@ export default async function PublicLayout({ children }: { children: React.React
       <MobileNavigation isAdmin={admin} userProfile={userProfile} locale={locale} />
       <div className="flex min-h-full flex-col md:pl-60 print:pl-0">
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-5 pb-28 sm:px-7 sm:pt-8 md:pb-12 print:px-0 print:py-0">{children}</main>
-        <footer className="border-t border-neutral-100 px-4 py-8 text-center text-sm text-neutral-500 print:hidden dark:border-neutral-800 dark:text-neutral-400">
-          {locale === "en"
-            ? "Data is compiled from public sources and is provided for reference. Verify the information with the relevant authorities before making decisions."
-            : "Los datos se elaboran a partir de fuentes públicas y tienen carácter referencial. Verifica la información con los organismos competentes antes de tomar decisiones."}
+        <footer className="flex flex-col items-center gap-3 border-t border-neutral-100 px-4 py-8 text-center text-sm text-neutral-500 print:hidden dark:border-neutral-800 dark:text-neutral-400">
+          <p>
+            {locale === "en"
+              ? "Data is compiled from public sources and is provided for reference. Verify the information with the relevant authorities before making decisions."
+              : "Los datos se elaboran a partir de fuentes públicas y tienen carácter referencial. Verifica la información con los organismos competentes antes de tomar decisiones."}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+            <Link href="/terminos-y-condiciones" className="hover:text-brand-deep hover:underline dark:hover:text-brand-primary">
+              {locale === "en" ? "Terms and Conditions" : "Términos y Condiciones"}
+            </Link>
+            <Link href="/politica-privacidad" className="hover:text-brand-deep hover:underline dark:hover:text-brand-primary">
+              {locale === "en" ? "Privacy Policy" : "Política de Privacidad"}
+            </Link>
+            <Link href="/politica-cookies" className="hover:text-brand-deep hover:underline dark:hover:text-brand-primary">
+              {locale === "en" ? "Cookie Policy" : "Política de Cookies"}
+            </Link>
+          </div>
         </footer>
       </div>
       <div className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 print:hidden md:right-6 md:bottom-6 md:gap-3">
