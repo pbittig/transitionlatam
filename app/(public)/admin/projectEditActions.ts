@@ -267,6 +267,19 @@ export async function markProjectVerified(projectId: string): Promise<{ success:
       }
     });
 
+    // La propiedad societaria se carga al verificar, con el mismo criterio que
+    // los contactos: en after() para no demorar el botón (toca la API de
+    // dequienes) y sin tumbar la verificación si falla. Es idempotente —
+    // reutiliza la cadena si la desarrolladora ya estaba cargada, sin gastar
+    // créditos, y no hace nada si el proyecto ya tenía ficha.
+    after(async () => {
+      const { syncOwnershipForProject } = await import("@/lib/ingestion/sources/dequienes/sync");
+      const res = await syncOwnershipForProject(client, projectId);
+      if (res.status === "error") {
+        console.warn(`No se pudo cargar la propiedad societaria de ${projectId} al verificar: ${res.detail}`);
+      }
+    });
+
     revalidatePath("/admin/verificador");
     revalidatePath("/admin/trabajo-hoy");
     revalidatePath("/");
