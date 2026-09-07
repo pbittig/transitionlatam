@@ -1,9 +1,7 @@
 import { formatDateOnly } from "@/lib/shared/formatDateOnly";
-import { getSeiaMaturity, isSeiaNegativeTerminal } from "@/lib/shared/seiaStatusMaturity";
 import { getStatusMaturity, isRejectedStatus } from "@/lib/shared/projectStatusMaturity";
-import { getPertinenciaMaturity, isPertinenciaFavorableTerminal, isPertinenciaNegativeTerminal } from "@/lib/shared/pertinenciaStatusMaturity";
 import { clasificarConclusionPertinencia } from "@/lib/data-access/pertinencias";
-import { INFERENCIA_NOTA } from "@/lib/shared/environmentalEvidence";
+import { INFERENCIA_NOTA, resolveEnvironmentalEvidence } from "@/lib/shared/environmentalEvidence";
 import type { LatestPgpProgress } from "@/lib/data-access/pgpProgress";
 import type { ConstructionDeclaration } from "@/lib/data-access/construction";
 import type { PgpProgressReading } from "@/lib/shared/pgpProjectProgress";
@@ -87,77 +85,82 @@ export function ProjectProcessProgress({
     </>
   );
 
-  /**
-   * Hay obra reportada en el PGP del Coordinador. Es la señal que habilita
-   * inferir que la situación ambiental está resuelta cuando no pudimos asociar
-   * el expediente: un proyecto no llega a construirse sin resolverla.
-   */
-  const obraEnCurso = typeof pgpProgress?.progressPercent === "number" && pgpProgress.progressPercent > 0;
   const notaInferencia = en
     ? "The project has an active PGP/real connection. By implication its environmental process is favourable, but we have not yet been able to identify the corresponding filing in the SEIA."
     : INFERENCIA_NOTA;
 
+  // Estado ambiental resuelto con la MISMA lógica que la barra del listado
+  // (resolveEnvironmentalEvidence): una sola fuente de verdad, para que el
+  // porcentaje coincida entre la ficha y la tabla. Una pertinencia que aún debe
+  // ingresar al SEIA o está en análisis NO cuenta como situación resuelta —
+  // llenar la barra ahí aparentaría una aprobación que no existe.
+  const evidencia = resolveEnvironmentalEvidence({
+    seiaStatus: environmentalStatus,
+    hasSeiaRecord: !!environmentalStatus,
+    pertinenciaSubEstado: pertinencia?.subEstado ?? null,
+    pgpProgressPercent: pgpProgress?.progressPercent ?? null,
+  });
+
+  const seiaDetail = (
+    <>
+      <p>{en ? "Environmental filing with the Environmental Assessment Service (SEA/SEIA)." : "Expediente ambiental ante el Servicio de Evaluación Ambiental (SEA/SEIA)."}</p>
+      {seiaUrlFicha && (
+        <a href={seiaUrlFicha} target="_blank" rel="noreferrer" className="mt-2 inline-block font-medium text-brand-deep underline">
+          {en ? "View SEIA filing" : "Ver ficha SEIA"}
+        </a>
+      )}
+      {environmentalDetailExtra}
+    </>
+  );
+  const pertinenciaDetail = (
+    <>
+      <p>{en ? "Pertinence consultation with the Environmental Assessment Service (SEA), prior to a formal SEIA filing." : "Consulta de pertinencia ante el Servicio de Evaluación Ambiental (SEA), previa a un ingreso formal al SEIA."}</p>
+      {pertinenciaDocUrl && (
+        <a href={pertinenciaDocUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block font-medium text-brand-deep underline">
+          {en ? "View SEA document" : "Ver documento SEA"}
+        </a>
+      )}
+      {environmentalDetailExtra}
+    </>
+  );
+
   let secondBar: { title: string; status: string; percentage: number | null; badgeLabel: string; terminal: boolean; terminalFavorable?: boolean; nota?: string; detail: React.ReactNode };
-  if (environmentalStatus) {
-    const environmentalMaturity = getSeiaMaturity(environmentalStatus);
-    const terminal = isSeiaNegativeTerminal(environmentalStatus);
+  if (evidencia.evidence === "expedienteTerminado") {
     secondBar = {
       title: en ? "Environmental status" : "Estado ambiental",
-      status: environmentalStatus,
-      percentage: environmentalMaturity?.order ?? null,
-      badgeLabel: terminal ? (en ? "Process ended" : "Proceso terminado") : environmentalMaturity ? `${environmentalMaturity.order}%` : en ? "Progress unavailable" : "Sin avance calculable",
-      terminal,
-      detail: (
-        <>
-          <p>{en ? "Environmental filing with the Environmental Assessment Service (SEA/SEIA)." : "Expediente ambiental ante el Servicio de Evaluación Ambiental (SEA/SEIA)."}</p>
-          {seiaUrlFicha && (
-            <a href={seiaUrlFicha} target="_blank" rel="noreferrer" className="mt-2 inline-block font-medium text-brand-deep underline">
-              {en ? "View SEIA filing" : "Ver ficha SEIA"}
-            </a>
-          )}
-          {environmentalDetailExtra}
-        </>
-      ),
+      status: environmentalStatus ?? "",
+      percentage: null,
+      badgeLabel: en ? "Process ended" : "Proceso terminado",
+      terminal: true,
+      detail: seiaDetail,
     };
-  } else if (pertinencia) {
-    const pertinenciaMaturity = getPertinenciaMaturity(pertinencia.estado, pertinencia.subEstado);
-    const favorableTerminal = isPertinenciaFavorableTerminal(pertinencia.subEstado);
-    // El badge sigue diciendo "Proceso terminado" —porque terminó—, pero la
-    // barra se rellena: el trámite completó su recorrido y resolvió a favor.
-    const terminal = isPertinenciaNegativeTerminal(pertinencia.subEstado) || favorableTerminal;
+  } else if (evidencia.evidence === "rcaAprobada" || evidencia.evidence === "expedienteSeia") {
+    secondBar = {
+      title: en ? "Environmental status" : "Estado ambiental",
+      status: environmentalStatus ?? "",
+      percentage: evidencia.percent,
+      badgeLabel: evidencia.percent !== null ? `${evidencia.percent}%` : en ? "Progress unavailable" : "Sin avance calculable",
+      terminal: false,
+      detail: seiaDetail,
+    };
+  } else if (evidencia.evidence === "favorableSinExpediente") {
+    // El SEA resolvió que no requiere evaluación: situación resuelta y favorable,
+    // barra llena. Se dice en chico que no hay RCA que verificar.
     secondBar = {
       title: en ? "Pertinence consultation (SEA)" : "Consulta de pertinencia (SEA)",
-      status: clasificarConclusionPertinencia(pertinencia.estado, pertinencia.subEstado),
-      percentage: pertinenciaMaturity?.order ?? null,
-      badgeLabel: terminal ? (en ? "Process ended" : "Proceso terminado") : pertinenciaMaturity ? `${pertinenciaMaturity.order}%` : en ? "Progress unavailable" : "Sin avance calculable",
-      terminal,
-      terminalFavorable: favorableTerminal,
-      // El SEA resolvió que no requiere evaluación, así que no hay expediente
-      // que encontrar. Se dice en chico para que nadie lea la barra llena como
-      // "tiene su RCA verificada".
-      nota: favorableTerminal
-        ? en
-          ? "No environmental filing identified in the SEIA: the SEA resolved it is not required."
-          : "Sin expediente ambiental identificado en el SEIA: el SEA resolvió que no lo requiere."
-        : undefined,
-      detail: (
-        <>
-          <p>{en ? "Pertinence consultation with the Environmental Assessment Service (SEA), prior to a formal SEIA filing." : "Consulta de pertinencia ante el Servicio de Evaluación Ambiental (SEA), previa a un ingreso formal al SEIA."}</p>
-          {pertinenciaDocUrl && (
-            <a href={pertinenciaDocUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block font-medium text-brand-deep underline">
-              {en ? "View SEA document" : "Ver documento SEA"}
-            </a>
-          )}
-          {environmentalDetailExtra}
-        </>
-      ),
+      status: clasificarConclusionPertinencia(pertinencia?.estado ?? null, pertinencia?.subEstado ?? null),
+      percentage: 100,
+      badgeLabel: en ? "Process ended" : "Proceso terminado",
+      terminal: true,
+      terminalFavorable: true,
+      nota: en
+        ? "No environmental filing identified in the SEIA: the SEA resolved it is not required."
+        : "Sin expediente ambiental identificado en el SEIA: el SEA resolvió que no lo requiere.",
+      detail: pertinenciaDetail,
     };
-  } else if (obraEnCurso) {
-    // No pudimos asociar el expediente ambiental, pero la obra está en curso y
-    // reportada en PGP. Un proyecto no llega a construirse sin haber resuelto su
-    // situación ambiental, así que la barra se llena: dejarla vacía sugiere un
-    // pendiente que no existe. El asterisco marca que es una inferencia nuestra
-    // por el avance, no un expediente que hayamos verificado.
+  } else if (evidencia.evidence === "inferidaPorAvance") {
+    // Obra en curso en PGP sin expediente identificado: se infiere favorable y se
+    // llena con asterisco. No reemplaza a una RCA verificada.
     secondBar = {
       title: en ? "Environmental status" : "Estado ambiental",
       status: en ? "Favourable, inferred from construction progress" : "Favorable, inferido por avance de obra",
@@ -176,6 +179,18 @@ export function ProjectProcessProgress({
           {environmentalDetailExtra}
         </>
       ),
+    };
+  } else if (pertinencia) {
+    // Hay consulta de pertinencia pero todavía no resuelve a favor (en análisis o
+    // debe ingresar al SEIA): se muestra el trámite y su enlace, pero la barra NO
+    // se llena — igual que la tabla, sin aparentar una situación resuelta.
+    secondBar = {
+      title: en ? "Pertinence consultation (SEA)" : "Consulta de pertinencia (SEA)",
+      status: clasificarConclusionPertinencia(pertinencia.estado, pertinencia.subEstado),
+      percentage: null,
+      badgeLabel: en ? "In process" : "En trámite",
+      terminal: false,
+      detail: pertinenciaDetail,
     };
   } else {
     secondBar = {
