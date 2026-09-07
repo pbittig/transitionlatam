@@ -52,12 +52,16 @@ const EVENT_DESCRIPTION_EN: Record<string, string> = {
 const LAST_SEEN_KEY = "transition-follow-last-seen";
 
 /**
- * Avisos que el usuario cerró con la "x".
+ * Avisos flotantes que ya se mostraron una vez.
  *
- * Antes, cerrar un aviso solo lo sacaba del estado de React: al recargar la
- * página se recalculaba la lista desde cero y el mismo aviso volvía a aparecer.
- * `transition-follow-last-seen` no alcanzaba porque solo se escribe al ABRIR el
- * panel — cerrar un toast no es lo mismo que haber leído todo.
+ * Un toast se recuerda en el momento en que APARECE, no solo si el usuario lo
+ * cierra con la "x". Antes solo la "x" lo registraba, así que un toast que se
+ * desvanecía solo —o cuando el usuario navegaba a otra página antes de cerrarlo—
+ * quedaba sin recordar y volvía a saltar en la siguiente carga. Recordarlo al
+ * mostrarlo garantiza que cada aviso salte como popup una sola vez.
+ *
+ * "Recordado" solo apaga el popup: el evento sigue contando como no leído y
+ * sigue estando en el panel de monitoreo, que es donde se revisa con calma.
  */
 const DISMISSED_KEY = "transition-follow-dismissed";
 
@@ -108,12 +112,15 @@ export function FollowNotifications({ events, locale = "es" }: { events: Watchli
     // leídos: cerrar el aviso flotante es "no me interrumpas", no "ya lo vi". El
     // evento sigue estando en el panel, que es donde se revisa con calma.
     const dismissed = new Set(readDismissed());
-    const porMostrar = unseen.filter((event) => !dismissed.has(event.id));
+    const porMostrar = unseen.filter((event) => !dismissed.has(event.id)).slice(0, 3);
     const hydrationTimer = window.setTimeout(() => {
       setUnread(unseen.length);
-      setToasts(porMostrar.slice(0, 3));
+      setToasts(porMostrar);
+      // Recordarlos al mostrarlos: así este popup no vuelve a saltar aunque se
+      // desvanezca solo o el usuario cambie de página antes de cerrarlo.
+      porMostrar.forEach((event) => rememberDismissed(event.id));
     }, 0);
-    timers.current = porMostrar.slice(0, 3).map((event, index) => window.setTimeout(() => {
+    timers.current = porMostrar.map((event, index) => window.setTimeout(() => {
       setToasts((current) => current.filter((item) => item.id !== event.id));
     }, 6500 + index * 900));
     return () => {
