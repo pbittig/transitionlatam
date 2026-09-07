@@ -58,6 +58,7 @@ El brief incluye datos de ownership, SPVs y stakeholders que provienen en parte 
 - Distinguir entre "dato público" (legalmente accesible) y "dato republicable a escala como producto comercial" (no siempre lo mismo).
 - Mantener siempre la atribución de fuente (`data_source`, ver [04](04-modelo-datos.md) §4.3) como respaldo de buena fe y trazabilidad.
 - Esta revisión debe hacerla el equipo legal de ONIX antes del lanzamiento de fuentes de terceros a escala — se documenta aquí como riesgo, no se resuelve en este documento.
+- **2026-09-07**: la fuente de dequienes.cl y la función "Ver contacto" ya están en producción, con el riesgo aquí descrito sin resolver formalmente. Se redactó un borrador completo de política de privacidad, términos de uso y un análisis de brechas específico sobre este punto en [`docs/legal/`](legal/README.md) — pendiente de revisión legal y de las remediaciones de producto que lista `docs/legal/brechas-y-recomendaciones.md`.
 
 **Caso específico — Acceso Abierto (`accesoabierto.coordinador.cl`):** el portal corre sobre AWS Cognito (login) para al menos parte de su funcionalidad. Antes de automatizar el Nivel 2 (documento "Formulario" por proyecto, ver [05-arquitectura-tecnica.md](05-arquitectura-tecnica.md) §5.10):
 - Confirmar si el detalle por proyecto es de acceso público (coherente con el nombre "Acceso Abierto", mandato de transparencia del sector eléctrico chileno) o si requiere una cuenta — y si requiere cuenta, usar únicamente credenciales legítimas de ONIX, nunca compartidas en el repositorio (ver §9.8).
