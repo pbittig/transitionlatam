@@ -10,6 +10,12 @@ const PUBLIC_PAGE_PATHS = new Set([
   "/admin/acceso",
   "/recuperar-clave",
   "/restablecer-clave",
+  // Deben poder leerse sin sesión: es literalmente lo que se acepta al
+  // registrarse, y cualquier visitante debe poder consultarlas antes de crear
+  // una cuenta (ver docs/legal/).
+  "/terminos-y-condiciones",
+  "/politica-privacidad",
+  "/politica-cookies",
 ]);
 
 async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
