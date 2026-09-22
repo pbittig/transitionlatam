@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CHILE_REGION_CENTROIDS } from "@/lib/shared/chileRegionCentroids";
 import { contactRoleLabelEs } from "@/lib/shared/contactRoleLabels";
 import { PMGD_CAPACITY_THRESHOLD_MW } from "@/lib/shared/projectPhaseDurations";
-import type { VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
+import type { VerificationSuggestion } from "@/lib/ai/verification/verificationSuggestion";
 import { normalizeForMatch } from "@/lib/ingestion/sources/energia-abierta/listado/normalize";
 import { getReverificationPassStart } from "@/lib/data-access/reverificationPass";
 import { calculateProjectMaturityScore } from "@/lib/shared/projectMaturityRanking";

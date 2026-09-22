@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/auth/session";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 import { getProjectById, saveAiScreeningResult } from "@/lib/data-access/projects";
 import { findVerificationSeiaCandidates } from "@/lib/ingestion/sources/seia/verificationCandidates";
-import { getGlmVerificationSuggestion, type VerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
+import { getVerificationSuggestion, type VerificationSuggestion } from "@/lib/ai/verification/verificationSuggestion";
 import type { RawSeiaProject } from "@/lib/ingestion/sources/seia/types";
 
 export interface AiSuggestionResult {
@@ -37,7 +37,7 @@ export async function getAiVerificationSuggestion(projectId: string): Promise<Ai
     // candidatos que el matching determinístico, no una búsqueda distinta.
     const candidates = await findVerificationSeiaCandidates(project);
 
-    const { suggestion, error } = await getGlmVerificationSuggestion(project, candidates);
+    const { suggestion, error } = await getVerificationSuggestion(project, candidates);
     if (error || !suggestion) {
       return { success: false, error: error ?? "GLM no devolvió una sugerencia." };
     }

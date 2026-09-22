@@ -1,5 +1,6 @@
 // Prueba operacional del feature real de sugerencia de IA — usa exactamente
-// el mismo código que quedó integrado en /admin/verificador (getGlmVerificationSuggestion
+// el mismo código que quedó integrado en /admin/verificador (getVerificationSuggestion,
+// hoy corrido con Nemotron — ver lib/ai/verification/verificationSuggestion.ts —
 // + la misma lógica de candidatos SEIA que aiSuggestionActions.ts), corrido sobre una
 // muestra de la cola real del Verificador (verified_at is null). No escribe nada en la
 // base de datos — es solo para confirmar que opera bien a escala, no un piloto de acierto
@@ -12,7 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getProjectById, type ProjectDetail } from "../lib/data-access/projects";
 import { searchSeiaByName } from "../lib/ingestion/sources/seia/searchApi";
 import { distinctiveTokens } from "../lib/ingestion/sources/seia/match";
-import { getGlmVerificationSuggestion, type VerificationSuggestion } from "../lib/ai/verification/glmSuggestion";
+import { getVerificationSuggestion, type VerificationSuggestion } from "../lib/ai/verification/verificationSuggestion";
 import type { RawSeiaProject } from "../lib/ingestion/sources/seia/types";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -69,7 +70,7 @@ async function main() {
         : { data: [] as RawSeiaProject[] };
       const candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
 
-      const { suggestion, error: suggestionError } = await getGlmVerificationSuggestion(project, candidates);
+      const { suggestion, error: suggestionError } = await getVerificationSuggestion(project, candidates);
       const ms = Date.now() - start;
       results.push({ project, candidates, suggestion, error: suggestionError, ms });
       console.log(

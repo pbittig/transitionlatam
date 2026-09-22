@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getProjectById, saveAiScreeningResult } from "@/lib/data-access/projects";
 import { searchSeiaByName } from "@/lib/ingestion/sources/seia/searchApi";
 import { distinctiveTokens } from "@/lib/ingestion/sources/seia/match";
-import { getGlmVerificationSuggestion } from "@/lib/ai/verification/glmSuggestion";
+import { getVerificationSuggestion } from "@/lib/ai/verification/verificationSuggestion";
 import type { RawSeiaProject } from "@/lib/ingestion/sources/seia/types";
 import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-client";
 
@@ -54,8 +54,12 @@ export async function runScreeningQueue(client: SupabaseClient | undefined, batc
         const seiaResponse = searchTerm ? await searchSeiaByName(searchTerm, MAX_SEIA_CANDIDATES) : { data: [] as RawSeiaProject[] };
         const candidates = seiaResponse.data.slice(0, MAX_SEIA_CANDIDATES);
 
-        const { suggestion, error: glmError } = await getGlmVerificationSuggestion(project, candidates);
-        if (glmError || !suggestion) {
+        const { suggestion, error: verificationError } = await getVerificationSuggestion(project, candidates);
+        if (verificationError || !suggestion) {
+          // Antes esto se descartaba en silencio: costó semanas detectar que
+          // el modelo subyacente había sido dado de baja, porque ni el cron ni
+          // los logs decían por qué fallaba cada ítem.
+          console.error(`[runScreeningQueue] ${projectId}: ${verificationError ?? "sin sugerencia"}`);
           summary.errors++;
         } else {
           await saveAiScreeningResult(supabase, projectId, suggestion);
@@ -64,7 +68,8 @@ export async function runScreeningQueue(client: SupabaseClient | undefined, batc
           if (suggestion.seiaPick) summary.conPick++;
         }
       }
-    } catch {
+    } catch (err) {
+      console.error(`[runScreeningQueue] ${projectId}: excepción -`, err);
       summary.errors++;
     } finally {
       await sleep(DELAY_MS);
