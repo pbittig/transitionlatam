@@ -3,14 +3,19 @@ import { createSupabaseServiceClient } from "@/lib/data-access/supabase-service-
 import { finishCronRun, startCronRun } from "@/lib/data-access/cronRunLog";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// 60s alcanzaba cuando el costo asumido era ~2s por proyecto. La sugerencia de
+// verificación (GLM, ver lib/ai/provider/glm.ts) en realidad toma ~35-55s por
+// llamada — con eso, hasta 2 proyectos ya excedían los 60s y el cron se cortaba
+// a mitad de lote sin llegar a loguear el resultado. Se sube a 300, el mismo
+// techo que ya usa preverify-editorial en este mismo despliegue.
+export const maxDuration = 300;
 
 /**
  * Cron real (Vercel Cron, ver vercel.json) — tamiza con IA + busca candidatos
- * SEIA para proyectos pendientes de verificar. batchSize se mantiene bajo
- * (15 ≈ 15 * ~2s ≈ 30s) para no exceder maxDuration=60 en el plan Hobby —
- * ver runScreeningQueue.ts. Progresa incrementalmente cada día, no procesa
- * toda la cola de una sola corrida.
+ * SEIA para proyectos pendientes de verificar. batchSize en 5 porque cada
+ * proyecto cuesta ~40-55s (GLM, no ~2s como se asumía originalmente) — ver
+ * lib/ai/provider/glm.ts. Progresa incrementalmente cada día, no procesa toda
+ * la cola de una sola corrida.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -21,7 +26,7 @@ export async function GET(request: Request) {
   const client = createSupabaseServiceClient();
   const run = await startCronRun(client, "screen-queue", "scheduled");
   try {
-    const summary = await runScreeningQueue(client, 15);
+    const summary = await runScreeningQueue(client, 5);
     // Mismo criterio que preverify-editorial: si había ítems y todos fallaron,
     // es un "error" real, no un "success" — este cron corrió así, en silencio,
     // durante semanas tras la baja del modelo de NVIDIA (410 Gone) sin que
