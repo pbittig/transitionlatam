@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { createSupabasePageClient } from "@/lib/data-access/supabase-page-client";
 import { getProjectById, getRelatedPortfolioProjects, getProjectStakeholders, getProjectTimeline } from "@/lib/data-access/projects";
 import { computeProjectPulse, formatMonthSpan, formatTimeAgo } from "@/lib/shared/projectPulse";
-import { maskName, maskEmail } from "@/lib/shared/maskContact";
+import { maskName } from "@/lib/shared/maskContact";
 import { getRelatedCompaniesByName } from "@/lib/data-access/coordinadorEmpresas";
 import { getSeiaRecordForProject } from "@/lib/data-access/seia";
 import { isConfirmedSeiaMatch } from "@/lib/shared/seiaMatchTrust";
@@ -121,20 +121,24 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
   const showSuctdSearch = admin && !!project.status && normalizeForMatch(project.status).includes(normalizeForMatch(FEHACIENTE_AWAITING_SUCTD_MARKER));
   const isFree = !admin && profile?.planCode !== "premium";
   const teamLocked = !admin && profile?.planCode !== "premium";
-  // Solo el nombre/correo enmascarado llega al cliente cuando está bloqueado —
-  // el dato real nunca sale del servidor para un usuario sin Premium.
+  // Solo el nombre enmascarado llega al cliente cuando está bloqueado — el
+  // dato real nunca sale del servidor para un usuario sin Premium. El correo
+  // no se envía en ningún caso (ver RevealStakeholders.tsx): solo se muestra
+  // nombre y apellido, nunca el contacto de correo de la persona.
   const maskedContactPreview = teamLocked
     ? (
         await getProjectStakeholders(createSupabaseServiceClient(), project.id, project.developerCompanyId, {
           skipCompanyFallback: true,
         })
-      ).map((s) => ({ name: maskName(s.name), email: s.email ? maskEmail(s.email) : null }))
+      ).map((s) => ({ name: maskName(s.name) }))
     : [];
   const visibleStakeholders = teamLocked
     ? null
-    : await getProjectStakeholders(createSupabaseServiceClient(), project.id, project.developerCompanyId, {
-        skipCompanyFallback: true,
-      });
+    : (
+        await getProjectStakeholders(createSupabaseServiceClient(), project.id, project.developerCompanyId, {
+          skipCompanyFallback: true,
+        })
+      ).map((s) => ({ ...s, email: null }));
   const relatedPortfolioProjects = teamLocked
     ? []
     : await getRelatedPortfolioProjects(createSupabaseServiceClient(), {

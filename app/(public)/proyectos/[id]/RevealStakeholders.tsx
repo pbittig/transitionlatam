@@ -5,11 +5,10 @@ import { useState, useTransition } from "react";
 import { revealStakeholders } from "./seiaActions";
 import type { ProjectStakeholder } from "@/lib/data-access/projects";
 import type { AppLocale } from "@/lib/i18n";
-import { formatPersonName, formatEmailForDisplay } from "@/lib/shared/formatContact";
+import { formatPersonName } from "@/lib/shared/formatContact";
 
 interface MaskedContact {
   name: string;
-  email: string | null;
 }
 
 export function RevealStakeholders({
@@ -53,7 +52,6 @@ export function RevealStakeholders({
         {stakeholders.map((s) => (
           <li key={s.personId} className="rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800">
             <div className="font-medium text-neutral-900 dark:text-neutral-50">{formatPersonName(s.name)}</div>
-            {s.email && <div className="mt-1 text-neutral-600 dark:text-neutral-400">{formatEmailForDisplay(s.email)}</div>}
           </li>
         ))}
       </ul>
@@ -95,7 +93,6 @@ export function RevealStakeholders({
           {maskedPreview.map((c, i) => (
             <li key={i} className="rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800">
               <div className="font-medium text-neutral-900 dark:text-neutral-50">{c.name}</div>
-              {c.email && <div className="mt-1 text-neutral-600 dark:text-neutral-400">{c.email}</div>}
             </li>
           ))}
         </ul>
@@ -108,7 +105,7 @@ export function RevealStakeholders({
         href="/planes"
         className="w-fit text-xs font-medium text-brand-deep underline underline-offset-2 hover:text-brand-primary dark:text-neutral-300"
       >
-        {locale === "en" ? "Contact details available on Prime — see plans" : "El contacto completo está disponible en Prime — ver planes"}
+        {locale === "en" ? "Full name available on Prime — see plans" : "El nombre completo está disponible en Prime — ver planes"}
       </Link>
       {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>

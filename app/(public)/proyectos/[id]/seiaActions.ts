@@ -94,7 +94,9 @@ export async function revealStakeholders(
     // ProjectEditPageBody — hallazgo real: mostraba contactos "que no tienen nada
     // que ver" cuando el proyecto no tenía vínculo propio todavía).
     const stakeholders = await getProjectStakeholders(client, projectId, developerCompanyId, { skipCompanyFallback: true });
-    return { success: true, stakeholders };
+    // Solo nombre y apellido: el correo de la persona no se envía al cliente,
+    // se oculte donde se oculte en la UI — ver page.tsx y RevealStakeholders.tsx.
+    return { success: true, stakeholders: stakeholders.map((s) => ({ ...s, email: null })) };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }
