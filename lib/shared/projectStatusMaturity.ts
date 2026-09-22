@@ -1,7 +1,8 @@
 /**
  * Escala de madurez estimada del proceso de conexión chileno (SAC — Solicitud de
- * Acceso y Conexión), de 0 (recién ingresada) a 100 (declarada en construcción o
- * finalizada). Es una interpretación nuestra del orden típico del trámite ante el
+ * Acceso y Conexión), de 0 (recién ingresada) a 100 (trámite de conexión
+ * aprobado por completo: autorizado para declararse en construcción, declarado
+ * en construcción, o finalizado). Es una interpretación nuestra del orden típico del trámite ante el
  * Coordinador Eléctrico Nacional, no un dato oficial del Coordinador — se muestra
  * siempre etiquetada como estimación (ver docs/04-modelo-datos.md §4.3, mismo
  * principio que la fase estimada de desarrollo). El texto original del estado
@@ -66,7 +67,13 @@ const STAGE_ORDER: Array<{ statuses: string[]; order: number; band: StatusBand }
     order: 70,
     band: "avanzado",
   },
-  { statuses: ["proyecto autorizado para declararse en construccion"], order: 82, band: "avanzado" },
+  // 100, no 82: una vez autorizado a declararse en construcción, el trámite de
+  // conexión (SAC) está aprobado por completo — lo que falta ("declararse en
+  // construcción") es un paso administrativo del titular, no una etapa más de
+  // evaluación del Coordinador. El `band` se deja en "avanzado" (no
+  // "construccion") porque, a diferencia de "proyecto declarado en
+  // construcción", todavía no hay una declaración formal de obra en curso.
+  { statuses: ["proyecto autorizado para declararse en construccion"], order: 100, band: "avanzado" },
   {
     statuses: [
       "detenida a la espera de definicion de ingenieria de la obra",
