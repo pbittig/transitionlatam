@@ -4,7 +4,14 @@
 // por una función de tarea específica (ver extractWithAi.ts como ejemplo).
 
 const NIM_BASE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const DEFAULT_MODEL = "nvidia/llama-3.3-nemotron-super-49b-v1.5";
+// "llama-3.3-nemotron-super-49b-v1.5" fue dado de baja por NVIDIA el
+// 2026-08-26 (HTTP 410 Gone) — desde entonces todo lo que pasara por acá
+// fallaba en silencio: el cron seguía reportando "success" aunque el 100% de
+// los ítems del lote fallara, porque el fallo era por ítem, no del cron en sí
+// (ver cron_run_log: screen-queue/preverify-editorial con fail=batch_size
+// todos los días desde el 10 de septiembre). Verificado contra
+// /v1/models que este reemplazo responde 200 con contenido real.
+const DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b";
 
 // Sin esto, un fetch() nunca expira solo — un NIM colgado (visto en producción:
 // 504 y respuestas sin contenido son frecuentes en el tier gratuito) deja la

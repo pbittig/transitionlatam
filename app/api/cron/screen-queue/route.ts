@@ -22,10 +22,18 @@ export async function GET(request: Request) {
   const run = await startCronRun(client, "screen-queue", "scheduled");
   try {
     const summary = await runScreeningQueue(client, 15);
+    // Mismo criterio que preverify-editorial: si había ítems y todos fallaron,
+    // es un "error" real, no un "success" — este cron corrió así, en silencio,
+    // durante semanas tras la baja del modelo de NVIDIA (410 Gone) sin que
+    // nadie lo notara porque nunca lanzaba.
+    const loteFallidoCompleto = summary.pending > 0 && summary.errors >= summary.pending;
     await finishCronRun(client, run, {
-      status: "success",
+      status: loteFallidoCompleto ? "error" : "success",
       batch_size: summary.pending,
       metadata: summary,
+      ...(loteFallidoCompleto
+        ? { error_message: `Los ${summary.pending} ítems del lote fallaron (screened=${summary.screened}).` }
+        : {}),
     });
     console.log("[cron/screen-queue] resumen:", summary);
     return Response.json({ success: true, ...summary });
