@@ -24,11 +24,23 @@ export async function runPertinenciaSync(client?: SupabaseClient): Promise<Perti
   const listado = await fetchPertinenciaListado();
   const relevantes = listado.filter(isRelevantPertinencia);
 
-  const { data: existingRows, error: existingError } = await supabase
-    .from("pertinencia_consulta")
-    .select("qid_process, estado, sub_estado");
-  if (existingError) throw new Error(`Error cargando pertinencias existentes: ${existingError.message}`);
-  const existingByQid = new Map((existingRows ?? []).map((r) => [r.qid_process as string, r]));
+  // Paginado: PostgREST corta en 1.000 filas por request. Sin esto, con más de
+  // 1.000 pertinencias guardadas (hoy 2.273), toda fila fuera de la primera
+  // página quedaba invisible para esta comparación y se re-descargaba su
+  // detalle COMO SI FUERA NUEVA, todos los días — ~1.270 llamadas de sobra
+  // por corrida (hallazgo real 2026-09-30: coincide casi exacto con el
+  // faltante de la página no traída). Es la misma causa que ya se resolvió en
+  // otros lugares de la ingesta (ver scripts/sync-dequienes-ownership.ts).
+  const existingByQid = new Map<string, { qid_process: string; estado: string | null; sub_estado: string | null }>();
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await supabase
+      .from("pertinencia_consulta")
+      .select("qid_process, estado, sub_estado")
+      .range(desde, desde + 999);
+    if (error) throw new Error(`Error cargando pertinencias existentes: ${error.message}`);
+    for (const row of data ?? []) existingByQid.set(row.qid_process as string, row as { qid_process: string; estado: string | null; sub_estado: string | null });
+    if (!data || data.length < 1000) break;
+  }
 
   const toFetch = relevantes.filter((row) => {
     const existing = existingByQid.get(row.qidProcess);
